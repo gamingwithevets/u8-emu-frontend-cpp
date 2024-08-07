@@ -35,7 +35,7 @@
 *.cbp
 *.depend
 *.layout
-images/
+images
 configs/
-roms/
+roms
 labels/
