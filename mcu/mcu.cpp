@@ -14,11 +14,15 @@ mcu *mcuptr;
 void add_mem_region(struct u8_core *core, struct u8_mem_reg reg) {
     ++core->mem.num_regions;
 
-    void *p;
-    if (p = realloc((void *)mcuptr->core->mem.regions, sizeof(struct u8_mem_reg) * core->mem.num_regions)) {
+    printf("Add data mem region: Type %d, %s, %05X - %05X\n", reg.type, reg.rw ? "R/W" : "R", reg.addr_l, reg.addr_h);
+
+    void *p = realloc((void *)mcuptr->core->mem.regions, sizeof(struct u8_mem_reg) * core->mem.num_regions);
+    if (p) {
         core->mem.regions = (u8_mem_reg *)p;
         core->mem.regions[core->mem.num_regions-1] = reg;
-    } else __builtin_unreachable();
+    } else {
+        printf("Failed.\n");
+    };
 }
 
 uint8_t read_sfr(struct u8_core *core, uint8_t seg, uint16_t addr) {

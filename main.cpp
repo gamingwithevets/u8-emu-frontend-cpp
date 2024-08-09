@@ -88,7 +88,7 @@ int main(int argc, char* argv[]) {
     SDL_Event e;
 
     u8_core core;
-    config config;
+    config config = {0};
 
     // Test config!!!!
     config.rom_file = "roms/GY454XE .bin";
