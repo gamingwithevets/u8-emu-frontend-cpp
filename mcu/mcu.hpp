@@ -7,6 +7,13 @@ extern "C" {
 #include "../u8_emu/src/core/core.h"
 }
 
+
+struct call_stack_data {
+    uint32_t func_addr;
+    uint32_t return_addr;
+    uint16_t return_addr_ptr;
+};
+
 class mcu {
 private:
     struct config *config;
@@ -19,6 +26,7 @@ public:
     uint8_t *sfr;
     uint8_t *ram2;
 	uint8_t (*sfr_write[0x1000])(mcu*, uint16_t, uint8_t);
+	std::vector<call_stack_data> call_stack;
 public:
 	mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *flash, int ramstart, int ramsize);
 	~mcu();

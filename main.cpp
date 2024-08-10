@@ -3,6 +3,7 @@
 #include <iostream>
 #include <cstdio>
 #include <cstdlib>
+#include <cmath>
 #include <thread>
 #include <atomic>
 
@@ -146,6 +147,8 @@ int main(int argc, char* argv[]) {
 
     ImGui_ImplSDL2_InitForSDLRenderer(window2, renderer2);
     ImGui_ImplSDLRenderer2_Init(renderer2);
+
+    mcu.sfr[0x40] = 0b11100111;
 
     std::atomic<bool> quit = false;
     printf("Test C++ ES PLUS emulator.\nPress [ESC] to quit\n");
@@ -312,6 +315,29 @@ int main(int argc, char* argv[]) {
                 ImGui::TextColored(color, "%X:%04XH", k >> 16, k & 0xffff);
                 ImGui::TableNextColumn();
                 ImGui::TextColored(color, v.c_str());
+            }
+            ImGui::EndTable();
+        }
+        ImGui::End();
+
+        ImGui::Begin("Call Stack Display", NULL, 0);
+        if (ImGui::BeginTable("callstack", 3)) {
+            ImGui::TableSetupColumn(NULL);
+            ImGui::TableSetupColumn("Function address");
+            ImGui::TableSetupColumn("Return address");
+            ImGui::TableHeadersRow();
+            for (int i = mcu.call_stack.size() - 1; i >= 0; i--) {
+                int j = abs((int)mcu.call_stack.size() - i - 1);
+                auto v = mcu.call_stack[i];
+                uint32_t return_addr_real = read_mem_data(mcu.core, 0, v.return_addr_ptr, 4) & 0xfffff;
+                ImVec4 color = (!j) ? (ImVec4)ImColor(255, 216, 0) : (ImVec4)ImColor(255, 255, 255);
+                ImGui::TableNextRow();
+                ImGui::TableSetColumnIndex(0);
+                ImGui::TextColored(color, "#%d", j);
+                ImGui::TableNextColumn();
+                ImGui::TextColored(color, "%X:%04XH", v.func_addr >> 16, v.func_addr & 0xffff);
+                ImGui::TableNextColumn();
+                ImGui::TextColored(color, "%X:%04XH (%X:%04XH)", return_addr_real >> 16, return_addr_real & 0xffff, v.return_addr >> 16, v.return_addr & 0xffff);
             }
             ImGui::EndTable();
         }

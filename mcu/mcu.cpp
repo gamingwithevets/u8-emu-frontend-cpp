@@ -335,6 +335,23 @@ void mcu::core_step() {
     uint8_t wdp = read_mem_data(this->core, 0, 0xf00e, 1) & 1;
 
     this->core->regs.csr &= (this->config->real_hardware && this->config->hardware_id == 3) ? 1 : 0xf;
+
+    uint16_t data = read_mem_code(this->core, this->core->regs.csr, this->core->regs.pc, 2);
+    // BL Cadr
+    if ((data & 0xf0ff) == 0xf001) {
+        uint16_t addr = read_mem_code(this->core, this->core->regs.csr, this->core->regs.pc+2, 2);
+        call_stack.push_back((struct call_stack_data){(((data >> 8) & 0xf) << 16) | addr, (this->core->regs.csr << 16) | (this->core->regs.pc+4)});
+    // BL ERn
+    } else if ((data & 0xff0f) == 0xf003) {
+        uint16_t addr = read_mem_code(this->core, this->core->regs.csr, this->core->regs.pc+2, 2);
+        call_stack.push_back((struct call_stack_data){(this->core->regs.csr << 16) | read_reg_er(this->core, (data >> 4) & 0xf), (this->core->regs.csr << 16) | (this->core->regs.pc+4)});
+    // PUSH LR
+    } else if ((data & 0xf8ff) == 0xf8ce && !call_stack.empty()) call_stack.back().return_addr_ptr = this->core->regs.sp - 4;
+    // POP PC
+    else if ((data & 0xf2ff) == 0xf28e && !call_stack.empty()) call_stack.pop_back();
+    // RT
+    else if (data == 0xfe1f && !call_stack.empty()) call_stack.pop_back();
+
     u8_step(this->core);
 }
 
