@@ -33,6 +33,7 @@
 
 # Extra
 *.bin
+*.ini
 *.cbp
 *.depend
 *.layout
