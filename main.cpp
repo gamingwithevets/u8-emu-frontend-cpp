@@ -112,7 +112,7 @@ int main(int argc, char* argv[]) {
     fread(rom, sizeof(uint8_t), 0x20000, f);
     fclose(f);
 
-    mcu mcu(&core, &config, rom, NULL, 0x80000, 0xe00);
+    mcu mcu(&core, &config, rom, NULL, 0x8000, 0xe00);
     screen screen(&config);
 
     std::cout << "Generating disassembly..." << std::endl;
@@ -152,11 +152,9 @@ int main(int argc, char* argv[]) {
     std::thread cs_thread(&mcu::core_step_loop, &mcu, std::ref(quit));
     while (!quit) {
         while (SDL_PollEvent(&e) != 0) {
-            ImGui_ImplSDL2_ProcessEvent(&e);
-            if (e.type == SDL_QUIT)
-                quit = true;
-            else if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_CLOSE && (e.window.windowID == SDL_GetWindowID(window) || e.window.windowID == SDL_GetWindowID(window2)))
-                quit = true;
+            if (SDL_GetWindowFlags(window2) & SDL_WINDOW_INPUT_FOCUS) ImGui_ImplSDL2_ProcessEvent(&e);
+            if (e.type == SDL_QUIT) quit = true;
+            else if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_CLOSE) quit = true;
             else if (e.type == SDL_KEYDOWN) {
                 //if (e.key.keysym.sym == SDLK_BACKSLASH) mcu.core_step();
                 if (e.key.keysym.sym == SDLK_ESCAPE) quit = true;

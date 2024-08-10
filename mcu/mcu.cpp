@@ -321,7 +321,6 @@ mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *fla
 
     u8_reset(this->core);
     register_sfr(0, 1, &default_write<0xff>);
-    this->sfr[0x40] = 0xe7;
 }
 
 mcu::~mcu() {

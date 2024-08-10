@@ -20,7 +20,6 @@ struct config {
     // Emulator config
     std::string rom_file;
     std::string flash_rom_file;
-    std::vector<std::string> labels;
     int hardware_id;
     bool real_hardware;
     bool sample;

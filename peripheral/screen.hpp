@@ -8,9 +8,8 @@
 #include "../mcu/mcu.hpp"
 
 class screen {
-private:
-    struct config *config;
 public:
+    struct config *config;
     SDL_Surface *display;
     screen(struct config *config);
     ~screen();
