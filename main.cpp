@@ -102,8 +102,7 @@ int main(int argc, char* argv[]) {
     u8_core core;
 
     uint8_t *rom = (uint8_t *)malloc(0x100000);
-    uint8_t *flash = nullptr;
-
+    memset((void *)rom, 0xff, 0x100000);
     FILE *f = fopen(config.rom_file.c_str(), "rb");
     if (!f) {
         std::cout << "Cannot open ROM!" << std::endl;
@@ -112,26 +111,28 @@ int main(int argc, char* argv[]) {
     fread(rom, sizeof(uint8_t), 0x20000, f);
     fclose(f);
 
-    mcu mcu(&core, &config, rom, flash, 0x80000, 0xe00);
+    mcu mcu(&core, &config, rom, NULL, 0x80000, 0xe00);
     screen screen(&config);
 
     std::cout << "Generating disassembly..." << std::endl;
     struct nxu8_decoder *decoder = nxu8_init_decoder(0x20000, rom);
     std::map<uint32_t, std::string> disas;
     uint32_t addr = 0;
-	while (addr <= decoder->buf_sz) {
-        char *tmp;
+	while (addr < decoder->buf_sz) {
+        char tmp[30];
+        int len;
 		struct nxu8_instr *instr = nxu8_decode_instr(decoder, addr);
 		if (instr != NULL) {
-			sprintf(tmp, instr->assembly);
-			addr += instr->len;
+			sprintf(tmp, "%s", instr->assembly);
+			len = instr->len;
 		} else {
 			uint16_t val = nxu8_read16(decoder, addr);
 			sprintf(tmp, "DW %04XH", val);
-			addr += 2;
+			len = 2;
 		}
         std::string tmp2(tmp);
 		disas[addr] = tmp2;
+		addr += len;
 	}
     std::cout << "Done!" << std::endl;
 
@@ -154,7 +155,7 @@ int main(int argc, char* argv[]) {
             else if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_CLOSE && (e.window.windowID == SDL_GetWindowID(window) || e.window.windowID == SDL_GetWindowID(window2)))
                 quit = true;
             else if (e.type == SDL_KEYDOWN) {
-                if (e.key.keysym.sym == SDLK_BACKSPACE) mcu.core_step();
+                if (e.key.keysym.sym == SDLK_BACKSLASH) mcu.core_step();
                 else if (e.key.keysym.sym == SDLK_ESCAPE) quit = true;
             }
         }
@@ -164,7 +165,7 @@ int main(int argc, char* argv[]) {
         ImGui::NewFrame();
 
         ImGui::Begin("Register Display", NULL, 0);
-        ImGui::Text("What? This is for debugging purposes only!");
+        ImGui::Text("General registers:");
         if (ImGui::BeginTable("gp0", 8)) {
             for (int i = 0; i < 8; i++)
                 ImGui::TableSetupColumn(("R" + std::to_string(i)).c_str());
@@ -189,20 +190,127 @@ int main(int argc, char* argv[]) {
             }
             ImGui::EndTable();
         }
+        ImGui::Text("\nControl registers:");
+        if (ImGui::BeginTable("ctrl", 2, ImGuiTableFlags_Resizable)) {
+            ImGui::TableSetupColumn("Register");
+            ImGui::TableSetupColumn("Value");
+            ImGui::TableHeadersRow();
+
+            ImGui::TableNextRow();
+            ImGui::TableSetColumnIndex(0);
+            ImGui::Text("CSR:PC");
+            ImGui::TableNextColumn();
+            ImGui::Text("%X:%04XH", mcu.core->regs.csr, mcu.core->regs.pc);
+
+            ImGui::TableNextRow();
+            ImGui::TableSetColumnIndex(0);
+            ImGui::Text("SP");
+            ImGui::TableNextColumn();
+            ImGui::Text("%04XH", mcu.core->regs.sp);
+
+            ImGui::TableNextRow();
+            ImGui::TableSetColumnIndex(0);
+            ImGui::Text("DSR:EA");
+            ImGui::TableNextColumn();
+            ImGui::Text("%02X:%04XH", mcu.core->regs.dsr, mcu.core->regs.ea);
+
+            ImGui::EndTable();
+        }
+        ImGui::Text("\n");
+        if (ImGui::BeginTable("psw", 2, ImGuiTableFlags_Resizable)) {
+            ImGui::TableSetupColumn("PSW");
+            char val[2]; sprintf(val, "%02X", mcu.core->regs.psw);
+            ImGui::TableSetupColumn(val);
+            ImGui::TableHeadersRow();
+
+            ImGui::TableNextRow();
+            ImGui::TableSetColumnIndex(0);
+            ImGui::Text("C");
+            ImGui::TableNextColumn();
+            ImGui::Text("[%s]", (mcu.core->regs.psw & (1 << 7)) ? "x" : " ");
+
+            ImGui::TableNextRow();
+            ImGui::TableSetColumnIndex(0);
+            ImGui::Text("Z");
+            ImGui::TableNextColumn();
+            ImGui::Text("[%s]", (mcu.core->regs.psw & (1 << 6)) ? "x" : " ");
+
+            ImGui::TableNextRow();
+            ImGui::TableSetColumnIndex(0);
+            ImGui::Text("S");
+            ImGui::TableNextColumn();
+            ImGui::Text("[%s]", (mcu.core->regs.psw & (1 << 5)) ? "x" : " ");
+
+            ImGui::TableNextRow();
+            ImGui::TableSetColumnIndex(0);
+            ImGui::Text("OV");
+            ImGui::TableNextColumn();
+            ImGui::Text("[%s]", (mcu.core->regs.psw & (1 << 4)) ? "x" : " ");
+
+            ImGui::TableNextRow();
+            ImGui::TableSetColumnIndex(0);
+            ImGui::Text("MIE");
+            ImGui::TableNextColumn();
+            ImGui::Text("[%s]", (mcu.core->regs.psw & (1 << 3)) ? "x" : " ");
+
+            ImGui::TableNextRow();
+            ImGui::TableSetColumnIndex(0);
+            ImGui::Text("HC");
+            ImGui::TableNextColumn();
+            ImGui::Text("[%s]", (mcu.core->regs.psw & (1 << 2)) ? "x" : " ");
+
+            ImGui::TableNextRow();
+            ImGui::TableSetColumnIndex(0);
+            ImGui::Text("ELEVEL");
+            ImGui::TableNextColumn();
+            ImGui::Text("%d", mcu.core->regs.psw & 3);
+
+            ImGui::EndTable();
+        }
+        ImGui::Text("\nBackup registers:");
+        if (ImGui::BeginTable("backup", 2, ImGuiTableFlags_Resizable)) {
+            ImGui::TableSetupColumn("Register");
+            ImGui::TableSetupColumn("Value");
+            ImGui::TableHeadersRow();
+
+            ImGui::TableNextRow();
+            ImGui::TableSetColumnIndex(0);
+            ImGui::Text("LCSR:LR");
+            ImGui::TableNextColumn();
+            ImGui::Text("%X:%04XH", mcu.core->regs.lcsr, mcu.core->regs.lr);
+
+            for (int i = 0; i < 2; i++) {
+                ImGui::TableNextRow();
+                ImGui::TableSetColumnIndex(0);
+                ImGui::Text("ECSR%d:ELR%d", i+1, i+1);
+                ImGui::TableNextColumn();
+                ImGui::Text("%X:%04XH", mcu.core->regs.ecsr[i], mcu.core->regs.elr[i]);
+            }
+
+            for (int i = 0; i < 2; i++) {
+                ImGui::TableNextRow();
+                ImGui::TableSetColumnIndex(0);
+                ImGui::Text("EPSW%d", i+1);
+                ImGui::TableNextColumn();
+                ImGui::Text("%02X", mcu.core->regs.epsw[i]);
+            }
+
+            ImGui::EndTable();
+        }
         ImGui::End();
 
         ImGui::Begin("Disassembly", NULL, 0);
-        ImGui::Text("What? This is for debugging purposes only!");
         if (ImGui::BeginTable("disas", 2)) {
             ImGui::TableSetupColumn("Address");
             ImGui::TableSetupColumn("Instruction");
             ImGui::TableHeadersRow();
             for (const auto& [k, v] : disas) {
+                ImVec4 color = (k == ((mcu.core->regs.csr << 16) | (mcu.core->regs.pc))) ? (ImVec4)ImColor(255, 216, 0) : (ImVec4)ImColor(255, 255, 255);
                 ImGui::TableNextRow();
                 ImGui::TableSetColumnIndex(0);
-                ImGui::Text("%X:%04XH", k >> 16, k & 0xffff);
+                ImGui::TextColored(color, "%X:%04XH", k >> 16, k & 0xffff);
                 ImGui::TableNextColumn();
-                ImGui::Text(v.c_str());
+                ImGui::TextColored(color, v.c_str());
             }
             ImGui::EndTable();
         }

@@ -38,6 +38,11 @@ uint8_t default_write(mcu *mcu, uint16_t addr, uint8_t val) {
     return val & mask;
 }
 
+uint8_t write_dsr(mcu *mcu, uint16_t addr, uint8_t val) {
+    mcu->core->regs.dsr = val;
+    return val;
+}
+
 void write_flash(struct u8_core *core, uint8_t seg, uint16_t offset, uint8_t data) {
     uint32_t fo = ((seg << 16) + offset) & 0x7ffff;
     switch (mcuptr->flash_mode) {
@@ -313,10 +318,12 @@ mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *fla
     }
 
     this->core->mem.num_regions = mem_regions.size();
+    printf("%d\n", this->core->mem.num_regions);
     this->core->mem.regions = mem_regions.data();
 
     u8_reset(this->core);
     register_sfr(0, 1, &default_write<0xff>);
+    this->sfr[0x40] = 0xe7;
 }
 
 mcu::~mcu() {
