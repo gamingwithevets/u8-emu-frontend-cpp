@@ -3,6 +3,8 @@
 #include <iostream>
 #include <cstdio>
 #include <cstdlib>
+#include <thread>
+#include <atomic>
 
 #include "mcu/mcu.hpp"
 #include "config/config.hpp"
@@ -96,7 +98,6 @@ int main(int argc, char* argv[]) {
     SDL_Texture* interface = SDL_CreateTextureFromSurface(renderer, interface_sf);
     SDL_FreeSurface(interface_sf);
 
-    bool quit = false;
     SDL_Event e;
 
     u8_core core;
@@ -146,7 +147,9 @@ int main(int argc, char* argv[]) {
     ImGui_ImplSDL2_InitForSDLRenderer(window2, renderer2);
     ImGui_ImplSDLRenderer2_Init(renderer2);
 
-    printf("Test C++ ES PLUS emulator.\nPress [\\] to step\nPress [ESC] to quit\n");
+    std::atomic<bool> quit = false;
+    printf("Test C++ ES PLUS emulator.\nPress [ESC] to quit\n");
+    std::thread cs_thread(&mcu::core_step_loop, &mcu, std::ref(quit));
     while (!quit) {
         while (SDL_PollEvent(&e) != 0) {
             ImGui_ImplSDL2_ProcessEvent(&e);
@@ -155,8 +158,8 @@ int main(int argc, char* argv[]) {
             else if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_CLOSE && (e.window.windowID == SDL_GetWindowID(window) || e.window.windowID == SDL_GetWindowID(window2)))
                 quit = true;
             else if (e.type == SDL_KEYDOWN) {
-                if (e.key.keysym.sym == SDLK_BACKSLASH) mcu.core_step();
-                else if (e.key.keysym.sym == SDLK_ESCAPE) quit = true;
+                //if (e.key.keysym.sym == SDLK_BACKSLASH) mcu.core_step();
+                if (e.key.keysym.sym == SDLK_ESCAPE) quit = true;
             }
         }
 

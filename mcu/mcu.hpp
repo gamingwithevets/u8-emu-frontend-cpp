@@ -1,6 +1,7 @@
 #ifndef MCU
 #define MCU
 #include <cstdint>
+#include <atomic>
 #include "../config/config.hpp"
 extern "C" {
 #include "../u8_emu/src/core/core.h"
@@ -22,6 +23,7 @@ public:
 	mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *flash, int ramstart, int ramsize);
 	~mcu();
 	void core_step();
+	void core_step_loop(std::atomic<bool>& stop);
 };
 
 uint8_t default_write(mcu *mcu, uint16_t addr, uint8_t val);
