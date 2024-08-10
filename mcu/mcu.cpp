@@ -2,6 +2,7 @@
 #include <cstring>
 #include <cstdlib>
 #include <cstdint>
+#include <vector>
 
 #include "mcu.hpp"
 #include "../config/config.hpp"
@@ -10,29 +11,6 @@ extern "C" {
 }
 
 mcu *mcuptr;
-
-void add_mem_region(struct u8_core *core, struct u8_mem_reg reg) {
-    ++core->mem.num_regions;
-
-    printf("Add data mem region: Type %d, %s, %05X - %05X\n", reg.type, reg.rw ? "R/W" : "R", reg.addr_l, reg.addr_h);
-
-    if (!mcuptr->core->mem.regions) {
-        mcuptr->core->mem.regions = (u8_mem_reg *)malloc(sizeof(struct u8_mem_reg) * core->mem.num_regions);
-        if (mcuptr->core->mem.regions) core->mem.regions[0] = reg;
-        else {
-            printf("Failed.\n");
-        }
-
-    } else {
-        void *p = realloc((void *)mcuptr->core->mem.regions, sizeof(struct u8_mem_reg) * core->mem.num_regions);
-        if (p) {
-            core->mem.regions = (u8_mem_reg *)p;
-            core->mem.regions[core->mem.num_regions-1] = reg;
-        } else {
-            printf("Failed.\n");
-        }
-    }
-}
 
 uint8_t read_sfr(struct u8_core *core, uint8_t seg, uint16_t addr) {
     return mcuptr->sfr[addr];
@@ -53,6 +31,11 @@ uint8_t read_flash(struct u8_core *core, uint8_t seg, uint16_t offset) {
         return 0x80;
     }
     return mcuptr->flash[fo];
+}
+
+template <uint8_t mask>
+uint8_t default_write(mcu *mcu, uint16_t addr, uint8_t val) {
+    return val & mask;
 }
 
 void write_flash(struct u8_core *core, uint8_t seg, uint16_t offset, uint8_t data) {
@@ -147,8 +130,10 @@ mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *fla
         .array = this->rom
     };
 
+    std::vector<struct u8_mem_reg> mem_regions;
+
     // ROM window
-    add_mem_region(this->core, (struct u8_mem_reg){
+    mem_regions.push_back((struct u8_mem_reg){
         .type = U8_REGION_DATA,
         .rw = false,
         .addr_l = 0,
@@ -160,7 +145,7 @@ mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *fla
     // Main RAM
     this->ram = (uint8_t *)malloc(ramsize);
     memset(this->ram, 0, ramsize);
-    add_mem_region(this->core, (struct u8_mem_reg){
+    mem_regions.push_back((struct u8_mem_reg){
         .type = U8_REGION_DATA,
         .rw = true,
         .addr_l = ramstart,
@@ -172,7 +157,7 @@ mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *fla
     // SFRs
     this->sfr = (uint8_t *)malloc(0x1000);
     memset(this->sfr, 0, 0x1000);
-    add_mem_region(this->core, (struct u8_mem_reg){
+    mem_regions.push_back((struct u8_mem_reg){
         .type = U8_REGION_DATA,
         .rw = true,
         .addr_l = 0xf000,
@@ -187,7 +172,7 @@ mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *fla
         case 4:  // LAPIS ML620606
         case 5:  // LAPIS ML620609
             // Code segment 1+ mirror
-            add_mem_region(this->core, (struct u8_mem_reg){
+            mem_regions.push_back((struct u8_mem_reg){
                 .type = U8_REGION_DATA,
                 .rw = false,
                 .addr_l = 0x10000,
@@ -199,7 +184,7 @@ mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *fla
 
             if (this->config->real_hardware) {
                 // Code segment 0 mirror
-                add_mem_region(this->core, (struct u8_mem_reg){
+                mem_regions.push_back((struct u8_mem_reg){
                     .type = U8_REGION_DATA,
                     .rw = false,
                     .addr_l = this->config->hardware_id == 5 ? 0x80000 : 0x50000,
@@ -214,7 +199,7 @@ mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *fla
                 // Segment 4/8 [emulator]
                 this->ram2 = (uint8_t *)malloc(0x10000);
                 memset(this->ram2, 0, 0x10000);
-                add_mem_region(this->core, (struct u8_mem_reg){
+                mem_regions.push_back((struct u8_mem_reg){
                     .type = U8_REGION_DATA,
                     .rw = true,
                     .addr_l = this->config->hardware_id == 5 ? 0x80000 : 0x40000,
@@ -229,7 +214,7 @@ mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *fla
         // TI MathPrint - LAPIS ML620418A
         case 6:
             // Code segment 1+ mirror
-            add_mem_region(this->core, (struct u8_mem_reg){
+            mem_regions.push_back((struct u8_mem_reg){
                 .type = U8_REGION_DATA,
                 .rw = false,
                 .addr_l = 0x10000,
@@ -239,7 +224,7 @@ mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *fla
             });
 
             // Code segment 0+ mirror 2
-            add_mem_region(this->core, (struct u8_mem_reg){
+            mem_regions.push_back((struct u8_mem_reg){
                 .type = U8_REGION_DATA,
                 .rw = false,
                 .addr_l = 0x80000,
@@ -258,7 +243,7 @@ mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *fla
         // ES, ES PLUS
         default:
             // Code segment 1 mirror
-            add_mem_region(this->core, (struct u8_mem_reg){
+            mem_regions.push_back((struct u8_mem_reg){
                 .type = U8_REGION_DATA,
                 .rw = false,
                 .addr_l = 0x10000,
@@ -269,7 +254,7 @@ mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *fla
 
             if (!this->config->old_esp) {
                 // Code segment 8 mirror
-                add_mem_region(this->core, (struct u8_mem_reg){
+                mem_regions.push_back((struct u8_mem_reg){
                     .type = U8_REGION_DATA,
                     .rw = false,
                     .addr_l = 0x80000,
@@ -292,7 +277,7 @@ mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *fla
                 };
 
                 // Flash (data)
-                add_mem_region(this->core, (struct u8_mem_reg){
+                mem_regions.push_back((struct u8_mem_reg){
                     .type = U8_REGION_DATA,
                     .rw = true,
                     .addr_l = 0x80000,
@@ -305,7 +290,7 @@ mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *fla
                 // PRAM
                 this->ram2 = (uint8_t *)malloc(0x80000);
                 memset(this->ram2, 0, 0x80000);
-                add_mem_region(this->core, (struct u8_mem_reg){
+                mem_regions.push_back((struct u8_mem_reg){
                     .type = U8_REGION_DATA,
                     .rw = true,
                     .addr_l = 0x40000,
@@ -315,7 +300,7 @@ mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *fla
                 });
 
                 // Battery
-                add_mem_region(this->core, (struct u8_mem_reg){
+                mem_regions.push_back((struct u8_mem_reg){
                     .type = U8_REGION_DATA,
                     .rw = false,
                     .addr_l = 0x100000,
@@ -326,13 +311,30 @@ mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *fla
             }
             break;
     }
+
+    this->core->mem.num_regions = mem_regions.size();
+    this->core->mem.regions = mem_regions.data();
+
+    u8_reset(this->core);
+    register_sfr(0, 1, &default_write<0xff>);
 }
 
-void mcu::core_step(void) {
-    write_mem_data(this->core, 0, 0xf000, 1, this->core->regs.dsr);
+mcu::~mcu() {
+    free((void *)this->ram);
+    free((void *)this->sfr);
+    if (this->ram2) free((void *)this->ram2);
+}
+
+void mcu::core_step() {
+    this->sfr[0] = this->core->regs.dsr;
 
     uint8_t wdp = read_mem_data(this->core, 0, 0xf00e, 1) & 1;
 
     this->core->regs.csr &= (this->config->real_hardware && this->config->hardware_id == 3) ? 1 : 0xf;
     u8_step(this->core);
+}
+
+void register_sfr(uint16_t addr, uint16_t len, uint8_t (*callback)(mcu*, uint16_t, uint8_t)) {
+    for (int i = 0; i < len; i++)
+        mcuptr->sfr_write[addr+i] = callback;
 }

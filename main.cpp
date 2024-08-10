@@ -1,35 +1,52 @@
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_image.h>
+#include <SDL.h>
+#include <SDL_image.h>
 #include <iostream>
 #include <cstdio>
 #include <cstdlib>
 
 #include "mcu/mcu.hpp"
 #include "config/config.hpp"
+#include "peripheral/screen.hpp"
 extern "C" {
 #include "u8_emu/src/core/core.h"
+#include "nxu8_disas/src/lib/lib_nxu8.h"
 }
+#include "imgui/imgui.h"
+#include "imgui/imgui_impl_sdl2.h"
+#include "imgui/imgui_impl_sdlrenderer2.h"
 
-const int screen_tl_w = 58;
-const int screen_tl_h = 132;
 const int DISPLAY_WIDTH = 96;
 const int DISPLAY_HEIGHT = 31;
-const int pix = 3;
 
 int main(int argc, char* argv[]) {
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
-        std::cerr << "SDL could not initialize! SDL_Error: " << SDL_GetError() << std::endl;
+        std::cerr << "Failed to initialize SDL. SDL_Error: " << SDL_GetError() << std::endl;
         return -1;
     }
     if (!(IMG_Init(IMG_INIT_PNG | IMG_INIT_JPG) & (IMG_INIT_PNG | IMG_INIT_JPG))) {
-        std::cerr << "SDL_image could not initialize! SDL_image Error: " << IMG_GetError() << std::endl;
+        std::cerr << "Failed to initialize SDL_image. SDL_image Error: " << IMG_GetError() << std::endl;
         SDL_Quit();
         return -1;
     }
 
-    SDL_Surface* interface_sf = IMG_Load("images/interface_esp_991esp.png");
+    config config = {0};
+
+    // Test config!!!!
+    config.rom_file = "roms/GY454XE .bin";
+    config.hardware_id = 3;
+    config.real_hardware = true;
+    config.status_bar_path = "images/interface_es_bar.png";
+    config.interface_path = "images/interface_esp_991esp.png";
+    config.w_name = "fx-570ES PLUS Emulator";
+    config.screen_tl_w = 58;
+    config.screen_tl_h = 132;
+    config.pix_w = 3;
+    config.pix_h = 3;
+    config.pix_color = 0xff000000;
+
+    SDL_Surface* interface_sf = IMG_Load(config.interface_path.c_str());
     if (interface_sf == nullptr) {
-        std::cerr << "Unable to load interface image! SDL_image Error: " << IMG_GetError() << std::endl;
+        std::cerr << "Failed to load interface image. SDL_image Error: " << IMG_GetError() << std::endl;
         IMG_Quit();
         SDL_Quit();
         return -1;
@@ -38,9 +55,9 @@ int main(int argc, char* argv[]) {
     int w = interface_sf->w;
     int h = interface_sf->h;
 
-    SDL_Window* window = SDL_CreateWindow("u8-emu-frontend-cpp-test", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, w, h, SDL_WINDOW_SHOWN);
+    SDL_Window* window = SDL_CreateWindow(config.w_name.empty() ? config.w_name.c_str() : "u8-emu-frontend-cpp", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, w, h, SDL_WINDOW_SHOWN);
     if (!window) {
-        std::cerr << "Window could not be created! SDL_Error: " << SDL_GetError() << std::endl;
+        std::cerr << "Failed to create window. SDL_Error: " << SDL_GetError() << std::endl;
         SDL_FreeSurface(interface_sf);
         IMG_Quit();
         SDL_Quit();
@@ -49,9 +66,28 @@ int main(int argc, char* argv[]) {
 
     SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
     if (!renderer) {
-        std::cerr << "Renderer could not be created! SDL_Error: " << SDL_GetError() << std::endl;
+        std::cerr << "Failed to create renderer. SDL_Error: " << SDL_GetError() << std::endl;
         SDL_DestroyWindow(window);
         SDL_FreeSurface(interface_sf);
+        IMG_Quit();
+        SDL_Quit();
+        return -1;
+    }
+
+    SDL_Window* window2 = SDL_CreateWindow("Debugger", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 1920, 1080, SDL_WINDOW_SHOWN);
+    if (!window) {
+        std::cerr << "Failed to create debugger window. SDL_Error: " << SDL_GetError() << std::endl;
+        SDL_DestroyWindow(window);
+        IMG_Quit();
+        SDL_Quit();
+        return -1;
+    }
+
+    SDL_Renderer* renderer2 = SDL_CreateRenderer(window2, -1, SDL_RENDERER_ACCELERATED);
+    if (!renderer) {
+        std::cerr << "Failed to create debugger renderer. SDL_Error: " << SDL_GetError() << std::endl;
+        SDL_DestroyWindow(window2);
+        SDL_DestroyWindow(window);
         IMG_Quit();
         SDL_Quit();
         return -1;
@@ -60,40 +96,10 @@ int main(int argc, char* argv[]) {
     SDL_Texture* interface = SDL_CreateTextureFromSurface(renderer, interface_sf);
     SDL_FreeSurface(interface_sf);
 
-    SDL_Surface* status_bar_sf = IMG_Load("images/interface_es_bar.png");
-    if (!status_bar_sf) {
-        std::cerr << "Unable to load status bar image! SDL_image Error: " << IMG_GetError() << std::endl;
-        IMG_Quit();
-        SDL_Quit();
-        return -1;
-    }
-    int sbar_wd = status_bar_sf->w;
-    int sbar_hi = status_bar_sf->h;
-    SDL_Texture* status_bar = SDL_CreateTextureFromSurface(renderer, status_bar_sf);
-    SDL_FreeSurface(status_bar_sf);
-
-    SDL_Surface* displaySurface = SDL_CreateRGBSurface(0, DISPLAY_WIDTH, DISPLAY_HEIGHT, 32, 0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000);
-    SDL_FillRect(displaySurface, NULL, SDL_MapRGB(displaySurface->format, 214, 227, 214));
-
-    SDL_Texture* display = SDL_CreateTextureFromSurface(renderer, displaySurface);
-    SDL_FreeSurface(displaySurface);
-
-    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0");
-
-    SDL_Rect status_bar_dest {screen_tl_w, screen_tl_h, sbar_wd, sbar_hi};
-    SDL_Rect dispsrc {0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT};
-    SDL_Rect dispdest {screen_tl_w, screen_tl_h + sbar_hi, DISPLAY_WIDTH*pix, DISPLAY_HEIGHT*pix};
-
     bool quit = false;
     SDL_Event e;
 
     u8_core core;
-    config config = {0};
-
-    // Test config!!!!
-    config.rom_file = "roms/GY454XE .bin";
-    config.hardware_id = 3;
-    config.real_hardware = true;
 
     uint8_t *rom = (uint8_t *)malloc(0x100000);
     uint8_t *flash = nullptr;
@@ -104,35 +110,129 @@ int main(int argc, char* argv[]) {
         return -1;
     }
     fread(rom, sizeof(uint8_t), 0x20000, f);
+    fclose(f);
 
-    std::cout << "Initializing emulated MCU." << std::endl;
     mcu mcu(&core, &config, rom, flash, 0x80000, 0xe00);
+    screen screen(&config);
 
+    std::cout << "Generating disassembly..." << std::endl;
+    struct nxu8_decoder *decoder = nxu8_init_decoder(0x20000, rom);
+    std::map<uint32_t, std::string> disas;
+    uint32_t addr = 0;
+	while (addr <= decoder->buf_sz) {
+        char *tmp;
+		struct nxu8_instr *instr = nxu8_decode_instr(decoder, addr);
+		if (instr != NULL) {
+			sprintf(tmp, instr->assembly);
+			addr += instr->len;
+		} else {
+			uint16_t val = nxu8_read16(decoder, addr);
+			sprintf(tmp, "DW %04XH", val);
+			addr += 2;
+		}
+        std::string tmp2(tmp);
+		disas[addr] = tmp2;
+	}
+    std::cout << "Done!" << std::endl;
+
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+
+    ImGui::StyleColorsDark();
+
+    ImGui_ImplSDL2_InitForSDLRenderer(window2, renderer2);
+    ImGui_ImplSDLRenderer2_Init(renderer2);
+
+    printf("Test C++ ES PLUS emulator.\nPress [\\] to step\nPress [ESC] to quit\n");
     while (!quit) {
         while (SDL_PollEvent(&e) != 0) {
-            if (e.type == SDL_QUIT) {
+            ImGui_ImplSDL2_ProcessEvent(&e);
+            if (e.type == SDL_QUIT)
                 quit = true;
+            else if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_CLOSE && (e.window.windowID == SDL_GetWindowID(window) || e.window.windowID == SDL_GetWindowID(window2)))
+                quit = true;
+            else if (e.type == SDL_KEYDOWN) {
+                if (e.key.keysym.sym == SDLK_BACKSPACE) mcu.core_step();
+                else if (e.key.keysym.sym == SDLK_ESCAPE) quit = true;
             }
         }
 
-        mcu.core_step();
+        ImGui_ImplSDLRenderer2_NewFrame();
+        ImGui_ImplSDL2_NewFrame();
+        ImGui::NewFrame();
+
+        ImGui::Begin("Register Display", NULL, 0);
+        ImGui::Text("What? This is for debugging purposes only!");
+        if (ImGui::BeginTable("gp0", 8)) {
+            for (int i = 0; i < 8; i++)
+                ImGui::TableSetupColumn(("R" + std::to_string(i)).c_str());
+            ImGui::TableHeadersRow();
+            ImGui::TableNextRow();
+            for (int i = 0; i < 8; i++)
+            {
+                ImGui::TableSetColumnIndex(i);
+                ImGui::Text("%02X", mcu.core->regs.gp[i]);
+            }
+            ImGui::EndTable();
+        }
+        if (ImGui::BeginTable("gp1", 8)) {
+            for (int i = 0; i < 8; i++)
+                ImGui::TableSetupColumn(("R" + std::to_string(i+8)).c_str());
+            ImGui::TableHeadersRow();
+            ImGui::TableNextRow();
+            for (int i = 0; i < 8; i++)
+            {
+                ImGui::TableSetColumnIndex(i);
+                ImGui::Text("%02X", mcu.core->regs.gp[i+8]);
+            }
+            ImGui::EndTable();
+        }
+        ImGui::End();
+
+        ImGui::Begin("Disassembly", NULL, 0);
+        ImGui::Text("What? This is for debugging purposes only!");
+        if (ImGui::BeginTable("disas", 2)) {
+            ImGui::TableSetupColumn("Address");
+            ImGui::TableSetupColumn("Instruction");
+            ImGui::TableHeadersRow();
+            for (const auto& [k, v] : disas) {
+                ImGui::TableNextRow();
+                ImGui::TableSetColumnIndex(0);
+                ImGui::Text("%X:%04XH", k >> 16, k & 0xffff);
+                ImGui::TableNextColumn();
+                ImGui::Text(v.c_str());
+            }
+            ImGui::EndTable();
+        }
+        ImGui::End();
+
+        ImGui::Render();
 
         SDL_RenderClear(renderer);
-
         SDL_RenderCopy(renderer, interface, NULL, NULL);
-        SDL_RenderCopy(renderer, status_bar, NULL, &status_bar_dest);
-        SDL_RenderCopy(renderer, display, &dispsrc, &dispdest);
-
+        screen.render_screen(renderer);
         SDL_RenderPresent(renderer);
+
+        SDL_RenderClear(renderer2);
+        ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), renderer2);
+        SDL_RenderPresent(renderer2);
     }
 
-    SDL_DestroyTexture(display);
+    ImGui_ImplSDLRenderer2_Shutdown();
+    ImGui_ImplSDL2_Shutdown();
+    ImGui::DestroyContext();
+    screen.~screen();
+    mcu.~mcu();
+    free((void *)rom);
     SDL_DestroyTexture(interface);
-    SDL_DestroyTexture(status_bar);
     SDL_DestroyRenderer(renderer);
+    SDL_DestroyRenderer(renderer2);
     SDL_DestroyWindow(window);
+    SDL_DestroyWindow(window2);
     IMG_Quit();
     SDL_Quit();
 
-    return 0;
+    std::exit(0);
 }

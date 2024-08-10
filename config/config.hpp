@@ -35,9 +35,9 @@ struct config {
     int screen_tl_h;
     int pix_w;
     int pix_h;
-    SDL_Color pix_color;
+    uint32_t pix_color;
     std::vector<SDL_Rect> status_bar_crops;
     // Keyboard
-    std::vector<std::map<uint8_t, keydata>> keymap;
+    std::map<uint8_t, keydata> keymap;
 };
 #endif
