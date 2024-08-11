@@ -4,14 +4,24 @@
 #include <cstdint>
 #include <vector>
 #include <atomic>
+#include <ctime>
+#include <unistd.h>
 
 #include "mcu.hpp"
 #include "../config/config.hpp"
+#include "../peripheral/standby.hpp"
+#include "../peripheral/timer.hpp"
 extern "C" {
 #include "../u8_emu/src/core/core.h"
 }
+#include "../imgui/imgui.h"
 
 mcu *mcuptr;
+double get_time() {
+    struct timespec ts;
+    clock_gettime(CLOCK_REALTIME, &ts);
+    return ts.tv_sec + ts.tv_nsec / 1e9;
+}
 
 uint8_t read_sfr(struct u8_core *core, uint8_t seg, uint16_t addr) {
     return mcuptr->sfr[addr];
@@ -32,11 +42,6 @@ uint8_t read_flash(struct u8_core *core, uint8_t seg, uint16_t offset) {
         return 0x80;
     }
     return mcuptr->flash[fo];
-}
-
-template <uint8_t mask>
-uint8_t default_write(mcu *mcu, uint16_t addr, uint8_t val) {
-    return val & mask;
 }
 
 uint8_t write_dsr(mcu *mcu, uint16_t addr, uint8_t val) {
@@ -124,6 +129,11 @@ mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *fla
 
     mcuptr = this;
 
+    this->standby = new class standby;
+    this->timer = new class timer(this);
+
+    this->cycles_per_second = 1024 * 1024 * 8;
+
     // ROM
     this->core->codemem.num_regions = (this->config->hardware_id == 2 && this->config->is_5800p) ? 2 : 1;
     this->core->codemem.regions = (struct u8_mem_reg *)malloc(sizeof(struct u8_mem_reg) * this->core->codemem.num_regions);
@@ -201,7 +211,7 @@ mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *fla
                 };
 
                 this->core->u16_mode = true;
-
+                this->cycles_per_second = (this->config->hardware_id == 5 ? 2048 : 1024) * 1024 * 2;
             } else {
                 // Segment 4/8 [emulator]
                 this->ram2 = (uint8_t *)malloc(0x10000);
@@ -249,6 +259,7 @@ mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *fla
 
         // ES, ES PLUS
         default:
+            if (this->config->real_hardware) this->cycles_per_second = 128 * 1024 * 2;
             // Code segment 1 mirror
             this->core->mem.regions[3] = (struct u8_mem_reg){
                 .type = U8_REGION_DATA,
@@ -319,8 +330,8 @@ mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *fla
             break;
     }
 
-    u8_reset(this->core);
     register_sfr(0, 1, &default_write<0xff>);
+    this->reset();
 }
 
 mcu::~mcu() {
@@ -331,35 +342,74 @@ mcu::~mcu() {
 
 void mcu::core_step() {
     this->sfr[0] = this->core->regs.dsr;
-
-    uint8_t wdp = read_mem_data(this->core, 0, 0xf00e, 1) & 1;
-
     this->core->regs.csr &= (this->config->real_hardware && this->config->hardware_id == 3) ? 1 : 0xf;
 
-    uint16_t data = read_mem_code(this->core, this->core->regs.csr, this->core->regs.pc, 2);
-    // BL Cadr
-    if ((data & 0xf0ff) == 0xf001) {
-        uint16_t addr = read_mem_code(this->core, this->core->regs.csr, this->core->regs.pc+2, 2);
-        call_stack.push_back((struct call_stack_data){(((data >> 8) & 0xf) << 16) | addr, (this->core->regs.csr << 16) | (this->core->regs.pc+4)});
-    // BL ERn
-    } else if ((data & 0xff0f) == 0xf003) {
-        uint16_t addr = read_mem_code(this->core, this->core->regs.csr, this->core->regs.pc+2, 2);
-        call_stack.push_back((struct call_stack_data){(this->core->regs.csr << 16) | read_reg_er(this->core, (data >> 4) & 0xf), (this->core->regs.csr << 16) | (this->core->regs.pc+4)});
-    // PUSH LR
-    } else if ((data & 0xf8ff) == 0xf8ce && !call_stack.empty()) call_stack.back().return_addr_ptr = this->core->regs.sp - 4;
-    // POP PC
-    else if ((data & 0xf2ff) == 0xf28e && !call_stack.empty()) call_stack.pop_back();
-    // RT
-    else if (data == 0xfe1f && !call_stack.empty()) call_stack.pop_back();
+    if (!this->standby->stop_mode) {
+        uint16_t data = read_mem_code(this->core, this->core->regs.csr, this->core->regs.pc, 2);
+        // BL Cadr
+        if ((data & 0xf0ff) == 0xf001) {
+            uint16_t addr = read_mem_code(this->core, this->core->regs.csr, this->core->regs.pc+2, 2);
+            call_stack.push_back((struct call_stack_data){(((data >> 8) & 0xf) << 16) | addr, (this->core->regs.csr << 16) | (this->core->regs.pc+4)});
+        // BL ERn
+        } else if ((data & 0xff0f) == 0xf003) {
+            uint16_t addr = read_mem_code(this->core, this->core->regs.csr, this->core->regs.pc+2, 2);
+            call_stack.push_back((struct call_stack_data){(this->core->regs.csr << 16) | read_reg_er(this->core, (data >> 4) & 0xf), (this->core->regs.csr << 16) | (this->core->regs.pc+4)});
+        // PUSH LR
+        } else if ((data & 0xf8ff) == 0xf8ce && !call_stack.empty()) call_stack.back().return_addr_ptr = this->core->regs.sp - 4;
+        // POP PC
+        else if ((data & 0xf2ff) == 0xf28e && !call_stack.empty()) call_stack.pop_back();
+        // RT
+        else if (data == 0xfe1f && !call_stack.empty()) call_stack.pop_back();
 
-    u8_step(this->core);
+        u8_step(this->core);
+
+        if (this->ips_ctr++ % 1000 == 0) {
+            double cur = get_time();
+            if (cur - this->ips_start != 0) this->ips = (1000 / (cur - this->ips_start));
+            this->ips_start = cur;
+        }
+    }
+
+    this->timer->tick();
 }
 
-void mcu::core_step_loop(std::atomic<bool>& stop) {
-    while (!stop.load()) this->core_step();
+void core_step_loop(std::atomic<bool>& stop) {
+    stop = false;
+
+    struct timespec last_ins_time;
+    struct timespec current_time;
+    double delta_time;
+
+    double interval = 1.0 / mcuptr->cycles_per_second;
+    clock_gettime(CLOCK_MONOTONIC, &last_ins_time);
+
+    while (!stop.load()) {
+        clock_gettime(CLOCK_MONOTONIC, &current_time);
+        delta_time = (current_time.tv_sec - last_ins_time.tv_sec) + (current_time.tv_nsec - last_ins_time.tv_nsec) / 1e9;
+        if (delta_time >= interval) {
+            mcuptr->core_step();
+            last_ins_time = current_time;
+        }
+    }
+}
+
+void mcu::reset() {
+    u8_reset(this->core);
+    this->call_stack.clear();
+    this->ips_start = get_time();
+    this->ips = 0;
+    this->ips_ctr = 0;
 }
 
 void register_sfr(uint16_t addr, uint16_t len, uint8_t (*callback)(mcu*, uint16_t, uint8_t)) {
     for (int i = 0; i < len; i++)
         mcuptr->sfr_write[addr+i] = callback;
+}
+
+// for ImGui SFR editor
+ImU8 read_sfr_im(const ImU8*, size_t addr) {
+    return read_sfr(mcuptr->core, 0, addr);
+}
+void write_sfr_im(ImU8*, size_t addr, ImU8 val) {
+    write_sfr(mcuptr->core, 0, addr, val);
 }

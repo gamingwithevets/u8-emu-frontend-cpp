@@ -17,6 +17,7 @@ extern "C" {
 #include "imgui/imgui.h"
 #include "imgui/imgui_impl_sdl2.h"
 #include "imgui/imgui_impl_sdlrenderer2.h"
+#include "imgui/imgui_memory_editor.h"
 
 const int DISPLAY_WIDTH = 96;
 const int DISPLAY_HEIGHT = 31;
@@ -32,17 +33,34 @@ int main(int argc, char* argv[]) {
         return -1;
     }
 
+    SDL_Window* window2 = SDL_CreateWindow("Debugger", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 1920, 1080, SDL_WINDOW_SHOWN);
+    if (!window2) {
+        std::cerr << "Failed to create debugger window. SDL_Error: " << SDL_GetError() << std::endl;
+        IMG_Quit();
+        SDL_Quit();
+        return -1;
+    }
+
+    SDL_Renderer* renderer2 = SDL_CreateRenderer(window2, -1, SDL_RENDERER_ACCELERATED);
+    if (!renderer2) {
+        std::cerr << "Failed to create debugger renderer. SDL_Error: " << SDL_GetError() << std::endl;
+        SDL_DestroyWindow(window2);
+        IMG_Quit();
+        SDL_Quit();
+        return -1;
+    }
+
     config config = {0};
 
     // Test config!!!!
     config.rom_file = "roms/GY454XE .bin";
     config.hardware_id = 3;
     config.real_hardware = true;
-    config.status_bar_path = "images/interface_es_bar.png";
+    //config.status_bar_path = "images/interface_es_bar.png";
     config.interface_path = "images/interface_esp_991esp.png";
     config.w_name = "fx-570ES PLUS Emulator";
     config.screen_tl_w = 58;
-    config.screen_tl_h = 132;
+    config.screen_tl_h = 132+11;
     config.pix_w = 3;
     config.pix_h = 3;
     config.pix_color = 0xff000000;
@@ -61,6 +79,7 @@ int main(int argc, char* argv[]) {
     SDL_Window* window = SDL_CreateWindow(config.w_name.empty() ? config.w_name.c_str() : "u8-emu-frontend-cpp", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, w, h, SDL_WINDOW_SHOWN);
     if (!window) {
         std::cerr << "Failed to create window. SDL_Error: " << SDL_GetError() << std::endl;
+        SDL_DestroyWindow(window2);
         SDL_FreeSurface(interface_sf);
         IMG_Quit();
         SDL_Quit();
@@ -70,27 +89,9 @@ int main(int argc, char* argv[]) {
     SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
     if (!renderer) {
         std::cerr << "Failed to create renderer. SDL_Error: " << SDL_GetError() << std::endl;
-        SDL_DestroyWindow(window);
-        SDL_FreeSurface(interface_sf);
-        IMG_Quit();
-        SDL_Quit();
-        return -1;
-    }
-
-    SDL_Window* window2 = SDL_CreateWindow("Debugger", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 1920, 1080, SDL_WINDOW_SHOWN);
-    if (!window) {
-        std::cerr << "Failed to create debugger window. SDL_Error: " << SDL_GetError() << std::endl;
-        SDL_DestroyWindow(window);
-        IMG_Quit();
-        SDL_Quit();
-        return -1;
-    }
-
-    SDL_Renderer* renderer2 = SDL_CreateRenderer(window2, -1, SDL_RENDERER_ACCELERATED);
-    if (!renderer) {
-        std::cerr << "Failed to create debugger renderer. SDL_Error: " << SDL_GetError() << std::endl;
         SDL_DestroyWindow(window2);
         SDL_DestroyWindow(window);
+        SDL_FreeSurface(interface_sf);
         IMG_Quit();
         SDL_Quit();
         return -1;
@@ -140,7 +141,7 @@ int main(int argc, char* argv[]) {
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 
     ImGui::StyleColorsDark();
@@ -148,19 +149,39 @@ int main(int argc, char* argv[]) {
     ImGui_ImplSDL2_InitForSDLRenderer(window2, renderer2);
     ImGui_ImplSDLRenderer2_Init(renderer2);
 
-    mcu.sfr[0x40] = 0b11100111;
+    bool quit = false;
+    std::atomic<bool> stop = false;
+    static MemoryEditor ramedit;
+    static MemoryEditor sfredit;
+    sfredit.ReadFn = &read_sfr_im;
+    sfredit.WriteFn = &write_sfr_im;
 
-    std::atomic<bool> quit = false;
+    const char *memselect[] = {"Main RAM", "SFR region"};
+    static int memselect_idx = 0;
+
+    unsigned int a, b;
+    double fps;
+
     printf("Test C++ ES PLUS emulator.\nPress [ESC] to quit\n");
-    std::thread cs_thread(&mcu::core_step_loop, &mcu, std::ref(quit));
+    std::thread cs_thread(core_step_loop, std::ref(stop));
     while (!quit) {
+        a = SDL_GetTicks();
+
         while (SDL_PollEvent(&e) != 0) {
             if (SDL_GetWindowFlags(window2) & SDL_WINDOW_INPUT_FOCUS) ImGui_ImplSDL2_ProcessEvent(&e);
             if (e.type == SDL_QUIT) quit = true;
             else if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_CLOSE) quit = true;
             else if (e.type == SDL_KEYDOWN) {
-                //if (e.key.keysym.sym == SDLK_BACKSLASH) mcu.core_step();
-                if (e.key.keysym.sym == SDLK_ESCAPE) quit = true;
+                if (e.key.keysym.sym == SDLK_BACKSLASH && stop.load()) mcu.core_step();
+                if (e.key.keysym.sym == SDLK_ESCAPE) {
+                    stop = true;
+                    quit = true;
+                }
+                if (e.key.keysym.sym == SDLK_F4) mcu.reset();
+                if (e.key.keysym.sym == SDLK_s) stop = true;
+                if (e.key.keysym.sym == SDLK_p) {
+                    if (stop.load()) cs_thread = std::thread(core_step_loop, std::ref(stop));
+                }
             }
         }
 
@@ -301,6 +322,39 @@ int main(int argc, char* argv[]) {
 
             ImGui::EndTable();
         }
+        ImGui::Text("\nOther information:");
+        if (ImGui::BeginTable("other", 2, ImGuiTableFlags_Resizable)) {
+            ImGui::TableSetupColumn("Description");
+            ImGui::TableSetupColumn("State/Value");
+            ImGui::TableHeadersRow();
+
+            ImGui::TableNextRow();
+            ImGui::TableSetColumnIndex(0);
+            ImGui::Text("STOP acceptor state");
+            ImGui::TableNextColumn();
+            ImGui::Text("1 [%s]  2 [%s]", (mcu.standby->stop_accept[0]) ? "x" : " ", (mcu.standby->stop_accept[1]) ? "x" : " ");
+
+            ImGui::TableNextRow();
+            ImGui::TableSetColumnIndex(0);
+            ImGui::Text("STOP mode");
+            ImGui::TableNextColumn();
+            ImGui::Text("[%s]", (mcu.standby->stop_mode) ? "x" : " ");
+
+            ImGui::TableNextRow();
+            ImGui::TableSetColumnIndex(0);
+            ImGui::Text("SDL frames per second");
+            ImGui::TableNextColumn();
+            ImGui::Text("%.1f FPS", fps);
+
+            ImGui::TableNextRow();
+            ImGui::TableSetColumnIndex(0);
+            ImGui::Text("Instructions per second");
+            ImGui::TableNextColumn();
+            if (mcu.standby->stop_mode) ImGui::Text("[In STOP mode.]");
+            else ImGui::Text("%.1f IPS", mcu.ips);
+
+            ImGui::EndTable();
+        }
         ImGui::End();
 
         ImGui::Begin("Disassembly", NULL, 0);
@@ -321,10 +375,11 @@ int main(int argc, char* argv[]) {
         ImGui::End();
 
         ImGui::Begin("Call Stack Display", NULL, 0);
-        if (ImGui::BeginTable("callstack", 3)) {
+        if (ImGui::BeginTable("callstack", 4)) {
             ImGui::TableSetupColumn(NULL);
             ImGui::TableSetupColumn("Function address");
             ImGui::TableSetupColumn("Return address");
+            ImGui::TableSetupColumn("LR pushed at");
             ImGui::TableHeadersRow();
             for (int i = mcu.call_stack.size() - 1; i >= 0; i--) {
                 int j = abs((int)mcu.call_stack.size() - i - 1);
@@ -337,10 +392,29 @@ int main(int argc, char* argv[]) {
                 ImGui::TableNextColumn();
                 ImGui::TextColored(color, "%X:%04XH", v.func_addr >> 16, v.func_addr & 0xffff);
                 ImGui::TableNextColumn();
-                ImGui::TextColored(color, "%X:%04XH (%X:%04XH)", return_addr_real >> 16, return_addr_real & 0xffff, v.return_addr >> 16, v.return_addr & 0xffff);
+                if (v.return_addr_ptr) {
+                    ImGui::TextColored(color, "%X:%04XH (%X:%04XH)", return_addr_real >> 16, return_addr_real & 0xffff, v.return_addr >> 16, v.return_addr & 0xffff);
+                    ImGui::TableNextColumn();
+                    ImGui::TextColored(color, "%04XH", v.return_addr_ptr);
+                } else ImGui::TextColored(color, "%X:%04XH", v.return_addr >> 16, v.return_addr & 0xffff);
             }
             ImGui::EndTable();
         }
+        ImGui::End();
+
+        ImGui::Begin("Hex Editor", NULL, 0);
+        const char* preview = memselect[memselect_idx];
+        if (ImGui::BeginCombo("<- Region", preview)) {
+            for (int n = 0; n < IM_ARRAYSIZE(memselect); n++) {
+                const bool is_selected = (memselect_idx == n);
+                if (ImGui::Selectable(memselect[n], is_selected))
+                    memselect_idx = n;
+                if (is_selected) ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
+        if (memselect_idx == 0) ramedit.DrawContents((void *)mcu.ram, 0xe00, 0x8000);
+        else if (memselect_idx == 1) sfredit.DrawContents((void *)mcu.sfr, 0x1000, 0xf000);
         ImGui::End();
 
         ImGui::Render();
@@ -353,6 +427,9 @@ int main(int argc, char* argv[]) {
         SDL_RenderClear(renderer2);
         ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), renderer2);
         SDL_RenderPresent(renderer2);
+
+        b = SDL_GetTicks() - a;
+        fps = (b > 0) ? 1000.0f / b : 0.0f;
     }
 
     ImGui_ImplSDLRenderer2_Shutdown();

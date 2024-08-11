@@ -59,7 +59,7 @@ void screen::render_screen(SDL_Renderer *renderer) {
         dispsrc = {0, scrptr->config->pix_h, 96*this->config->pix_w, 31*this->config->pix_h};
         dispdest = {0, this->sbar_hi, 96*this->config->pix_w, 31*this->config->pix_h};
     } else {
-        dispsrc = {0, 0, 96, 32};
+        dispsrc = {0, 0, 96*this->config->pix_w, 32*this->config->pix_h};
         dispdest = {0, 0, 96*this->config->pix_w, 32*this->config->pix_h};
     }
 
