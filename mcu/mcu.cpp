@@ -130,7 +130,7 @@ mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *fla
     mcuptr = this;
 
     this->standby = new class standby;
-    this->timer = new class timer(this);
+    this->timer = new class timer(this, 10000);
 
     this->cycles_per_second = 1024 * 1024 * 8;
 
@@ -368,9 +368,7 @@ void mcu::core_step() {
             if (cur - this->ips_start != 0) this->ips = (1000 / (cur - this->ips_start));
             this->ips_start = cur;
         }
-    }
-
-    this->timer->tick();
+    } else this->timer->tick();
 }
 
 void core_step_loop(std::atomic<bool>& stop) {

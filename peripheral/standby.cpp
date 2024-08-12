@@ -27,6 +27,10 @@ uint8_t sbycon(mcu *mcu, uint16_t addr, uint8_t val) {
 
 standby::standby() {
     sbyptr = this;
+    this->stop_accept[0] = false;
+    this->stop_accept[1] = false;
+    this->stop_mode = false;
+
     register_sfr(8, 1, stpacp);
-    register_sfr(8, 1, sbycon);
+    register_sfr(9, 1, sbycon);
 }

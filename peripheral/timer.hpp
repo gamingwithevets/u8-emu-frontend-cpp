@@ -9,10 +9,12 @@ private:
     class mcu *mcu;
     standby *standby;
     double tps;
-    double last_time;
-    double passed_time;
+    uint64_t last_time;
 public:
-    timer(class mcu *mcu);
+    int ticks;
+    double time_scale;
+    double passed_time;
+    timer(class mcu *mcu, double tps);
     void tick();
 };
 

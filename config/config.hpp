@@ -1,15 +1,15 @@
 #ifndef CONFIG
 #define CONFIG
-#include <SDL2/SDL.h>
-#include <cstdint>
 #include <iostream>
 #include <vector>
 #include <map>
+#include <SDL.h>
 
 struct keydata {
     SDL_Rect rect;
-    std::vector<std::string> keys;
+    std::vector<SDL_Keycode> keys;
 };
+
 
 struct config {
     char header[30];
@@ -39,4 +39,7 @@ struct config {
     // Keyboard
     std::map<uint8_t, keydata> keymap;
 };
+
+void deserialize(config& cfg, const std::string& filename);
+
 #endif

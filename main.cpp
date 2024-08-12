@@ -1,6 +1,7 @@
 #include <SDL.h>
 #include <SDL_image.h>
 #include <iostream>
+#include <fstream>
 #include <cstdio>
 #include <cstdlib>
 #include <cmath>
@@ -23,6 +24,11 @@ const int DISPLAY_WIDTH = 96;
 const int DISPLAY_HEIGHT = 31;
 
 int main(int argc, char* argv[]) {
+    if (argc != 2) {
+        std::cerr << "Usage: " << argv[0] << " [binary configuration file]" << std::endl;
+        return 0;
+    }
+
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         std::cerr << "Failed to initialize SDL. SDL_Error: " << SDL_GetError() << std::endl;
         return -1;
@@ -50,13 +56,19 @@ int main(int argc, char* argv[]) {
         return -1;
     }
 
-    config config = {0};
+    config config;
+    try {
+        deserialize(config, argv[1]);
+    } catch (const std::exception& e) {
+        std::cerr << "Error loading config: " << e.what() << "\n";
+        return -1;
+    }
 
     // Test config!!!!
     config.rom_file = "roms/GY454XE .bin";
     config.hardware_id = 3;
     config.real_hardware = true;
-    //config.status_bar_path = "images/interface_es_bar.png";
+    config.status_bar_path = "images/interface_es_bar.png";
     config.interface_path = "images/interface_esp_991esp.png";
     config.w_name = "fx-570ES PLUS Emulator";
     config.screen_tl_w = 58;
@@ -162,7 +174,6 @@ int main(int argc, char* argv[]) {
     unsigned int a, b;
     double fps;
 
-    printf("Test C++ ES PLUS emulator.\nPress [ESC] to quit\n");
     std::thread cs_thread(core_step_loop, std::ref(stop));
     while (!quit) {
         a = SDL_GetTicks();
