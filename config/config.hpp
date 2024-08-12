@@ -1,22 +1,20 @@
 #ifndef CONFIG
 #define CONFIG
 #include <iostream>
+#include <fstream>
 #include <vector>
 #include <map>
 #include <SDL.h>
+#include "Binary.h"
 
 struct keydata {
     SDL_Rect rect;
     std::vector<SDL_Keycode> keys;
 };
 
-
 struct config {
-    char header[30];
-/* Header data:
-  47 65 6E 73 68 69 74 20 63 6F 6E 66 69 67 75
-  72 61 74 69 6F 6E 20 66 69 6C 65 20 76 36 39
-*/
+    const std::string header = "Genshit configuration file v69";
+
     // Emulator config
     std::string rom_file;
     std::string flash_rom_file;
@@ -38,8 +36,57 @@ struct config {
     std::vector<SDL_Rect> status_bar_crops;
     // Keyboard
     std::map<uint8_t, keydata> keymap;
-};
+    void write(std::ostream &os) const {
+        Binary::Write(os, std::string(header));
 
-void deserialize(config& cfg, const std::string& filename);
+        Binary::Write(os, rom_file);
+        Binary::Write(os, flash_rom_file);
+        Binary::Write(os, hardware_id);
+        Binary::Write(os, real_hardware);
+        Binary::Write(os, sample);
+        Binary::Write(os, is_5800p);
+        Binary::Write(os, old_esp);
+        Binary::Write(os, pd_value);
+
+        Binary::Write(os, status_bar_path);
+        Binary::Write(os, interface_path);
+        Binary::Write(os, w_name);
+        Binary::Write(os, screen_tl_w);
+        Binary::Write(os, screen_tl_h);
+        Binary::Write(os, pix_w);
+        Binary::Write(os, pix_h);
+        Binary::Write(os, pix_color);
+        Binary::Write(os, status_bar_crops);
+
+        Binary::Write(os, keymap);
+    }
+    void read(std::ostream &is) {
+        {
+            std::string unused;
+            Binary::Read(is, unused));
+        }
+
+        Binary::Read(is, rom_file);
+        Binary::Read(is, flash_rom_file);
+        Binary::Read(is, hardware_id);
+        Binary::Read(is, real_hardware);
+        Binary::Read(is, sample);
+        Binary::Read(is, is_5800p);
+        Binary::Read(is, old_esp);
+        Binary::Read(is, pd_value);
+
+        Binary::Read(is, status_bar_path);
+        Binary::Read(is, interface_path);
+        Binary::Read(is, w_name);
+        Binary::Read(is, screen_tl_w);
+        Binary::Read(is, screen_tl_h);
+        Binary::Read(is, pix_w);
+        Binary::Read(is, pix_h);
+        Binary::Read(is, pix_color);
+        Binary::Read(is, status_bar_crops);
+
+        Binary::Read(is, keymap);
+    }
+};
 
 #endif

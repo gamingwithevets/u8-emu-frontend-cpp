@@ -58,7 +58,8 @@ int main(int argc, char* argv[]) {
 
     config config;
     try {
-        deserialize(config, argv[1]);
+        std::ifstream is(argv[1], std::ios::binary);
+        config.read(is);
     } catch (const std::exception& e) {
         std::cerr << "Error loading config: " << e.what() << "\n";
         return -1;
