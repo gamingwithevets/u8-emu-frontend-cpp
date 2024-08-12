@@ -65,19 +65,6 @@ int main(int argc, char* argv[]) {
         return -1;
     }
 
-    // Test config!!!!
-    config.rom_file = "roms/GY454XE .bin";
-    config.hardware_id = 3;
-    config.real_hardware = true;
-    config.status_bar_path = "images/interface_es_bar.png";
-    config.interface_path = "images/interface_esp_991esp.png";
-    config.w_name = "fx-570ES PLUS Emulator";
-    config.screen_tl_w = 58;
-    config.screen_tl_h = 132+11;
-    config.pix_w = 3;
-    config.pix_h = 3;
-    config.pix_color = 0xff000000;
-
     SDL_Surface* interface_sf = IMG_Load(config.interface_path.c_str());
     if (interface_sf == nullptr) {
         std::cerr << "Failed to load interface image. SDL_image Error: " << IMG_GetError() << std::endl;

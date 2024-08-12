@@ -5,11 +5,23 @@
 #include <vector>
 #include <map>
 #include <SDL.h>
-#include "Binary.h"
+#include "binary.hpp"
 
 struct keydata {
-    SDL_Rect rect;
+    SDL_Rect rect{};
     std::vector<SDL_Keycode> keys;
+    void write(std::ostream &os) const {
+        Binary::Write(os, rect);
+        Binary::Write(os, keys);
+    }
+    void read(std::istream &is) {
+        Binary::Read(is, rect);
+        Binary::Read(is, keys);
+    }
+};
+
+struct color_info {
+    uint8_t r, g, b;
 };
 
 struct config {
@@ -18,21 +30,21 @@ struct config {
     // Emulator config
     std::string rom_file;
     std::string flash_rom_file;
-    int hardware_id;
-    bool real_hardware;
-    bool sample;
-    bool is_5800p;
-    bool old_esp;
-    uint8_t pd_value;
+    int hardware_id{};
+    bool real_hardware{};
+    bool sample{};
+    bool is_5800p{};
+    bool old_esp{};
+    uint8_t pd_value{};
     // Window config
     std::string status_bar_path;
     std::string interface_path;
     std::string w_name;
-    int screen_tl_w;
-    int screen_tl_h;
-    int pix_w;
-    int pix_h;
-    uint32_t pix_color;
+    int screen_tl_w{};
+    int screen_tl_h{};
+    int pix_w{};
+    int pix_h{};
+    color_info pix_color{};
     std::vector<SDL_Rect> status_bar_crops;
     // Keyboard
     std::map<uint8_t, keydata> keymap;
@@ -60,11 +72,9 @@ struct config {
 
         Binary::Write(os, keymap);
     }
-    void read(std::ostream &is) {
-        {
-            std::string unused;
-            Binary::Read(is, unused));
-        }
+    void read(std::istream &is) {
+        std::string unused;
+        Binary::Read(is, unused);
 
         Binary::Read(is, rom_file);
         Binary::Read(is, flash_rom_file);
