@@ -11,6 +11,7 @@
 #include "mcu/mcu.hpp"
 #include "config/config.hpp"
 #include "peripheral/screen.hpp"
+#include "config/binary.hpp"
 extern "C" {
 #include "u8_emu/src/core/core.h"
 #include "nxu8_disas/src/lib/lib_nxu8.h"
@@ -22,6 +23,8 @@ extern "C" {
 
 const int DISPLAY_WIDTH = 96;
 const int DISPLAY_HEIGHT = 31;
+
+#define CONFIGDEBUG
 
 int main(int argc, char* argv[]) {
     if (argc != 2) {
@@ -56,14 +59,51 @@ int main(int argc, char* argv[]) {
         return -1;
     }
 
-    config config;
-    try {
-        std::ifstream is(argv[1], std::ios::binary);
-        config.read(is);
-    } catch (const std::exception& e) {
-        std::cerr << "Error loading config: " << e.what() << "\n";
+    std::ifstream is(argv[1], std::ios::binary);
+    if (!is) {
+        std::cerr << "Error loading config file '" << argv[1] << "'" << std::endl;
         return -1;
     }
+    config config{};
+    try {
+        Binary::Read(is, config);
+    } catch (const std::exception& e) {
+        std::cerr << "Error parsing config file '" << argv[1] << "': " << e.what() << std::endl;
+        return -1;
+    }
+
+#ifdef CONFIGDEBUG
+    std::cout << "===== DEBUG =====" << std::endl;
+    std::cout << "rom_file: " << config.rom_file << std::endl;
+    std::cout << "flash_rom_file: " << config.flash_rom_file << std::endl;
+    std::cout << "hardware_id: " << config.hardware_id << std::endl;
+    std::cout << "real_hardware: " << (config.real_hardware ? "True" : "False") << std::endl;
+    std::cout << "sample: " << (config.sample ? "True" : "False") << std::endl;
+    std::cout << "is_5800p: " << (config.is_5800p ? "True" : "False") << std::endl;
+    std::cout << "old_esp: " << (config.old_esp ? "True" : "False") << std::endl;
+    std::cout << "pd_value: " << config.pd_value << std::endl;
+    std::cout << "status_bar_path: " << config.status_bar_path << std::endl;
+    std::cout << "interface_path: " << config.interface_path << std::endl;
+    std::cout << "w_name: " << config.w_name << std::endl;
+    std::cout << "screen_tl_w: " << config.screen_tl_w << std::endl;
+    std::cout << "screen_tl_h: " << config.screen_tl_h << std::endl;
+    std::cout << "pix_w: " << config.pix_w << std::endl;
+    std::cout << "pix_h: " << config.pix_h << std::endl;
+    std::cout << "pix_color: (" << config.pix_color.r << ", " << config.pix_color.g << ", " << config.pix_color.b << ")" << std::endl;
+    std::cout << "status_bar_crops:" << std::endl;
+    for (auto const &i : config.status_bar_crops)
+        std::cout << "  (" << i.x << ", " << i.y << ", " << i.w << ", " << i.h << ")" << std::endl;
+    std::cout << "keymap:" << std::endl;
+    for (auto const &[k, v] : config.keymap) {
+        std::cout << "  " << std::hex << std::showbase << k << ":"
+                  << "    (" << v.rect.x << ", " << v.rect.y << ", " << v.rect.w << ", " << v.rect.h << ")";
+        for (auto const &i : v.keys)
+            std::cout << ", " << SDL_GetKeyName(i);
+
+        std::cout << std::endl;
+    }
+    return 0;
+#endif
 
     SDL_Surface* interface_sf = IMG_Load(config.interface_path.c_str());
     if (interface_sf == nullptr) {

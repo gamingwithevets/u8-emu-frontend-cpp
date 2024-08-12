@@ -1,5 +1,4 @@
-#ifndef TIMER
-#define TIMER
+#pragma once
 
 #include "../mcu/mcu.hpp"
 #include "standby.hpp"
@@ -17,5 +16,3 @@ public:
     timer(class mcu *mcu, double tps);
     void tick();
 };
-
-#endif

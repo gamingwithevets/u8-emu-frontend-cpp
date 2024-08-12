@@ -1,5 +1,5 @@
-#ifndef MCU
-#define MCU
+#pragma once
+
 #include <cstdint>
 #include <atomic>
 #include "../config/config.hpp"
@@ -51,5 +51,3 @@ void core_step_loop(std::atomic<bool>& stop);
 void register_sfr(uint16_t addr, uint16_t len, uint8_t (*callback)(mcu*, uint16_t, uint8_t));
 ImU8 read_sfr_im(const ImU8*, size_t addr);
 void write_sfr_im(ImU8*, size_t addr, ImU8 val);
-
-#endif

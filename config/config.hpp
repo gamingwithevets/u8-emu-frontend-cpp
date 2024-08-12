@@ -1,5 +1,5 @@
-#ifndef CONFIG
-#define CONFIG
+#pragma once
+
 #include <iostream>
 #include <fstream>
 #include <vector>
@@ -10,11 +10,11 @@
 struct keydata {
     SDL_Rect rect{};
     std::vector<SDL_Keycode> keys;
-    void write(std::ostream &os) const {
+    void Write(std::ostream &os) const {
         Binary::Write(os, rect);
         Binary::Write(os, keys);
     }
-    void read(std::istream &is) {
+    void Read(std::istream &is) {
         Binary::Read(is, rect);
         Binary::Read(is, keys);
     }
@@ -48,7 +48,7 @@ struct config {
     std::vector<SDL_Rect> status_bar_crops;
     // Keyboard
     std::map<uint8_t, keydata> keymap;
-    void write(std::ostream &os) const {
+    void Write(std::ostream &os) const {
         Binary::Write(os, std::string(header));
 
         Binary::Write(os, rom_file);
@@ -72,7 +72,7 @@ struct config {
 
         Binary::Write(os, keymap);
     }
-    void read(std::istream &is) {
+    void Read(std::istream &is) {
         std::string unused;
         Binary::Read(is, unused);
 
@@ -98,5 +98,3 @@ struct config {
         Binary::Read(is, keymap);
     }
 };
-
-#endif

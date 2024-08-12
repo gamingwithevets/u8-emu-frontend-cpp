@@ -1,5 +1,4 @@
-#ifndef STANDBY
-#define STANDBY
+#pragma once
 
 class standby {
 public:
@@ -8,5 +7,3 @@ public:
 
     standby();
 };
-
-#endif

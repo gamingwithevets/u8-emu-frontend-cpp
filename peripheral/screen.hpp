@@ -1,5 +1,4 @@
-#ifndef SCREEN
-#define SCREEN
+#pragma once
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
@@ -19,5 +18,3 @@ private:
     SDL_Surface *status_bar;
     int sbar_hi;
 };
-
-#endif
