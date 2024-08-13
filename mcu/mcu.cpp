@@ -141,7 +141,7 @@ mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *fla
         .type = U8_REGION_CODE,
         .rw = false,
         .addr_l = 0,
-        .addr_h = (this->config->hardware_id == 2 && this->config->is_5800p) ? 0x7ffff : 0xfffff,
+        .addr_h = (this->config->hardware_id == HW_ES && this->config->is_5800p) ? 0x7ffff : 0xfffff,
         .acc = U8_MACC_ARR,
         .array = this->rom
     };
@@ -186,8 +186,8 @@ mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *fla
 
     switch (this->config->hardware_id) {
         // ClassWiz
-        case 4:  // LAPIS ML620606
-        case 5:  // LAPIS ML620609
+        case HW_CLASSWIZ_EX:  // LAPIS ML620606
+        case HW_CLASSWIZ_CW:  // LAPIS ML620609
             // Code segment 1+ mirror
             this->core->mem.regions[3] = (struct u8_mem_reg){
                 .type = U8_REGION_DATA,
@@ -229,7 +229,7 @@ mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *fla
             break;
 
         // TI MathPrint - LAPIS ML620418A
-        case 6:
+        case HW_TI_MATHPRINT:
             // Code segment 1+ mirror
             this->core->mem.regions[3] = (struct u8_mem_reg){
                 .type = U8_REGION_DATA,
@@ -253,7 +253,7 @@ mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *fla
             break;
 
         // SOLAR II
-        case 0:
+        case HW_SOLAR_II:
             this->core->small_mm = true;
             break;
 
@@ -329,6 +329,8 @@ mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *fla
             }
             break;
     }
+
+    if (this->config->hardware_id != HW_TI_MATHPRINT) this->sfr[0x50] = this->config->pd_value;
 
     register_sfr(0, 1, &default_write<0xff>);
     this->reset();

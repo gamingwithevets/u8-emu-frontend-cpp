@@ -24,13 +24,22 @@ struct color_info {
     uint8_t r, g, b;
 };
 
+enum hardware_id : int {
+    HW_SOLAR_II = 0,
+    HW_ES = 2,
+    HW_ES_PLUS = 3,
+    HW_CLASSWIZ_EX = 4,
+    HW_CLASSWIZ_CW = 5,
+    HW_TI_MATHPRINT = 6
+};
+
 struct config {
     const std::string header = "Genshit configuration file v69";
 
     // Emulator config
     std::string rom_file;
     std::string flash_rom_file;
-    int hardware_id{};
+    hardware_id hardware_id{};
     bool real_hardware{};
     bool sample{};
     bool is_5800p{};

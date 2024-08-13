@@ -11,6 +11,7 @@
 #include "mcu/mcu.hpp"
 #include "config/config.hpp"
 #include "peripheral/screen.hpp"
+#include "peripheral/keyboard.hpp"
 #include "config/binary.hpp"
 extern "C" {
 #include "u8_emu/src/core/core.h"
@@ -21,16 +22,61 @@ extern "C" {
 #include "imgui/imgui_impl_sdlrenderer2.h"
 #include "imgui/imgui_memory_editor.h"
 
-const int DISPLAY_WIDTH = 96;
-const int DISPLAY_HEIGHT = 31;
-
-#define CONFIGDEBUG
+//#define CONFIGDEBUG
 
 int main(int argc, char* argv[]) {
     if (argc != 2) {
         std::cerr << "Usage: " << argv[0] << " [binary configuration file]" << std::endl;
         return 0;
     }
+
+    std::ifstream is(argv[1], std::ifstream::binary);
+    if (!is) {
+        std::cerr << "Error loading config file '" << argv[1] << "': " << strerror(errno) << std::endl;
+        return -1;
+    }
+    config config{};
+    try {
+        Binary::Read(is, config);
+    } catch (const std::exception& e) {
+        std::cerr << "Error parsing config file '" << argv[1] << "': " << e.what() << std::endl;
+        return -1;
+    }
+
+#ifdef CONFIGDEBUG
+    std::cout << "===== DEBUG =====" << std::endl;
+    std::cout << "rom_file: " << config.rom_file << std::endl;
+    std::cout << "flash_rom_file: " << config.flash_rom_file << std::endl;
+    std::cout << "hardware_id: " << config.hardware_id << std::endl;
+    std::cout << "real_hardware: " << (config.real_hardware ? "True" : "False") << std::endl;
+    std::cout << "sample: " << (config.sample ? "True" : "False") << std::endl;
+    std::cout << "is_5800p: " << (config.is_5800p ? "True" : "False") << std::endl;
+    std::cout << "old_esp: " << (config.old_esp ? "True" : "False") << std::endl;
+    std::cout << "pd_value: " << +config.pd_value << std::endl;
+    std::cout << "status_bar_path: " << config.status_bar_path << std::endl;
+    std::cout << "interface_path: " << config.interface_path << std::endl;
+    std::cout << "w_name: " << config.w_name << std::endl;
+    std::cout << "screen_tl_w: " << config.screen_tl_w << std::endl;
+    std::cout << "screen_tl_h: " << config.screen_tl_h << std::endl;
+    std::cout << "pix_w: " << config.pix_w << std::endl;
+    std::cout << "pix_h: " << config.pix_h << std::endl;
+    std::cout << "pix_color: (" << +config.pix_color.r << ", " << +config.pix_color.g << ", " << +config.pix_color.b << ")" << std::endl;
+    std::cout << "status_bar_crops:" << std::endl;
+    for (auto const &i : config.status_bar_crops)
+        std::cout << "  (" << i.x << ", " << i.y << ", " << i.w << ", " << i.h << ")" << std::endl;
+    std::cout << "keymap:" << std::endl;
+    for (auto const &[k, v] : config.keymap) {
+        std::cout << "  " << std::hex << std::showbase << +k << std::dec << ":"
+                  << "    (" << v.rect.x << ", " << v.rect.y << ", " << v.rect.w << ", " << v.rect.h << ")";
+        for (auto const &i : v.keys)
+            if (i != SDLK_UNKNOWN) std::cout << ", " << SDL_GetKeyName(i);
+
+        std::cout << std::endl;
+    }
+    std::cin.ignore();
+    std::cin.get();
+    return 0;
+#endif
 
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         std::cerr << "Failed to initialize SDL. SDL_Error: " << SDL_GetError() << std::endl;
@@ -58,52 +104,6 @@ int main(int argc, char* argv[]) {
         SDL_Quit();
         return -1;
     }
-
-    std::ifstream is(argv[1], std::ios::binary);
-    if (!is) {
-        std::cerr << "Error loading config file '" << argv[1] << "'" << std::endl;
-        return -1;
-    }
-    config config{};
-    try {
-        Binary::Read(is, config);
-    } catch (const std::exception& e) {
-        std::cerr << "Error parsing config file '" << argv[1] << "': " << e.what() << std::endl;
-        return -1;
-    }
-
-#ifdef CONFIGDEBUG
-    std::cout << "===== DEBUG =====" << std::endl;
-    std::cout << "rom_file: " << config.rom_file << std::endl;
-    std::cout << "flash_rom_file: " << config.flash_rom_file << std::endl;
-    std::cout << "hardware_id: " << config.hardware_id << std::endl;
-    std::cout << "real_hardware: " << (config.real_hardware ? "True" : "False") << std::endl;
-    std::cout << "sample: " << (config.sample ? "True" : "False") << std::endl;
-    std::cout << "is_5800p: " << (config.is_5800p ? "True" : "False") << std::endl;
-    std::cout << "old_esp: " << (config.old_esp ? "True" : "False") << std::endl;
-    std::cout << "pd_value: " << config.pd_value << std::endl;
-    std::cout << "status_bar_path: " << config.status_bar_path << std::endl;
-    std::cout << "interface_path: " << config.interface_path << std::endl;
-    std::cout << "w_name: " << config.w_name << std::endl;
-    std::cout << "screen_tl_w: " << config.screen_tl_w << std::endl;
-    std::cout << "screen_tl_h: " << config.screen_tl_h << std::endl;
-    std::cout << "pix_w: " << config.pix_w << std::endl;
-    std::cout << "pix_h: " << config.pix_h << std::endl;
-    std::cout << "pix_color: (" << config.pix_color.r << ", " << config.pix_color.g << ", " << config.pix_color.b << ")" << std::endl;
-    std::cout << "status_bar_crops:" << std::endl;
-    for (auto const &i : config.status_bar_crops)
-        std::cout << "  (" << i.x << ", " << i.y << ", " << i.w << ", " << i.h << ")" << std::endl;
-    std::cout << "keymap:" << std::endl;
-    for (auto const &[k, v] : config.keymap) {
-        std::cout << "  " << std::hex << std::showbase << k << ":"
-                  << "    (" << v.rect.x << ", " << v.rect.y << ", " << v.rect.w << ", " << v.rect.h << ")";
-        for (auto const &i : v.keys)
-            std::cout << ", " << SDL_GetKeyName(i);
-
-        std::cout << std::endl;
-    }
-    return 0;
-#endif
 
     SDL_Surface* interface_sf = IMG_Load(config.interface_path.c_str());
     if (interface_sf == nullptr) {
@@ -140,8 +140,6 @@ int main(int argc, char* argv[]) {
     SDL_Texture* interface = SDL_CreateTextureFromSurface(renderer, interface_sf);
     SDL_FreeSurface(interface_sf);
 
-    SDL_Event e;
-
     u8_core core;
 
     uint8_t *rom = (uint8_t *)malloc(0x100000);
@@ -153,9 +151,6 @@ int main(int argc, char* argv[]) {
     }
     fread(rom, sizeof(uint8_t), 0x20000, f);
     fclose(f);
-
-    mcu mcu(&core, &config, rom, NULL, 0x8000, 0xe00);
-    screen screen(&config);
 
     std::cout << "Generating disassembly..." << std::endl;
     struct nxu8_decoder *decoder = nxu8_init_decoder(0x20000, rom);
@@ -189,7 +184,12 @@ int main(int argc, char* argv[]) {
     ImGui_ImplSDL2_InitForSDLRenderer(window2, renderer2);
     ImGui_ImplSDLRenderer2_Init(renderer2);
 
+    mcu mcu(&core, &config, rom, NULL, 0x8000, 0xe00);
+    screen screen(&mcu, &config);
+    keyboard keyboard(&mcu, &config, w, h);
+
     bool quit = false;
+    bool single_step = false;
     std::atomic<bool> stop = false;
     static MemoryEditor ramedit;
     static MemoryEditor sfredit;
@@ -203,25 +203,26 @@ int main(int argc, char* argv[]) {
     double fps;
 
     std::thread cs_thread(core_step_loop, std::ref(stop));
+    SDL_Event e;
     while (!quit) {
         a = SDL_GetTicks();
 
         while (SDL_PollEvent(&e) != 0) {
+            if (SDL_GetWindowFlags(window) & SDL_WINDOW_INPUT_FOCUS) keyboard.process_event(&e);
             if (SDL_GetWindowFlags(window2) & SDL_WINDOW_INPUT_FOCUS) ImGui_ImplSDL2_ProcessEvent(&e);
             if (e.type == SDL_QUIT) quit = true;
-            else if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_CLOSE) quit = true;
-            else if (e.type == SDL_KEYDOWN) {
+            else if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_CLOSE) {
+                quit = true;
+                stop = true;
+            } else if (e.type == SDL_KEYDOWN) {
                 if (e.key.keysym.sym == SDLK_BACKSLASH && stop.load()) mcu.core_step();
-                if (e.key.keysym.sym == SDLK_ESCAPE) {
-                    stop = true;
-                    quit = true;
-                }
-                if (e.key.keysym.sym == SDLK_F4) mcu.reset();
-                if (e.key.keysym.sym == SDLK_s) stop = true;
-                if (e.key.keysym.sym == SDLK_p) {
-                    if (stop.load()) cs_thread = std::thread(core_step_loop, std::ref(stop));
-                }
             }
+            if (single_step && !stop.load()) stop = true;
+            else if (!single_step &&  stop.load())
+                if (cs_thread.joinable()) {
+                    cs_thread.join();
+                    cs_thread = std::thread(core_step_loop, std::ref(stop));
+                }
         }
 
         ImGui_ImplSDLRenderer2_NewFrame();
@@ -389,7 +390,8 @@ int main(int argc, char* argv[]) {
             ImGui::TableSetColumnIndex(0);
             ImGui::Text("Instructions per second");
             ImGui::TableNextColumn();
-            if (mcu.standby->stop_mode) ImGui::Text("[In STOP mode.]");
+            if (single_step) ImGui::Text("[Single-step enabled.]");
+            else if (mcu.standby->stop_mode) ImGui::Text("[In STOP mode.]");
             else ImGui::Text("%.1f IPS", mcu.ips);
 
             ImGui::EndTable();
@@ -456,11 +458,19 @@ int main(int argc, char* argv[]) {
         else if (memselect_idx == 1) sfredit.DrawContents((void *)mcu.sfr, 0x1000, 0xf000);
         ImGui::End();
 
+        ImGui::Begin("Options", NULL, 0);
+        ImGui::Checkbox("Pause/Single-step", &single_step);
+        if (single_step) {
+            if (ImGui::Button("Step")) mcu.core_step();
+        }
+        ImGui::End();
+
         ImGui::Render();
 
         SDL_RenderClear(renderer);
         SDL_RenderCopy(renderer, interface, NULL, NULL);
-        screen.render_screen(renderer);
+        screen.render(renderer);
+        keyboard.render(renderer);
         SDL_RenderPresent(renderer);
 
         SDL_RenderClear(renderer2);
