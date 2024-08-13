@@ -11,6 +11,7 @@
 #include "../config/config.hpp"
 #include "../peripheral/standby.hpp"
 #include "../peripheral/timer.hpp"
+#include "../peripheral/keyboard.hpp"
 extern "C" {
 #include "../u8_emu/src/core/core.h"
 }
@@ -121,7 +122,7 @@ void write_flash(struct u8_core *core, uint8_t seg, uint16_t offset, uint8_t dat
     printf("write_flash: unknown JEDEC %05x = %02x\n", (int)fo, data);
 }
 
-mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *flash, int ramstart, int ramsize) {
+mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *flash, int ramstart, int ramsize, int w, int h) {
     this->core = core;
     this->config = config;
     this->rom = rom;
@@ -131,6 +132,7 @@ mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *fla
 
     this->standby = new class standby;
     this->timer = new class timer(this, 10000);
+    this->keyboard = new class keyboard(this, this->config, w, h);
 
     this->cycles_per_second = 1024 * 1024 * 8;
 

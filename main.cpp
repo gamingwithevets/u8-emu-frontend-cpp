@@ -11,7 +11,6 @@
 #include "mcu/mcu.hpp"
 #include "config/config.hpp"
 #include "peripheral/screen.hpp"
-#include "peripheral/keyboard.hpp"
 #include "config/binary.hpp"
 extern "C" {
 #include "u8_emu/src/core/core.h"
@@ -184,9 +183,8 @@ int main(int argc, char* argv[]) {
     ImGui_ImplSDL2_InitForSDLRenderer(window2, renderer2);
     ImGui_ImplSDLRenderer2_Init(renderer2);
 
-    mcu mcu(&core, &config, rom, NULL, 0x8000, 0xe00);
+    mcu mcu(&core, &config, rom, NULL, 0x8000, 0xe00, w, h);
     screen screen(&mcu, &config);
-    keyboard keyboard(&mcu, &config, w, h);
 
     bool quit = false;
     bool single_step = false;
@@ -208,7 +206,7 @@ int main(int argc, char* argv[]) {
         a = SDL_GetTicks();
 
         while (SDL_PollEvent(&e) != 0) {
-            if (SDL_GetWindowFlags(window) & SDL_WINDOW_INPUT_FOCUS) keyboard.process_event(&e);
+            if (SDL_GetWindowFlags(window) & SDL_WINDOW_INPUT_FOCUS) mcu.keyboard->process_event(&e);
             if (SDL_GetWindowFlags(window2) & SDL_WINDOW_INPUT_FOCUS) ImGui_ImplSDL2_ProcessEvent(&e);
             if (e.type == SDL_QUIT) quit = true;
             else if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_CLOSE) {
@@ -470,7 +468,7 @@ int main(int argc, char* argv[]) {
         SDL_RenderClear(renderer);
         SDL_RenderCopy(renderer, interface, NULL, NULL);
         screen.render(renderer);
-        keyboard.render(renderer);
+        mcu.keyboard->render(renderer);
         SDL_RenderPresent(renderer);
 
         SDL_RenderClear(renderer2);

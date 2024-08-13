@@ -5,6 +5,7 @@
 #include "../config/config.hpp"
 #include "../peripheral/standby.hpp"
 #include "../peripheral/timer.hpp"
+#include "../peripheral/keyboard.hpp"
 extern "C" {
 #include "../u8_emu/src/core/core.h"
 }
@@ -29,6 +30,7 @@ private:
 public:
     standby *standby;
     timer *timer;
+    keyboard *keyboard;
     struct u8_core *core;
 	int flash_mode;
     uint8_t *rom;
@@ -41,7 +43,7 @@ public:
     double ips, ips_start;
     unsigned int ips_ctr;
     unsigned int cycles_per_second;
-	mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *flash, int ramstart, int ramsize);
+	mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *flash, int ramstart, int ramsize, int w, int h);
 	~mcu();
 	void core_step();
 	void reset();

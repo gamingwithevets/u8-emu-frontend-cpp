@@ -23,21 +23,44 @@ keyboard::keyboard(class mcu *mcu, struct config *config, int w, int h) {
 }
 
 void keyboard::process_event(const SDL_Event *e) {
+    SDL_Keycode key;
+    SDL_Point mousepos;
     switch (e->type) {
-    case SDL_KEYDOWN: {
-        SDL_Keycode key = e->key.keysym.sym;
+    case SDL_KEYDOWN:
+        key = e->key.keysym.sym;
         for (const auto &[k, v] : this->config->keymap) {
-            if (std::find(v.keys.begin(), v.keys.end(), key) == v.keys.end()) {
+            if (std::find(v.keys.begin(), v.keys.end(), key) != v.keys.end()) {
                 this->held_buttons.push_back(k);
                 break;
             }
         }
         break;
-    }
     case SDL_KEYUP:
-        SDL_Keycode key = e->key.keysym.sym;
+        key = e->key.keysym.sym;
         for (const auto &[k, v] : this->config->keymap) {
             if (std::find(v.keys.begin(), v.keys.end(), key) != v.keys.end()) {
+                std::vector<uint8_t>::iterator pos = std::find(this->held_buttons.begin(), this->held_buttons.end(), k);
+                if (pos != this->held_buttons.end()) {
+                    this->held_buttons.erase(pos);
+                    break;
+                }
+            }
+        }
+        break;
+    case SDL_MOUSEBUTTONDOWN:
+        mousepos.x = e->motion.x;
+        mousepos.y = e->motion.y;
+        for (const auto &[k, v] : this->config->keymap) {
+            if (SDL_PointInRect(&mousepos, &v.rect)) {
+                this->held_buttons.push_back(k);
+                break;
+            }
+        }
+    case SDL_MOUSEBUTTONUP:
+        mousepos.x = e->motion.x;
+        mousepos.y = e->motion.y;
+        for (const auto &[k, v] : this->config->keymap) {
+            if (SDL_PointInRect(&mousepos, &v.rect)) {
                 std::vector<uint8_t>::iterator pos = std::find(this->held_buttons.begin(), this->held_buttons.end(), k);
                 if (pos != this->held_buttons.end()) {
                     this->held_buttons.erase(pos);
@@ -51,7 +74,7 @@ void keyboard::process_event(const SDL_Event *e) {
 
 void keyboard::render(SDL_Renderer *renderer) {
     SDL_Surface *tmp = SDL_CreateRGBSurface(0, this->w, this->h, 32, 0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000);
-    for (const auto &a : this->held_buttons) SDL_FillRect(tmp, &this->config->keymap[a].rect, 0xAA000000);
+    for (const auto &k : this->held_buttons) SDL_FillRect(tmp, &this->config->keymap[k].rect, 0xAA000000);
 
     SDL_Texture* tmp2 = SDL_CreateTextureFromSurface(renderer, tmp);
     SDL_FreeSurface(tmp);
