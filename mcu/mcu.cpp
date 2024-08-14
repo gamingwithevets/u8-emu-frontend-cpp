@@ -129,11 +129,6 @@ mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *fla
     this->flash = flash;
 
     mcuptr = this;
-
-    this->standby = new class standby;
-    this->timer = new class timer(this, 10000);
-    this->keyboard = new class keyboard(this, this->config, w, h);
-
     this->cycles_per_second = 1024 * 1024 * 8;
 
     // ROM
@@ -334,7 +329,13 @@ mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *fla
 
     if (this->config->hardware_id != HW_TI_MATHPRINT) this->sfr[0x50] = this->config->pd_value;
 
+    memset((void *)this->sfr_write, 0, sizeof(this->sfr_write));
     register_sfr(0, 1, &default_write<0xff>);
+
+    this->standby = new class standby;
+    this->timer = new class timer(this, 10000);
+    this->keyboard = new class keyboard(this, this->config, w, h);
+
     this->reset();
 }
 
@@ -373,6 +374,7 @@ void mcu::core_step() {
             this->ips_start = cur;
         }
     } else this->timer->tick();
+    this->keyboard->tick();
 }
 
 void core_step_loop(std::atomic<bool>& stop) {

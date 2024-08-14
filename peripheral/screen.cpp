@@ -23,10 +23,12 @@ uint8_t draw_screen(mcu *mcu, uint16_t addr, uint8_t val) {
         rect = {(x+j) * scrptr->config->pix_w, y * scrptr->config->pix_h, scrptr->config->pix_w, scrptr->config->pix_h};
         if (scrptr->cw_2bpp) {
             if (!(val & (1 << i))) {
+                if (SDL_MUSTLOCK(scrptr->display)) SDL_LockSurface(scrptr->display);
                 uint32_t *pixels = (uint32_t *)scrptr->display->pixels;
                 uint32_t *cur_pixcolor = &pixels[(x+j)*scrptr->config->pix_w+y*scrptr->config->pix_h];
                 if (!scrptr->cw_2bpp_toggle) SDL_FillRect(scrptr->display, &rect, (*cur_pixcolor == BLACK_COLOR || *cur_pixcolor == GRAY2_COLOR) ? GRAY2_COLOR : WHITE_COLOR);
                 else SDL_FillRect(scrptr->display, &rect, (*cur_pixcolor == BLACK_COLOR || *cur_pixcolor == GRAY1_COLOR) ? GRAY1_COLOR : WHITE_COLOR);
+                if (SDL_MUSTLOCK(scrptr->display)) SDL_UnlockSurface(scrptr->display);
             } else SDL_FillRect(scrptr->display, &rect, scrptr->cw_2bpp_toggle ? GRAY2_COLOR : GRAY1_COLOR);
         }
         else SDL_FillRect(scrptr->display, &rect, (val & (1 << i)) ? BLACK_COLOR : WHITE_COLOR);
@@ -73,6 +75,9 @@ screen::screen(class mcu *mcu, struct config *config) {
         this->status_bar_bits.push_back({0x15, 0}); // ⏸
         this->status_bar_bits.push_back({0x16, 0}); // ☼
 
+        register_sfr(0x30, 1, &default_write<0x7f>);
+        register_sfr(0x31, 1, &default_write<3>);
+
         break;
     case HW_CLASSWIZ_CW:
         this->width = 192;
@@ -103,6 +108,10 @@ screen::screen(class mcu *mcu, struct config *config) {
         this->status_bar_bits.push_back({0x09, 0}); // f(𝑥)
         this->status_bar_bits.push_back({0x0f, 0}); // g(𝑥)
 
+        register_sfr(0x30, 1, &default_write<0x7f>);
+        register_sfr(0x31, 1, &default_write<0xff>);
+        register_sfr(0x37, 1, &screen_select);
+
         break;
     default:
         this->width = 96;
@@ -131,6 +140,9 @@ screen::screen(class mcu *mcu, struct config *config) {
         this->status_bar_bits.push_back({0xb, 7}); // ▲
         this->status_bar_bits.push_back({0xb, 4}); // Disp
 
+        register_sfr(0x30, 1, &default_write<0x7f>);
+        register_sfr(0x31, 1, &default_write<7>);
+
         break;
     }
 
@@ -149,7 +161,6 @@ screen::screen(class mcu *mcu, struct config *config) {
 
     for (int i = 0; i < this->height; i++)
         register_sfr(0x800+i*this->bytes_per_row_real, this->bytes_per_row, &draw_screen);
-    if (this->config->hardware_id == HW_CLASSWIZ_CW) register_sfr(0xf037, 1, &screen_select);
 }
 
 screen::~screen() {
@@ -161,19 +172,25 @@ void screen::render(SDL_Renderer *renderer) {
     SDL_Surface *tmp = SDL_CreateRGBSurface(0, this->width*this->config->pix_w, this->height*this->config->pix_h+this->sbar_hi, 32, 0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000);
     SDL_Rect dispsrc, dispdest;
     if (this->use_status_bar_image) {
-        for (int i = 0; i < this->config->status_bar_crops.size(); i++) {
-            SDL_Rect srcdest = this->config->status_bar_crops[i];
-            statusbit sbb = this->status_bar_bits[i];
-            if (this->mcu->sfr[0x800+sbb.idx] & (1 << sbb.bit)) SDL_BlitSurface(this->status_bar, &srcdest, tmp, &srcdest);
-        }
+        if (this->mcu->sfr[0x31] == 5 || this->mcu->sfr[0x31] == 6)
+            for (int i = 0; i < this->config->status_bar_crops.size(); i++) {
+                SDL_Rect srcdest = this->config->status_bar_crops[i];
+                statusbit sbb = this->status_bar_bits[i];
+                if (this->mcu->sfr[0x800+sbb.idx] & (1 << sbb.bit)) SDL_BlitSurface(this->status_bar, &srcdest, tmp, &srcdest);
+            }
         dispsrc = {0, scrptr->config->pix_h, this->width*this->config->pix_w, (this->height-1)*this->config->pix_h};
         dispdest = {0, this->sbar_hi, this->width*this->config->pix_w, (this->height-1)*this->config->pix_h};
     } else {
-        dispsrc = {0, 0, this->width*this->config->pix_w, this->height*this->config->pix_h};
-        dispdest = {0, 0, this->width*this->config->pix_w, this->height*this->config->pix_h};
+        if (this->mcu->sfr[0x31] == 5 || this->mcu->sfr[0x31] == 6) {
+            dispsrc = {0, 0, this->config->pix_w, this->config->pix_h};
+            dispdest = {0, 0, this->config->pix_w, this->config->pix_h};
+            SDL_BlitSurface(this->display, &dispsrc, tmp, &dispdest);
+        }
+        dispsrc = {0, this->sbar_hi, this->width*this->config->pix_w, (this->height-1)*this->config->pix_h};
+        dispdest = {0, this->sbar_hi, this->width*this->config->pix_w, (this->height-1)*this->config->pix_h};
     }
 
-    SDL_BlitSurface(this->display, &dispsrc, tmp, &dispdest);
+    if (this->mcu->sfr[0x31] == 5) SDL_BlitSurface(this->display, &dispsrc, tmp, &dispdest);
 
     SDL_Texture* tmp2 = SDL_CreateTextureFromSurface(renderer, tmp);
     SDL_FreeSurface(tmp);

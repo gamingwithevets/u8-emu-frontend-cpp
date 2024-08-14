@@ -23,6 +23,38 @@ extern "C" {
 
 //#define CONFIGDEBUG
 
+const std::map<SDL_Scancode, SDL_Keycode> shift_keycombos = {
+    {SDL_SCANCODE_1, SDLK_EXCLAIM},
+    {SDL_SCANCODE_2, SDLK_AT},
+    {SDL_SCANCODE_3, SDLK_HASH},
+    {SDL_SCANCODE_4, SDLK_DOLLAR},
+    {SDL_SCANCODE_5, SDLK_PERCENT},
+    {SDL_SCANCODE_6, SDLK_CARET},
+    {SDL_SCANCODE_7, SDLK_AMPERSAND},
+    {SDL_SCANCODE_8, SDLK_ASTERISK},
+    {SDL_SCANCODE_9, SDLK_LEFTPAREN},
+    {SDL_SCANCODE_0, SDLK_RIGHTPAREN},
+    {SDL_SCANCODE_MINUS, SDLK_UNDERSCORE},
+    {SDL_SCANCODE_EQUALS, SDLK_PLUS},
+    {SDL_SCANCODE_SEMICOLON, SDLK_COLON},
+    {SDL_SCANCODE_APOSTROPHE, SDLK_QUOTEDBL},
+    {SDL_SCANCODE_COMMA, SDLK_LESS},
+    {SDL_SCANCODE_PERIOD, SDLK_GREATER},
+    {SDL_SCANCODE_SLASH, SDLK_QUESTION},
+};
+
+void convert_shift(SDL_Event &event) {
+    if (event.type == SDL_KEYDOWN || event.type == SDL_KEYUP) {
+        const Uint8* keystate = SDL_GetKeyboardState(NULL);
+        if (keystate[SDL_SCANCODE_LSHIFT] || keystate[SDL_SCANCODE_RSHIFT]) {
+            auto it = shift_keycombos.find(event.key.keysym.scancode);
+            if (it != shift_keycombos.end()) {
+                event.key.keysym.sym = it->second;
+            }
+        }
+    }
+}
+
 int main(int argc, char* argv[]) {
     if (argc != 2) {
         std::cerr << "Usage: " << argv[0] << " [binary configuration file]" << std::endl;
@@ -203,24 +235,21 @@ int main(int argc, char* argv[]) {
     std::thread cs_thread(core_step_loop, std::ref(stop));
     SDL_Event e;
     while (!quit) {
+        printf("%s\n", stop.load() ? "true" : "false");
         a = SDL_GetTicks();
 
         while (SDL_PollEvent(&e) != 0) {
+            convert_shift(e);
             if (SDL_GetWindowFlags(window) & SDL_WINDOW_INPUT_FOCUS) mcu.keyboard->process_event(&e);
             if (SDL_GetWindowFlags(window2) & SDL_WINDOW_INPUT_FOCUS) ImGui_ImplSDL2_ProcessEvent(&e);
             if (e.type == SDL_QUIT) quit = true;
-            else if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_CLOSE) {
-                quit = true;
-                stop = true;
-            } else if (e.type == SDL_KEYDOWN) {
-                if (e.key.keysym.sym == SDLK_BACKSLASH && stop.load()) mcu.core_step();
-            }
-            if (single_step && !stop.load()) stop = true;
-            else if (!single_step &&  stop.load())
+            else if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_CLOSE) quit = true;
+            if (single_step && !stop.load())
                 if (cs_thread.joinable()) {
+                    stop = true;
                     cs_thread.join();
-                    cs_thread = std::thread(core_step_loop, std::ref(stop));
                 }
+            else if (!single_step && stop.load()) cs_thread = std::thread(core_step_loop, std::ref(stop));
         }
 
         ImGui_ImplSDLRenderer2_NewFrame();
@@ -477,6 +506,11 @@ int main(int argc, char* argv[]) {
 
         b = SDL_GetTicks() - a;
         fps = (b > 0) ? 1000.0f / b : 0.0f;
+    }
+
+    if (!single_step && cs_thread.joinable()) {
+        stop = true;
+        cs_thread.join();
     }
 
     ImGui_ImplSDLRenderer2_Shutdown();
