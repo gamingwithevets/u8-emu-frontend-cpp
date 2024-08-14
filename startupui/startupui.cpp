@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <SDL.h>
 #include <SDL_image.h>
+#include <sys/stat.h>
 
 #include "startupui.hpp"
 #include "../config/config.hpp"
@@ -15,6 +16,17 @@
 inline SDL_Window* window;
 inline SDL_Renderer* renderer2;
 inline std::vector<UIWindow*>* windows2;
+
+std::map<hardware_id, std::string> hwid_names = {
+    {HW_SOLAR_II, "SOLAR II"},
+    {HW_ES, "ES"},
+    {HW_ES_PLUS, "ES PLUS"},
+    {HW_CLASSWIZ_EX, "ClassWiz EX"},
+    {HW_CLASSWIZ_CW, "ClassWiz CW"},
+    {HW_TI_MATHPRINT, "TI MathPrint"},
+};
+const std::string esp2_str = "ES PLUS 2nd edition";
+const std::string fx5800p_str = "ES (fx-5800P)";
 
 // TODO: Make this work for Genshit v69
 /*
@@ -382,69 +394,60 @@ public:
         bool realhw;
         bool show_sum = true;
     };
+    bool allgood;
     std::vector<Model> models;
     std::filesystem::path selected_path{};
     StartupUi() {
+        struct stat info;
+        if (!stat("configs", &info)) {
+            if (info.st_mode & S_IFDIR) goto notfail;
+            else goto fail;
+        } else
+fail:
+            this->allgood = false;
+            std::cout << "No 'configs' directory found; please read the README for more details" << std::endl << "Press any key to exit." << std::endl;
+            std::cin.ignore();
+            return;
+notfail:
+        this->allgood = true;
         for (auto& dir : std::filesystem::directory_iterator("configs")) {
             if (dir.is_regular_file() && ends_with(dir.path().string(), std::string(".bin"))) {
                 auto config = dir.path().string();
+                std::cout << config << std::endl;
                 std::ifstream ifs(config, std::ios::in | std::ios::binary);
                 if (!ifs) continue;
                 struct config mi{};
-                Binary::Read(ifs, mi);
+                Binary::Read(ifs, mi); // bugged!
                 ifs.close();
                 Model mod{};
                 mod.path = dir;
                 mod.name = mi.w_name;
                 mod.realhw = mi.real_hardware;
-                switch (mi.hardware_id) {
-                case HW_SOLAR_II:
-                    mod.type = "SOLAR II";
-                    break;
-                case HW_ES:
-                    mod.type = mi.is_5800p ? "ES (fx-5800P)" : "ES";
-                    break;
-                case HW_ES_PLUS:
-                    mod.type = "ES PLUS";
-                    break;
-                case HW_CLASSWIZ_EX:
-                    mod.type = "ClassWiz EX";
-                    break;
-                case HW_CLASSWIZ_CW:
-                    mod.type = "ClassWiz CW";
-                    break;
-                case HW_TI_MATHPRINT:
-                    mod.type = "TI";
-                    break;
-                default:
-                    mod.type = "Unknown";
-                    break;
-                }
+                mod.type = hwid_names.find(mi.hardware_id) == hwid_names.end() ? "Unknown" : hwid_names[mi.hardware_id];
                 std::ifstream ifs2(mi.rom_file, std::ios::in | std::ios::binary);
-                if (!ifs2)
-                    continue;
+                if (!ifs2) continue;
                 std::vector<byte> rom{std::istreambuf_iterator<char>{ifs2.rdbuf()}, std::istreambuf_iterator<char>{}};
                 ifs2.close();
                 auto ri = rom_info(rom, mi.real_hardware);
                 if (ri.type != 0) {
                     switch (ri.type) {
                     case RomInfo::ES:
-                        mod.type = "ES";
+                        mod.type = hwid_names[HW_ES];
                         break;
                     case RomInfo::ESP:
-                        mod.type = "ES PLUS";
+                        mod.type = hwid_names[HW_ES_PLUS];
                         break;
                     case RomInfo::ESP2nd:
-                        mod.type = "ES PLUS 2nd edition";
+                        mod.type = esp2_str;
                         break;
                     case RomInfo::CWX:
-                        mod.type = "ClassWiz EX";
+                        mod.type = hwid_names[HW_CLASSWIZ_EX];
                         break;
                     case RomInfo::CWII:
-                        mod.type = "ClassWiz CW";
+                        mod.type = hwid_names[HW_CLASSWIZ_CW];
                         break;
                     case RomInfo::Fx5800p:
-                        mod.type = "ES (fx-5800P)";
+                        mod.type = fx5800p_str;
                         break;
                     }
                 }
@@ -497,7 +500,7 @@ public:
             ImGui::SetNextItemWidth(200);
             ImGui::InputText("##search", search_txt, 200);
             ImGui::SameLine();
-            const char* items[] = {"##", "ES", "ES (fx-5800P)", "ES PLUS", "ES PLUS 2nd edition", "ClassWiz EX", "ClassWiz CW"};
+            const char* items[] = {"##", hwid_names[HW_ES].c_str(), fx5800p_str.c_str(), hwid_names[HW_ES_PLUS].c_str(), esp2_str.c_str(), hwid_names[HW_CLASSWIZ_EX].c_str(), hwid_names[HW_CLASSWIZ_CW].c_str()};
             ImGui::SetNextItemWidth(80);
             if (ImGui::BeginCombo("##cb", current_filter)) {
                 for (int n = 0; n < IM_ARRAYSIZE(items); n++) {
@@ -532,7 +535,7 @@ public:
         ImGuiTableColumnFlags_WidthFixed, 80);
         ImGui::TableSetupColumn("ROM checksum", ImGuiTableColumnFlags_WidthFixed, 130);
         ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_WidthFixed, 70);
-        ImGui::TableSetupColumn("Edit", ImGuiTableColumnFlags_WidthFixed, 80);
+        ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 80);
         ImGui::TableHeadersRow();
     }
     void RenderModel(const Model& model, int& i) {
@@ -553,7 +556,7 @@ public:
             }
         }
         ImGui::TableNextColumn();
-        ImGui::Text(model.version.c_str());
+        ImGui::Text("%s %s%s", model.version.substr(0, 6).c_str(), !strcmp(model.type.c_str(),  hwid_names[HW_CLASSWIZ_CW].c_str()) ? "V." : "Ver", model.version.substr(6, 7).c_str());
         ImGui::TableNextColumn();
         if (model.realhw) {
             if (model.show_sum) {
@@ -569,7 +572,7 @@ public:
         ImGui::TableNextColumn();
         ImGui::Text(model.type.c_str());
         ImGui::TableNextColumn();
-        if (ImGui::Button("Soon...")) {
+        if (ImGui::Button("[TBA]")) {
             //windows2->push_back(new ModelEditor(model.path));
         }
         ImGui::PopID();
@@ -597,6 +600,7 @@ std::string sui_loop() {
 	SDL_SetHint(SDL_HINT_IME_SHOW_UI, "1");
 	windows2 = new std::vector<UIWindow*>();
 	StartupUi ui;
+	if (!ui.allgood) return {};
 	{
 		std::ifstream ifs1{"recent.bin", std::ifstream::binary};
 		if (ifs1)

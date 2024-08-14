@@ -33,6 +33,7 @@
 
 # Extra
 *.bin
+*.bat
 *.ini
 *.cbp
 *.depend

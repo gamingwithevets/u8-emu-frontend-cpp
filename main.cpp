@@ -58,10 +58,14 @@ void convert_shift(SDL_Event &event) {
 
 int main(int argc, char* argv[]) {
     std::string path;
-    if (argc != 2) {
+    if (argc < 2) {
         path = sui_loop();
         if (path.empty()) return 0;
-    } else path = std::string(argv[1]);
+    } else if (argc > 2) {
+        std::cerr << "Too many arguments" << std::endl;
+        return 0;
+    }
+    else path = std::string(argv[1]);
 
     std::ifstream is(path.c_str(), std::ifstream::binary);
     if (!is) {
