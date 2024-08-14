@@ -58,7 +58,7 @@ struct config {
     // Keyboard
     std::map<uint8_t, keydata> keymap;
     void Write(std::ostream &os) const {
-        Binary::Write(os, std::string(header));
+        Binary::Write(os, header);
 
         Binary::Write(os, rom_file);
         Binary::Write(os, flash_rom_file);

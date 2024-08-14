@@ -12,6 +12,7 @@
 #include "config/config.hpp"
 #include "peripheral/screen.hpp"
 #include "config/binary.hpp"
+#include "startupui/startupui.hpp"
 extern "C" {
 #include "u8_emu/src/core/core.h"
 #include "nxu8_disas/src/lib/lib_nxu8.h"
@@ -56,21 +57,22 @@ void convert_shift(SDL_Event &event) {
 }
 
 int main(int argc, char* argv[]) {
+    std::string path;
     if (argc != 2) {
-        std::cerr << "Usage: " << argv[0] << " [binary configuration file]" << std::endl;
-        return 0;
-    }
+        path = sui_loop();
+        if (path.empty()) return 0;
+    } else path = std::string(argv[1]);
 
-    std::ifstream is(argv[1], std::ifstream::binary);
+    std::ifstream is(path.c_str(), std::ifstream::binary);
     if (!is) {
-        std::cerr << "Error loading config file '" << argv[1] << "': " << strerror(errno) << std::endl;
+        std::cerr << "Error loading config file '" << path << "': " << strerror(errno) << std::endl;
         return -1;
     }
     config config{};
     try {
         Binary::Read(is, config);
     } catch (const std::exception& e) {
-        std::cerr << "Error parsing config file '" << argv[1] << "': " << e.what() << std::endl;
+        std::cerr << "Error parsing config file '" << path << "': " << e.what() << std::endl;
         return -1;
     }
 
@@ -235,7 +237,6 @@ int main(int argc, char* argv[]) {
     std::thread cs_thread(core_step_loop, std::ref(stop));
     SDL_Event e;
     while (!quit) {
-        printf("%s\n", stop.load() ? "true" : "false");
         a = SDL_GetTicks();
 
         while (SDL_PollEvent(&e) != 0) {
@@ -244,13 +245,14 @@ int main(int argc, char* argv[]) {
             if (SDL_GetWindowFlags(window2) & SDL_WINDOW_INPUT_FOCUS) ImGui_ImplSDL2_ProcessEvent(&e);
             if (e.type == SDL_QUIT) quit = true;
             else if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_CLOSE) quit = true;
-            if (single_step && !stop.load())
-                if (cs_thread.joinable()) {
-                    stop = true;
-                    cs_thread.join();
-                }
-            else if (!single_step && stop.load()) cs_thread = std::thread(core_step_loop, std::ref(stop));
         }
+
+        if (single_step && !stop.load())
+            if (cs_thread.joinable()) {
+                stop = true;
+                cs_thread.join();
+            }
+        if (!single_step && stop.load()) cs_thread = std::thread(core_step_loop, std::ref(stop));
 
         ImGui_ImplSDLRenderer2_NewFrame();
         ImGui_ImplSDL2_NewFrame();
