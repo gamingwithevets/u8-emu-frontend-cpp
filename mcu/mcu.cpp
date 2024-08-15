@@ -327,8 +327,6 @@ mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *fla
             break;
     }
 
-    if (this->config->hardware_id != HW_TI_MATHPRINT) this->sfr[0x50] = this->config->pd_value;
-
     memset((void *)this->sfr_write, 0, sizeof(this->sfr_write));
     register_sfr(0, 1, &default_write<0xff>);
 

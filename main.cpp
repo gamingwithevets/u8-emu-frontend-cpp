@@ -241,6 +241,9 @@ int main(int argc, char* argv[]) {
         ramsize = config.real_hardware ? 0xe00 : 0x7000;
         break;
     }
+
+    uint8_t pd_value;
+    if (config.hardware_id != HW_TI_MATHPRINT) pd_value = config.pd_value;
     mcu mcu(&core, &config, rom, NULL, ramstart, ramsize, w, h);
 
     bool quit = false;
@@ -252,6 +255,7 @@ int main(int argc, char* argv[]) {
     sfredit.WriteFn = &write_sfr_im;
 
     bool set_p[8];
+    for (int i = 0; i < 8; i++) set_p[i] = pd_value & (1 << i);
 
     const char *memselect[] = {"Main RAM", "SFR region"};
     static int memselect_idx = 0;
@@ -278,6 +282,14 @@ int main(int argc, char* argv[]) {
                 cs_thread.join();
             }
         if (!single_step && stop.load()) cs_thread = std::thread(core_step_loop, std::ref(stop));
+
+        if (config.hardware_id != HW_TI_MATHPRINT) {
+            for (int i = 0; i < 8; i++) {
+                if (set_p[i]) pd_value |= (1 << i);
+                else pd_value &= ~(1 << i);
+            }
+            mcu.sfr[0x50] = pd_value;
+        }
 
         ImGui_ImplSDLRenderer2_NewFrame();
         ImGui_ImplSDL2_NewFrame();
@@ -499,7 +511,7 @@ int main(int argc, char* argv[]) {
 
         ImGui::Begin("Hex Editor", NULL, 0);
         const char* preview = memselect[memselect_idx];
-        if (ImGui::BeginCombo("Region", preview)) {
+        if (ImGui::BeginCombo("##", preview)) {
             for (int n = 0; n < IM_ARRAYSIZE(memselect); n++) {
                 const bool is_selected = (memselect_idx == n);
                 if (ImGui::Selectable(memselect[n], is_selected))
@@ -513,12 +525,18 @@ int main(int argc, char* argv[]) {
         ImGui::End();
 
         ImGui::Begin("Options", NULL, 0);
-        ImGui::Text("P mode");
-        for (int i = 7; i >= 0; i--) {
+        if (config.hardware_id != HW_TI_MATHPRINT) {
+            ImGui::Text("P mode");
+            ImGui::Text("");
+            for (int i = 7; i >= 0; i--) {
+                char a[3]; sprintf(a, "##%d", i);
+                ImGui::SameLine();
+                ImGui::Checkbox(a, &set_p[i]);
+            }
             ImGui::SameLine();
-            ImGui::Checkbox("##", &set_p[i]);
+            ImGui::Text("P%c", get_pmode(pd_value));
+            ImGui::Text("  7   6   5   4   3   2  1   0");
         }
-
         ImGui::Checkbox("Pause/Single-step", &single_step);
         if (single_step) {
             if (ImGui::Button("Step")) mcu.core_step();

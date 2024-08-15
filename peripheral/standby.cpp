@@ -14,7 +14,6 @@ uint8_t stpacp(mcu *mcu, uint16_t addr, uint8_t val) {
 uint8_t sbycon(mcu *mcu, uint16_t addr, uint8_t val) {
     if (val & (1 << 1)) {
         if (mcu->standby->stop_accept[0] && mcu->standby->stop_accept[1]) {
-            printf("Stop mode!\n");
             mcu->standby->stop_mode = true;
             mcu->standby->stop_accept[0] = false;
             mcu->standby->stop_accept[1] = false;
