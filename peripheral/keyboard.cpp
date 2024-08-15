@@ -27,6 +27,10 @@ keyboard::keyboard(class mcu *mcu, struct config *config, int w, int h) {
 
         // Port 0
         register_sfr(0x48, 5, &default_write<0xff>);
+    } else if (this->config->is_5800p) {
+        register_sfr(0x41, 5, &default_write<0xff>);
+        register_sfr(0x47, 4, &default_write<0xff>);
+        this->mcu->sfr[0x46] = 4;
     } else register_sfr(0x41, 10, &default_write<0xff>);
 
     if (!this->config->real_hardware) {
@@ -152,35 +156,37 @@ void keyboard::_tick(bool *reset, uint8_t *ki, uint8_t kimask, uint8_t ko, uint8
 }
 
 void keyboard::tick_emu() {
-    if (this->enable_keypress) {
-        uint8_t k;
-        if (this->held_buttons.size()) k = this->held_buttons.back();
-        else if (this->mouse_held) k = this->held_button_mouse;
-        else return;
+    uint8_t k = 0;
+    switch (*this->emu_kb.ES_STOPTYPEADR) {
+    case ES_STOP_GETKEY:
+        if (this->enable_keypress) {
+            if (this->held_buttons.size()) k = this->held_buttons.back();
+            else if (this->mouse_held) k = this->held_button_mouse;
+            else break;
 
-        uint8_t ki_bit = k & 0xf;
-        uint8_t ko_bit = k >> 4;
-
-        printf("%d\n", *this->emu_kb.ES_STOPTYPEADR);
-        switch (*this->emu_kb.ES_STOPTYPEADR) {
-        case ES_STOP_GETKEY:
+            uint8_t ki_bit = k & 0xf;
+            uint8_t ko_bit = k >> 4;
             *this->emu_kb.ES_KIADR = 1 << ki_bit;
             *this->emu_kb.ES_KOADR = 1 << ko_bit;
-            break;
-        case ES_STOP_ACBREAK:
-        case ES_STOP_ACBREAK2:
-            *this->emu_kb.ES_STOPTYPEADR = (es_stop_type)(ki_bit == 4 && ko_bit == 0x10);
-            break;
-        case ES_STOP_QRCODE_IN:
-        case ES_STOP_QRCODE_IN3:
-            strcpy(this->emu_kb.qr_url, this->emu_kb.ES_QR_DATATOP_ADR);
-            this->emu_kb.qr_active = true;
-            break;
-        case ES_STOP_QRCODE_OUT:
-            this->emu_kb.qr_active = false;
-            break;
+            this->mcu->standby->stop_mode = false;
+            this->enable_keypress = false;
         }
-        this->mcu->standby->stop_mode = false;
-        this->enable_keypress = false;
+        break;
+    case ES_STOP_ACBREAK:
+    case ES_STOP_ACBREAK2:
+        if (this->enable_keypress) {
+            if (this->held_buttons.size()) k = this->held_buttons.back();
+            else if (this->mouse_held) k = this->held_button_mouse;
+        }
+        *this->emu_kb.ES_STOPTYPEADR = (es_stop_type)(k == 0x42);
+        break;
+    case ES_STOP_QRCODE_IN:
+    case ES_STOP_QRCODE_IN3:
+        strcpy(this->emu_kb.qr_url, this->emu_kb.ES_QR_DATATOP_ADR);
+        this->emu_kb.qr_active = true;
+        break;
+    case ES_STOP_QRCODE_OUT:
+        this->emu_kb.qr_active = false;
+        break;
     }
 }

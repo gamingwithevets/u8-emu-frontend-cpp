@@ -188,7 +188,6 @@ int main(int argc, char* argv[]) {
     fread(rom, sizeof(uint8_t), 0x20000, f);
     fclose(f);
 
-    std::cout << "Generating disassembly..." << std::endl;
     struct nxu8_decoder *decoder = nxu8_init_decoder(0x20000, rom);
     std::map<uint32_t, std::string> disas;
     uint32_t addr = 0;
@@ -208,7 +207,6 @@ int main(int argc, char* argv[]) {
 		disas[addr] = tmp2;
 		addr += len;
 	}
-    std::cout << "Done!" << std::endl;
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -250,6 +248,7 @@ int main(int argc, char* argv[]) {
     bool single_step = false;
     std::atomic<bool> stop = false;
     static MemoryEditor ramedit;
+    static MemoryEditor ram2edit;
     static MemoryEditor sfredit;
     sfredit.ReadFn = &read_sfr_im;
     sfredit.WriteFn = &write_sfr_im;
@@ -257,7 +256,8 @@ int main(int argc, char* argv[]) {
     bool set_p[8];
     for (int i = 0; i < 8; i++) set_p[i] = pd_value & (1 << i);
 
-    const char *memselect[] = {"Main RAM", "SFR region"};
+    char *memselect[] = {"Main RAM", "SFR region", "PRAM"};
+    if (config.hardware_id == HW_ES && config.is_5800p) memselect[2] = "Emulator RAM";
     static int memselect_idx = 0;
 
     unsigned int a, b;
@@ -410,7 +410,7 @@ int main(int argc, char* argv[]) {
             ImGui::TableNextColumn();
             ImGui::Text("%X:%04XH", mcu.core->regs.lcsr, mcu.core->regs.lr);
 
-            for (int i = 0; i < 2; i++) {
+            for (int i = 0; i < 3; i++) {
                 ImGui::TableNextRow();
                 ImGui::TableSetColumnIndex(0);
                 ImGui::Text("ECSR%d:ELR%d", i+1, i+1);
@@ -418,7 +418,7 @@ int main(int argc, char* argv[]) {
                 ImGui::Text("%X:%04XH", mcu.core->regs.ecsr[i], mcu.core->regs.elr[i]);
             }
 
-            for (int i = 0; i < 2; i++) {
+            for (int i = 0; i < 3; i++) {
                 ImGui::TableNextRow();
                 ImGui::TableSetColumnIndex(0);
                 ImGui::Text("EPSW%d", i+1);
@@ -512,7 +512,8 @@ int main(int argc, char* argv[]) {
         ImGui::Begin("Hex Editor", NULL, 0);
         const char* preview = memselect[memselect_idx];
         if (ImGui::BeginCombo("##", preview)) {
-            for (int n = 0; n < IM_ARRAYSIZE(memselect); n++) {
+            for (int n = 0; n < (config.hardware_id == HW_ES && config.is_5800p ||
+                                      (config.hardware_id == HW_CLASSWIZ_EX || config.hardware_id == HW_CLASSWIZ_CW) && !config.real_hardware) ? 3 : 2; n++) {
                 const bool is_selected = (memselect_idx == n);
                 if (ImGui::Selectable(memselect[n], is_selected))
                     memselect_idx = n;
@@ -522,9 +523,12 @@ int main(int argc, char* argv[]) {
         }
         if (memselect_idx == 0) ramedit.DrawContents((void *)mcu.ram, ramsize, ramstart);
         else if (memselect_idx == 1) sfredit.DrawContents((void *)mcu.sfr, 0x1000, 0xf000);
+        else if (memselect_idx == 2) sfredit.DrawContents((void *)mcu.ram2, config.hardware_id == HW_ES && config.is_5800p ? 0x8000 : 0x10000,
+                                                          config.hardware_id == HW_CLASSWIZ_CW ? 0x80000 : 0x40000);
         ImGui::End();
 
         ImGui::Begin("Options", NULL, 0);
+        if (ImGui::Button("Reset core")) mcu.reset();
         if (config.hardware_id != HW_TI_MATHPRINT) {
             ImGui::Text("P mode");
             ImGui::Text("");

@@ -439,9 +439,11 @@ notfail:
         for (auto& dir : std::filesystem::directory_iterator("configs")) {
             if (dir.is_regular_file() && ends_with(dir.path().string(), std::string(".bin"))) {
                 auto config = dir.path().string();
-                std::cout << "Loading configuration file: " << config << std::endl;
                 std::ifstream ifs(config, std::ios::in | std::ios::binary);
-                if (!ifs) continue;
+                if (!ifs) {
+                    std::cout << dir.path().string() << ": Could not open config file" << std::endl;
+                    continue;
+                }
                 struct config mi{};
                 Binary::Read(ifs, mi);
                 ifs.close();
@@ -451,7 +453,10 @@ notfail:
                 mod.realhw = mi.real_hardware;
                 mod.type = hwid_names.find(mi.hardware_id) == hwid_names.end() ? "Unknown" : hwid_names[mi.hardware_id];
                 std::ifstream ifs2(mi.rom_file, std::ios::in | std::ios::binary);
-                if (!ifs2) continue;
+                if (!ifs2) {
+                    std::cout << dir.path().string() << ": Could not open ROM" << std::endl;
+                    continue;
+                }
                 std::vector<byte> rom{std::istreambuf_iterator<char>{ifs2.rdbuf()}, std::istreambuf_iterator<char>{}};
                 ifs2.close();
                 std::vector<byte> flash;
@@ -480,6 +485,9 @@ notfail:
                         break;
                     case RomInfo::Fx5800p:
                         mod.type = fx5800p_str;
+                        break;
+                    case RomInfo::TI:
+                        mod.type = hwid_names[HW_TI_MATHPRINT];
                         break;
                     }
                 }
@@ -591,6 +599,7 @@ notfail:
         ImGui::TableNextColumn();
         if (model.version.size()) {
             if (model.type == hwid_names[HW_ES] || model.type == fx5800p_str) ImGui::Text("%s (P%c)", model.version.c_str(), get_pmode(model.pd_value));
+            else if (model.type == hwid_names[HW_TI_MATHPRINT]) ImGui::Text(model.version.c_str());
             else ImGui::Text("%s %s%s", model.version.substr(0, 6).c_str(), !strcmp(model.type.c_str(),  hwid_names[HW_CLASSWIZ_CW].c_str()) ? "V." : "Ver", model.version.substr(6, 7).c_str());
         } else ImGui::Text("-");
         ImGui::TableNextColumn();

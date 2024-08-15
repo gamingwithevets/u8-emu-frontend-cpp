@@ -15,6 +15,7 @@ struct RomInfo {
 		CWX,
 		CWII,
 		Fx5800p,
+		TI,
 	} type;
 	bool ok;
 };

@@ -111,6 +111,14 @@ RomInfo rom_info(std::vector<byte> rom, std::vector<byte> flash, bool checksum) 
 		ri.desired_sum = le_read(dat[0x1fffc]);
 		sum_type = ESP1;
 	}
+	else {
+        auto str = (char *)FindSignature(dat, 0xb000, "73 69 6e 68 28 00");
+        if (str) {
+            strcpy(ri.ver, (char *)(str + 6));
+            ri.type = RomInfo::TI;
+        }
+        return ri;
+	}
 	if (ri.ver[1] != 'Y') {
 		return ri;
 	}

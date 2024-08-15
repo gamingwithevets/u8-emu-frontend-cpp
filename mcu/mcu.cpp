@@ -303,8 +303,8 @@ mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *fla
                 };
 
                 // PRAM
-                this->ram2 = (uint8_t *)malloc(0x80000);
-                memset(this->ram2, 0, 0x80000);
+                this->ram2 = (uint8_t *)malloc(0x8000);
+                memset(this->ram2, 0, 0x8000);
                 this->core->mem.regions[6] = (struct u8_mem_reg){
                     .type = U8_REGION_DATA,
                     .rw = true,
@@ -365,6 +365,7 @@ void mcu::core_step() {
         else if ((data & 0xf2ff) == 0xf28e && !call_stack.empty()) call_stack.pop_back();
         // RT
         else if (data == 0xfe1f && !call_stack.empty()) call_stack.pop_back();
+        else if (data == 0xffff && (this->core->regs.psw & 3) >= 2) call_stack.clear();
 
         u8_step(this->core);
 
@@ -402,6 +403,7 @@ void core_step_loop(std::atomic<bool>& stop) {
 
 void mcu::reset() {
     u8_reset(this->core);
+    this->standby->stop_mode = false;
     for (int i = 0; i < this->screen->height; i++) write_mem_data(this->core, 0, 0xf800 + i*this->screen->bytes_per_row_real, this->screen->bytes_per_row, 0);
     this->call_stack.clear();
     this->ips_start = get_time();
