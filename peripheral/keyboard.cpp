@@ -88,7 +88,7 @@ void keyboard::render(SDL_Renderer *renderer) {
 }
 
 void keyboard::tick() {
-    uint8_t ki = 0xff;
+    uint8_t ki = 0;
     uint8_t kimask = this->mcu->sfr[0x42];
     uint8_t ko = this->mcu->sfr[0x46];
 
@@ -96,7 +96,7 @@ void keyboard::tick() {
     for (const auto &k : this->held_buttons) this->_tick(&ki, kimask, ko, k);
     if (this->mouse_held) this->_tick(&ki, kimask, ko, this->held_button_mouse);
 
-    this->mcu->sfr[0x40] = ki;
+    this->mcu->sfr[0x40] = ki ^ 0xff;
 }
 
 void keyboard::_tick(uint8_t *ki, uint8_t kimask, uint8_t ko, uint8_t k) {
@@ -104,7 +104,7 @@ void keyboard::_tick(uint8_t *ki, uint8_t kimask, uint8_t ko, uint8_t k) {
         uint8_t ki_bit = k & 0xf;
         uint8_t ko_bit = k >> 4;
         if (ko & (1 << ko_bit)) {
-            *ki &= ~(1 << ki_bit);
+            *ki |= (1 << ki_bit);
             // Fake interrupt code! Need to remove later
             if (kimask & (1 << ki_bit)) {
                 this->mcu->sfr[0x14] |= 2;

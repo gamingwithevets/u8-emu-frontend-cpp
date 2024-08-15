@@ -8,7 +8,7 @@
 
 screen *scrptr;
 
-const uint32_t WHITE_COLOR = 0xFFD6E3D6;
+const uint32_t WHITE_COLOR = 0;
 const uint32_t GRAY1_COLOR = 0x55FFFFFF;
 const uint32_t GRAY2_COLOR = 0xAAFFFFFF;
 const uint32_t BLACK_COLOR = 0xFF000000;
@@ -53,6 +53,7 @@ screen::screen(class mcu *mcu, struct config *config) {
         this->height = 64;
         this->bytes_per_row = 0x18;
         this->bytes_per_row_real = 0x20;
+        this->cw_2bpp = false;
 
         this->status_bar_bits.push_back({0x00, 0}); // [S]
         this->status_bar_bits.push_back({0x01, 0}); // [A]
@@ -118,6 +119,7 @@ screen::screen(class mcu *mcu, struct config *config) {
         this->height = 32;
         this->bytes_per_row = 0xc;
         this->bytes_per_row_real = 0x10;
+        this->cw_2bpp = false;
 
         this->status_bar_bits.push_back({0x0, 4}); // [S]
         this->status_bar_bits.push_back({0x0, 2}); // [A]

@@ -10,7 +10,6 @@
 
 #include "mcu/mcu.hpp"
 #include "config/config.hpp"
-#include "peripheral/screen.hpp"
 #include "config/binary.hpp"
 #include "startupui/startupui.hpp"
 extern "C" {
@@ -153,7 +152,7 @@ int main(int argc, char* argv[]) {
     int w = interface_sf->w;
     int h = interface_sf->h;
 
-    SDL_Window* window = SDL_CreateWindow(config.w_name.empty() ? config.w_name.c_str() : "u8-emu-frontend-cpp", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, w, h, SDL_WINDOW_SHOWN);
+    SDL_Window* window = SDL_CreateWindow(!config.w_name.empty() ? config.w_name.c_str() : "u8-emu-frontend-cpp", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, w, h, SDL_WINDOW_SHOWN);
     if (!window) {
         std::cerr << "Failed to create window. SDL_Error: " << SDL_GetError() << std::endl;
         SDL_DestroyWindow(window2);
@@ -221,8 +220,28 @@ int main(int argc, char* argv[]) {
     ImGui_ImplSDL2_InitForSDLRenderer(window2, renderer2);
     ImGui_ImplSDLRenderer2_Init(renderer2);
 
-    mcu mcu(&core, &config, rom, NULL, 0x8000, 0xe00, w, h);
-    screen screen(&mcu, &config);
+    int ramstart, ramsize;
+    switch (config.hardware_id) {
+    case HW_SOLAR_II:
+        ramstart = 0xe000;
+        ramsize = 0x1000;
+        break;
+    case HW_CLASSWIZ_EX:
+        ramstart = 0xd000;
+        ramsize = 0x2000;
+        break;
+    case HW_CLASSWIZ_CW:
+        ramstart = 0x9000;
+        ramsize = 0x6000;
+    case HW_TI_MATHPRINT:
+        ramstart = 0xb000;
+        ramsize = 0x4000;
+    default:
+        ramstart = 0x8000;
+        ramsize = config.real_hardware ? 0xe00 : 0x7000;
+        break;
+    }
+    mcu mcu(&core, &config, rom, NULL, ramstart, ramsize, w, h);
 
     bool quit = false;
     bool single_step = false;
@@ -478,7 +497,7 @@ int main(int argc, char* argv[]) {
 
         ImGui::Begin("Hex Editor", NULL, 0);
         const char* preview = memselect[memselect_idx];
-        if (ImGui::BeginCombo("<- Region", preview)) {
+        if (ImGui::BeginCombo("Region", preview)) {
             for (int n = 0; n < IM_ARRAYSIZE(memselect); n++) {
                 const bool is_selected = (memselect_idx == n);
                 if (ImGui::Selectable(memselect[n], is_selected))
@@ -502,7 +521,7 @@ int main(int argc, char* argv[]) {
 
         SDL_RenderClear(renderer);
         SDL_RenderCopy(renderer, interface, NULL, NULL);
-        screen.render(renderer);
+        mcu.screen->render(renderer);
         mcu.keyboard->render(renderer);
         SDL_RenderPresent(renderer);
 
@@ -522,7 +541,6 @@ int main(int argc, char* argv[]) {
     ImGui_ImplSDLRenderer2_Shutdown();
     ImGui_ImplSDL2_Shutdown();
     ImGui::DestroyContext();
-    screen.~screen();
     mcu.~mcu();
     free((void *)rom);
     SDL_DestroyTexture(interface);

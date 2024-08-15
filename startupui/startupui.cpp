@@ -1,7 +1,10 @@
 ﻿#include <array>
 #include <filesystem>
 #include <iostream>
+#include <cmath>
 #include <algorithm>
+#include <bitset>
+#include <cstdint>
 #include <SDL.h>
 #include <SDL_image.h>
 #include <sys/stat.h>
@@ -379,6 +382,28 @@ bool ends_with(std::string const &fullString, std::string const &ending) {
     return fullString.compare(fullString.size() - ending.size(), ending.size(), ending) == 0;
 }
 
+// not generated with ChatGPT
+char get_pmode(uint8_t value) {
+    if (value == 0) {
+        return '-'; // Return '-' if the value is 0
+    }
+
+    // Check if more than one bit is set
+    std::bitset<8> bits(value);
+    if (bits.count() > 1) {
+        return '?'; // Return '?' if multiple bits are set
+    }
+
+    // Find the index of the rightmost set bit
+    for (uint8_t i = 0; i < 8; ++i) {
+        if (value & (1 << i)) {
+            return static_cast<char>(i + 0x30);
+        }
+    }
+
+    return '-'; // Fallback return, although it should never reach here
+}
+
 class StartupUi {
 public:
     struct Model {
@@ -392,6 +417,7 @@ public:
         std::string checksum2;
         std::string sum_good;
         bool realhw;
+        uint8_t pd_value;
         bool show_sum = true;
     };
     bool allgood;
@@ -413,11 +439,11 @@ notfail:
         for (auto& dir : std::filesystem::directory_iterator("configs")) {
             if (dir.is_regular_file() && ends_with(dir.path().string(), std::string(".bin"))) {
                 auto config = dir.path().string();
-                std::cout << config << std::endl;
+                std::cout << "Loading configuration file: " << config << std::endl;
                 std::ifstream ifs(config, std::ios::in | std::ios::binary);
                 if (!ifs) continue;
                 struct config mi{};
-                Binary::Read(ifs, mi); // bugged!
+                Binary::Read(ifs, mi);
                 ifs.close();
                 Model mod{};
                 mod.path = dir;
@@ -451,10 +477,9 @@ notfail:
                         break;
                     }
                 }
+                mod.version = ri.ver;
+                mod.pd_value = mi.pd_value;
                 if (ri.ok) {
-                    mod.version = ri.ver;
-                    std::array<char, 8> key{};
-                    memcpy(key.data(), mod.version.data(), 6);
                     mod.checksum = tohex(ri.real_sum, 4);
                     mod.checksum2 = tohex(ri.desired_sum, 4);
                     mod.sum_good = ri.real_sum == ri.desired_sum ? "OK" : "NG";
@@ -482,7 +507,7 @@ notfail:
         ImGui::Text("Choose a model to run.");
         ImGui::Separator();
         ImGui::Text("Recently Used");
-        if (ImGui::BeginTable("Recent", 5, pretty_table)) {
+        if (ImGui::BeginTable("Recent", 6, pretty_table)) {
             RenderHeaders();
             auto i = 114;
             for (auto& s : recently_used) {
@@ -514,7 +539,7 @@ notfail:
             }
             ImGui::SameLine();
             ImGui::Checkbox("Hide emulator ROMs",  &not_show_emu);
-            if (ImGui::BeginTable("All", 5, pretty_table)) {
+            if (ImGui::BeginTable("All", 6, pretty_table)) {
                 RenderHeaders();
                 auto i = 114;
                 for (auto& model : models) {
@@ -531,10 +556,10 @@ notfail:
     }
     void RenderHeaders() {
         ImGui::TableSetupColumn("Window title", ImGuiTableColumnFlags_WidthStretch, 200);
-        ImGui::TableSetupColumn("ROM version",
-        ImGuiTableColumnFlags_WidthFixed, 80);
+        ImGui::TableSetupColumn("Config file path", ImGuiTableColumnFlags_WidthStretch, 130);
+        ImGui::TableSetupColumn("ROM version", ImGuiTableColumnFlags_WidthFixed, 100);
         ImGui::TableSetupColumn("ROM checksum", ImGuiTableColumnFlags_WidthFixed, 130);
-        ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_WidthFixed, 70);
+        ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_WidthFixed, 160);
         ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 80);
         ImGui::TableHeadersRow();
     }
@@ -556,21 +581,17 @@ notfail:
             }
         }
         ImGui::TableNextColumn();
-        ImGui::Text("%s %s%s", model.version.substr(0, 6).c_str(), !strcmp(model.type.c_str(),  hwid_names[HW_CLASSWIZ_CW].c_str()) ? "V." : "Ver", model.version.substr(6, 7).c_str());
+        ImGui::Text(model.path.string().c_str());
         ImGui::TableNextColumn();
-        if (model.realhw) {
-            if (model.show_sum) {
-                ImGui::Text("%s (%s) %s", model.checksum.c_str(), model.checksum2.c_str(), model.sum_good.c_str());
-            }
-            else {
-                ImGui::Text("N/A");
-            }
-        }
-        else {
-            ImGui::Text("[Emulator ROM]");
-        }
+        if (model.version.size()) {
+            if (model.type == hwid_names[HW_ES] || model.type == fx5800p_str) ImGui::Text("%s (P%c)", model.version.c_str(), get_pmode(model.pd_value));
+            else ImGui::Text("%s %s%s", model.version.substr(0, 6).c_str(), !strcmp(model.type.c_str(),  hwid_names[HW_CLASSWIZ_CW].c_str()) ? "V." : "Ver", model.version.substr(6, 7).c_str());
+        } else ImGui::Text("-");
         ImGui::TableNextColumn();
-        ImGui::Text(model.type.c_str());
+        if (model.realhw && model.show_sum) ImGui::Text("%s (%s) %s", model.checksum.c_str(), model.checksum2.c_str(), model.sum_good.c_str());
+        else ImGui::Text("-");
+        ImGui::TableNextColumn();
+        ImGui::Text("%s%s", model.type.c_str(), model.realhw ? "" : " (E)");
         ImGui::TableNextColumn();
         if (ImGui::Button("[TBA]")) {
             //windows2->push_back(new ModelEditor(model.path));
@@ -606,12 +627,7 @@ std::string sui_loop() {
 		if (ifs1)
 			Binary::Read(ifs1, ui.recently_used);
 	}
-	window = SDL_CreateWindow(
-		"u8-emu-frontend-cpp - Startup",
-		SDL_WINDOWPOS_UNDEFINED,
-		SDL_WINDOWPOS_UNDEFINED,
-		800, 800,
-		SDL_WINDOW_SHOWN | (SDL_WINDOW_RESIZABLE));
+	window = SDL_CreateWindow("u8-emu-frontend-cpp - Startup", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 1280, 720, SDL_WINDOW_SHOWN | (SDL_WINDOW_RESIZABLE));
 	renderer2 = SDL_CreateRenderer(window, -1, SDL_RENDERER_PRESENTVSYNC | SDL_RENDERER_ACCELERATED);
 	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "best");
 	if (renderer2 == nullptr) {

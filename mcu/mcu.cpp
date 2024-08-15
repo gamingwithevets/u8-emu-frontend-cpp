@@ -335,6 +335,7 @@ mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *fla
     this->standby = new class standby;
     this->timer = new class timer(this, 10000);
     this->keyboard = new class keyboard(this, this->config, w, h);
+    this->screen = new class screen(this, this->config);
 
     this->reset();
 }
@@ -343,6 +344,7 @@ mcu::~mcu() {
     free((void *)this->ram);
     free((void *)this->sfr);
     if (this->ram2) free((void *)this->ram2);
+    this->screen->~screen();
 }
 
 void mcu::core_step() {
@@ -403,6 +405,7 @@ void core_step_loop(std::atomic<bool>& stop) {
 
 void mcu::reset() {
     u8_reset(this->core);
+    for (int i = 0; i < this->screen->height; i++) write_mem_data(this->core, 0, 0xf800 + i*this->screen->bytes_per_row_real, this->screen->bytes_per_row, 0);
     this->call_stack.clear();
     this->ips_start = get_time();
     this->ips = 0;

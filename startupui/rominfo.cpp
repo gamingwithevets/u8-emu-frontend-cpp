@@ -3,6 +3,7 @@
 #include <iomanip>
 #include <iostream>
 #include <vector>
+#include <algorithm>
 
 inline word le_read(auto& p) {
 	// this works for le machine
@@ -18,6 +19,11 @@ inline void calc2(word& sum, byte* bt, int len) {
 	for (size_t i = 0; i < len; i++) {
 		sum -= bt[i];
 	}
+}
+
+unsigned int _search(std::vector<byte> &dat, std::vector<byte> &sub) {
+    std::vector<byte>::iterator a = std::search(dat.begin(), dat.end(), sub.begin(), sub.end());
+    return std::distance(dat.begin(), a);
 }
 
 RomInfo rom_info(std::vector<byte> rom,bool checksum) {
@@ -62,13 +68,23 @@ RomInfo rom_info(std::vector<byte> rom,bool checksum) {
 			sum_type = CWII;
 		}
 	}
-	else if (spinit == 0x8dfe) {
-		ri.type = RomInfo::ES;
-		return ri;
-	}
-	else if (spinit == 0x8e00) {
-		ri.type = RomInfo::Fx5800p;
-		return ri;
+	else if (spinit == 0x8dfe || spinit == 0x8e00) {
+        std::vector<byte> romstr = {'I', 'N', 'R', 'O', 'M'};
+        auto addr = _search(rom, romstr);
+        if (addr != rom.size()) {
+            memcpy(ri.ver, &dat[addr], 10);
+            ri.type = RomInfo::Fx5800p;
+            return ri;
+        }
+
+        romstr = {'R', 'O', 'M'};
+        addr = _search(rom, romstr);
+        if (addr != rom.size()) {
+            memcpy(ri.ver, &dat[addr], 7);
+            ri.type = RomInfo::ES;
+        }
+
+        return ri;
 	}
 	else if (spinit == 0x8dec || spinit == 0x8df2 || spinit == 0x8dea) {
 		if (rom.size() < 0x20000) {
