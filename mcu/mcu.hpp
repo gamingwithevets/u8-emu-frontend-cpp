@@ -26,9 +26,8 @@ struct call_stack_data {
 };
 
 class mcu {
-private:
-    struct config *config;
 public:
+    struct config *config;
     standby *standby;
     timer *timer;
     keyboard *keyboard;

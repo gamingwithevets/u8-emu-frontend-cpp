@@ -176,7 +176,7 @@ int main(int argc, char* argv[]) {
     SDL_Texture* interface = SDL_CreateTextureFromSurface(renderer, interface_sf);
     SDL_FreeSurface(interface_sf);
 
-    u8_core core;
+    u8_core core{};
 
     uint8_t *rom = (uint8_t *)malloc(0x100000);
     memset((void *)rom, 0xff, 0x100000);
@@ -250,6 +250,8 @@ int main(int argc, char* argv[]) {
     static MemoryEditor sfredit;
     sfredit.ReadFn = &read_sfr_im;
     sfredit.WriteFn = &write_sfr_im;
+
+    bool set_p[8];
 
     const char *memselect[] = {"Main RAM", "SFR region"};
     static int memselect_idx = 0;
@@ -506,11 +508,17 @@ int main(int argc, char* argv[]) {
             }
             ImGui::EndCombo();
         }
-        if (memselect_idx == 0) ramedit.DrawContents((void *)mcu.ram, 0xe00, 0x8000);
+        if (memselect_idx == 0) ramedit.DrawContents((void *)mcu.ram, ramsize, ramstart);
         else if (memselect_idx == 1) sfredit.DrawContents((void *)mcu.sfr, 0x1000, 0xf000);
         ImGui::End();
 
         ImGui::Begin("Options", NULL, 0);
+        ImGui::Text("P mode");
+        for (int i = 7; i >= 0; i--) {
+            ImGui::SameLine();
+            ImGui::Checkbox("##", &set_p[i]);
+        }
+
         ImGui::Checkbox("Pause/Single-step", &single_step);
         if (single_step) {
             if (ImGui::Button("Step")) mcu.core_step();

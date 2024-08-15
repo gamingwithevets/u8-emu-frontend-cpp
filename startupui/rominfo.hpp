@@ -3,7 +3,7 @@
 using word = unsigned short;
 using byte = unsigned char;
 struct RomInfo {
-	char ver[9];
+	char ver[10];
 	byte cid[8];
 	word desired_sum;
 	word real_sum;
@@ -18,4 +18,4 @@ struct RomInfo {
 	} type;
 	bool ok;
 };
-RomInfo rom_info(std::vector<byte> rom, bool checksum = true);
+RomInfo rom_info(std::vector<byte> rom, std::vector<byte> flash, bool checksum = true);

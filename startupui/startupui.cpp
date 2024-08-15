@@ -454,7 +454,13 @@ notfail:
                 if (!ifs2) continue;
                 std::vector<byte> rom{std::istreambuf_iterator<char>{ifs2.rdbuf()}, std::istreambuf_iterator<char>{}};
                 ifs2.close();
-                auto ri = rom_info(rom, mi.real_hardware);
+                std::vector<byte> flash;
+                if (!mi.flash_rom_file.empty()) {
+                    std::ifstream ifs3(mi.flash_rom_file, std::ios::in | std::ios::binary);
+                    if (ifs3) flash = {std::istreambuf_iterator<char>{ifs3.rdbuf()}, std::istreambuf_iterator<char>{}};
+                    ifs3.close();
+                }
+                auto ri = rom_info(rom, flash, mi.real_hardware);
                 if (ri.type != 0) {
                     switch (ri.type) {
                     case RomInfo::ES:

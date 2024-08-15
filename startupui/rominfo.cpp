@@ -1,9 +1,12 @@
-﻿#include "rominfo.hpp"
-#include <fstream>
+﻿#include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <vector>
 #include <algorithm>
+#include <cstring>
+
+#include "rominfo.hpp"
+#include "cwmem.hpp"
 
 inline word le_read(auto& p) {
 	// this works for le machine
@@ -21,13 +24,15 @@ inline void calc2(word& sum, byte* bt, int len) {
 	}
 }
 
-unsigned int _search(std::vector<byte> &dat, std::vector<byte> &sub) {
-    std::vector<byte>::iterator a = std::search(dat.begin(), dat.end(), sub.begin(), sub.end());
-    return std::distance(dat.begin(), a);
+inline void calc3(word& sum, byte* bt, int len) {
+    for (size_t i = 0; i < len; i++) {
+        sum += bt[i];
+    }
 }
 
-RomInfo rom_info(std::vector<byte> rom,bool checksum) {
+RomInfo rom_info(std::vector<byte> rom, std::vector<byte> flash, bool checksum) {
 	auto dat = rom.data();
+	auto dat2 = flash.data();
 	RomInfo ri{};
 	auto spinit = *(word*)dat;
 	enum {
@@ -64,29 +69,41 @@ RomInfo rom_info(std::vector<byte> rom,bool checksum) {
 			}
 			memcpy(ri.ver, &dat[0x5ffee], 8);
 			memcpy(ri.cid, &dat[0x5fff8], 8);
+			if (ri.ver[0] != 'E') {
+				auto ver = (byte*)FindSignature(dat, 0x5e000, "?? 00 e9 90 ca ff ?? 00 e9 90 cb ff ?? 00 e9 90 cc ff ?? 00 e9 90 cd ff ?? 00 e9 90 ce ff ?? 00 e9 90 cf ff");
+				auto ver2 = (byte*)FindSignature(dat, 0x5e000, "56 00 e9 90 d1 ff 2e 00 e9 90 d2 ff");
+				auto ofst = ver2[14] | (ver2[15] << 8);
+				for (size_t i = 0; i < 6; i++) {
+					ri.ver[i] = ver[i * 6];
+				}
+				ri.ver[6] = dat[ofst];
+				ri.ver[7] = dat[ofst + 1];
+			}
 			ri.desired_sum = le_read(dat[0x5fff6]);
 			sum_type = CWII;
 		}
 	}
 	else if (spinit == 0x8dfe || spinit == 0x8e00) {
-        std::vector<byte> romstr = {'I', 'N', 'R', 'O', 'M'};
-        auto addr = _search(rom, romstr);
-        if (addr != rom.size()) {
-            memcpy(ri.ver, &dat[addr], 10);
+        auto str = (char *)FindSignature(dat, 0x8000, "49 4E 52 4f 4d 2d");
+        if (str) {
+            if (flash.size() < 0x80000) {
+                return ri;
+            }
             ri.type = RomInfo::Fx5800p;
+            ri.desired_sum = le_read(dat2[0x7fffe]);
+            strcpy(ri.ver, str);
+            if (checksum) calc3(ri.real_sum, &dat2[0x40000], 0x3fffe);
+            ri.ok = true;
             return ri;
         }
-
-        romstr = {'R', 'O', 'M'};
-        addr = _search(rom, romstr);
-        if (addr != rom.size()) {
-            memcpy(ri.ver, &dat[addr], 7);
+        str = (char *)FindSignature(dat, 0x8000, "52 4f 4d");
+        if (str) {
+            strcpy(ri.ver, str);
             ri.type = RomInfo::ES;
         }
-
         return ri;
 	}
-	else if (spinit == 0x8dec || spinit == 0x8df2 || spinit == 0x8dea) {
+	else if (spinit < 0x8dfe) {
 		if (rom.size() < 0x20000) {
 			return ri;
 		}

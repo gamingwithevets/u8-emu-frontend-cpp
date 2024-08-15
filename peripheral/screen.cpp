@@ -6,46 +6,43 @@
 #include "screen.hpp"
 #include "../mcu/mcu.hpp"
 
-screen *scrptr;
-
 const uint32_t WHITE_COLOR = 0;
 const uint32_t GRAY1_COLOR = 0x55FFFFFF;
 const uint32_t GRAY2_COLOR = 0xAAFFFFFF;
 const uint32_t BLACK_COLOR = 0xFF000000;
 
 uint8_t draw_screen(mcu *mcu, uint16_t addr, uint8_t val) {
-    int y = (int)((addr - 0x800) / scrptr->bytes_per_row_real);
-    int x = ((addr - 0x800) % scrptr->bytes_per_row_real) * 8;
+    int y = (int)((addr - 0x800) / mcu->screen->bytes_per_row_real);
+    int x = ((addr - 0x800) % mcu->screen->bytes_per_row_real) * 8;
     SDL_Rect rect;
 
     for (int i = 7; i >= 0; i--) {
         int j = ~i&7;
-        rect = {(x+j) * scrptr->config->pix_w, y * scrptr->config->pix_h, scrptr->config->pix_w, scrptr->config->pix_h};
-        if (scrptr->cw_2bpp) {
+        rect = {(x+j) * mcu->screen->config->pix_w, y * mcu->screen->config->pix_h, mcu->screen->config->pix_w, mcu->screen->config->pix_h};
+        if (mcu->screen->cw_2bpp) {
             if (!(val & (1 << i))) {
-                if (SDL_MUSTLOCK(scrptr->display)) SDL_LockSurface(scrptr->display);
-                uint32_t *pixels = (uint32_t *)scrptr->display->pixels;
-                uint32_t *cur_pixcolor = &pixels[(x+j)*scrptr->config->pix_w+y*scrptr->config->pix_h];
-                if (!scrptr->cw_2bpp_toggle) SDL_FillRect(scrptr->display, &rect, (*cur_pixcolor == BLACK_COLOR || *cur_pixcolor == GRAY2_COLOR) ? GRAY2_COLOR : WHITE_COLOR);
-                else SDL_FillRect(scrptr->display, &rect, (*cur_pixcolor == BLACK_COLOR || *cur_pixcolor == GRAY1_COLOR) ? GRAY1_COLOR : WHITE_COLOR);
-                if (SDL_MUSTLOCK(scrptr->display)) SDL_UnlockSurface(scrptr->display);
-            } else SDL_FillRect(scrptr->display, &rect, scrptr->cw_2bpp_toggle ? GRAY2_COLOR : GRAY1_COLOR);
+                if (SDL_MUSTLOCK(mcu->screen->display)) SDL_LockSurface(mcu->screen->display);
+                uint32_t *pixels = (uint32_t *)mcu->screen->display->pixels;
+                uint32_t *cur_pixcolor = &pixels[(x+j)*mcu->screen->config->pix_w+y*mcu->screen->config->pix_h];
+                if (!mcu->screen->cw_2bpp_toggle) SDL_FillRect(mcu->screen->display, &rect, (*cur_pixcolor == BLACK_COLOR || *cur_pixcolor == GRAY2_COLOR) ? GRAY2_COLOR : WHITE_COLOR);
+                else SDL_FillRect(mcu->screen->display, &rect, (*cur_pixcolor == BLACK_COLOR || *cur_pixcolor == GRAY1_COLOR) ? GRAY1_COLOR : WHITE_COLOR);
+                if (SDL_MUSTLOCK(mcu->screen->display)) SDL_UnlockSurface(mcu->screen->display);
+            } else SDL_FillRect(mcu->screen->display, &rect, mcu->screen->cw_2bpp_toggle ? GRAY2_COLOR : GRAY1_COLOR);
         }
-        else SDL_FillRect(scrptr->display, &rect, (val & (1 << i)) ? BLACK_COLOR : WHITE_COLOR);
+        else SDL_FillRect(mcu->screen->display, &rect, (val & (1 << i)) ? BLACK_COLOR : WHITE_COLOR);
     }
 
     return val;
 }
 
 uint8_t screen_select(mcu *mcu, uint16_t addr, uint8_t val) {
-    scrptr->cw_2bpp_toggle = (bool)(val & 4);
+    mcu->screen->cw_2bpp_toggle = (bool)(val & 4);
     return val;
 }
 
 screen::screen(class mcu *mcu, struct config *config) {
     this->mcu = mcu;
     this->config = config;
-    scrptr = this;
 
     switch (this->config->hardware_id) {
     case HW_CLASSWIZ_EX:
@@ -157,7 +154,7 @@ screen::screen(class mcu *mcu, struct config *config) {
         this->use_status_bar_image = true;
     }
 
-    this->display = SDL_CreateRGBSurface(0, this->width * scrptr->config->pix_w, this->height * scrptr->config->pix_h, 32, 0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000);
+    this->display = SDL_CreateRGBSurface(0, this->width * this->config->pix_w, this->height * this->config->pix_h, 32, 0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000);
     SDL_FillRect(this->display, NULL, WHITE_COLOR);
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0");
 
@@ -180,7 +177,7 @@ void screen::render(SDL_Renderer *renderer) {
                 statusbit sbb = this->status_bar_bits[i];
                 if (this->mcu->sfr[0x800+sbb.idx] & (1 << sbb.bit)) SDL_BlitSurface(this->status_bar, &srcdest, tmp, &srcdest);
             }
-        dispsrc = {0, scrptr->config->pix_h, this->width*this->config->pix_w, (this->height-1)*this->config->pix_h};
+        dispsrc = {0, this->config->pix_h, this->width*this->config->pix_w, (this->height-1)*this->config->pix_h};
         dispdest = {0, this->sbar_hi, this->width*this->config->pix_w, (this->height-1)*this->config->pix_h};
     } else {
         if (this->mcu->sfr[0x31] == 5 || this->mcu->sfr[0x31] == 6) {

@@ -14,16 +14,47 @@ keyboard::keyboard(class mcu *mcu, struct config *config, int w, int h) {
     this->w = w;
     this->h = h;
 
+    this->mouse_held = false;
+    this->enable_keypress = true;
 
     // KI/KO
     // TODO: Actually implement KO filter
-    register_sfr(0x41, 4, &default_write<0xff>);
-    register_sfr(0x45, 1, &default_write<4>);
-    register_sfr(0x46, 1, &default_write<0xff>);
-    register_sfr(0x47, 1, &default_write<0x83>);
+    if (this->config->hardware_id != HW_ES) {
+        register_sfr(0x41, 4, &default_write<0xff>);
+        register_sfr(0x45, 1, &default_write<4>);
+        register_sfr(0x46, 1, &default_write<0xff>);
+        register_sfr(0x47, 1, &default_write<0x83>);
 
-    // Port 0
-    register_sfr(0x48, 5, &default_write<0xff>);
+        // Port 0
+        register_sfr(0x48, 5, &default_write<0xff>);
+    } else register_sfr(0x41, 10, &default_write<0xff>);
+
+    if (!this->config->real_hardware) {
+        switch (this->config->hardware_id) {
+        case HW_SOLAR_II:
+            this->emu_kb.ES_STOPTYPEADR = (es_stop_type *)&this->mcu->ram[0x800];
+            this->emu_kb.ES_KIADR = &this->mcu->ram[0x801];
+            this->emu_kb.ES_KOADR = &this->mcu->ram[0x802];
+            break;
+        case HW_CLASSWIZ_EX:
+        case HW_CLASSWIZ_CW:
+            if (this->config->sample) {
+                this->emu_kb.ES_STOPTYPEADR = (es_stop_type *)&this->mcu->ram2[0x8e07];
+                this->emu_kb.ES_KIADR = &this->mcu->ram2[0x8e05];
+                this->emu_kb.ES_KOADR = &this->mcu->ram2[0x8e08];
+            } else {
+                this->emu_kb.ES_STOPTYPEADR = (es_stop_type *)&this->mcu->ram2[0x8e00];
+                this->emu_kb.ES_KIADR = &this->mcu->ram2[0x8e01];
+                this->emu_kb.ES_KOADR = &this->mcu->ram2[0x8e02];
+            }
+            this->emu_kb.ES_QR_DATATOP_ADR = (char *)&this->mcu->ram2[0xa800];
+            break;
+        default:
+            this->emu_kb.ES_STOPTYPEADR = (es_stop_type *)&this->mcu->ram[0xe00];
+            this->emu_kb.ES_KIADR = &this->mcu->ram[0xe01];
+            this->emu_kb.ES_KOADR = &this->mcu->ram[0xe02];
+        }
+    }
 }
 
 void keyboard::process_event(const SDL_Event *e) {
@@ -71,6 +102,8 @@ void keyboard::process_event(const SDL_Event *e) {
         if (keystates[i] != 0) return;
     }
     this->held_buttons.clear();
+    this->enable_keypress = true;
+
 }
 
 void keyboard::render(SDL_Renderer *renderer) {
@@ -90,16 +123,17 @@ void keyboard::render(SDL_Renderer *renderer) {
 void keyboard::tick() {
     uint8_t ki = 0;
     uint8_t kimask = this->mcu->sfr[0x42];
-    uint8_t ko = this->mcu->sfr[0x46];
+    uint8_t ko = (this->config->hardware_id == HW_ES || (this->config->hardware_id == HW_ES_PLUS && this->config->old_esp)) ? (this->mcu->sfr[0x44] ^ 0xff) : this->mcu->sfr[0x46];
+    bool reset = false;
 
     // TODO: use EXICON to determine how KI should be interpreted
-    for (const auto &k : this->held_buttons) this->_tick(&ki, kimask, ko, k);
-    if (this->mouse_held) this->_tick(&ki, kimask, ko, this->held_button_mouse);
+    for (const auto &k : this->held_buttons) this->_tick(&reset, &ki, kimask, ko, k);
+    if (this->mouse_held) this->_tick(&reset, &ki, kimask, ko, this->held_button_mouse);
 
-    this->mcu->sfr[0x40] = ki ^ 0xff;
+    if (!reset) this->mcu->sfr[0x40] = ki ^ 0xff;
 }
 
-void keyboard::_tick(uint8_t *ki, uint8_t kimask, uint8_t ko, uint8_t k) {
+void keyboard::_tick(bool *reset, uint8_t *ki, uint8_t kimask, uint8_t ko, uint8_t k) {
     if (k != 0xff) {
         uint8_t ki_bit = k & 0xf;
         uint8_t ko_bit = k >> 4;
@@ -111,5 +145,42 @@ void keyboard::_tick(uint8_t *ki, uint8_t kimask, uint8_t ko, uint8_t k) {
                 this->mcu->standby->stop_mode = false;
             }
         }
-    } else this->mcu->reset();
+    } else {
+        this->mcu->reset();
+        *reset = true;
+    }
+}
+
+void keyboard::tick_emu() {
+    if (this->enable_keypress) {
+        uint8_t k;
+        if (this->held_buttons.size()) k = this->held_buttons.back();
+        else if (this->mouse_held) k = this->held_button_mouse;
+        else return;
+
+        uint8_t ki_bit = k & 0xf;
+        uint8_t ko_bit = k >> 4;
+
+        printf("%d\n", *this->emu_kb.ES_STOPTYPEADR);
+        switch (*this->emu_kb.ES_STOPTYPEADR) {
+        case ES_STOP_GETKEY:
+            *this->emu_kb.ES_KIADR = 1 << ki_bit;
+            *this->emu_kb.ES_KOADR = 1 << ko_bit;
+            break;
+        case ES_STOP_ACBREAK:
+        case ES_STOP_ACBREAK2:
+            *this->emu_kb.ES_STOPTYPEADR = (es_stop_type)(ki_bit == 4 && ko_bit == 0x10);
+            break;
+        case ES_STOP_QRCODE_IN:
+        case ES_STOP_QRCODE_IN3:
+            strcpy(this->emu_kb.qr_url, this->emu_kb.ES_QR_DATATOP_ADR);
+            this->emu_kb.qr_active = true;
+            break;
+        case ES_STOP_QRCODE_OUT:
+            this->emu_kb.qr_active = false;
+            break;
+        }
+        this->mcu->standby->stop_mode = false;
+        this->enable_keypress = false;
+    }
 }
