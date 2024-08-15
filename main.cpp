@@ -179,16 +179,19 @@ int main(int argc, char* argv[]) {
     u8_core core{};
 
     uint8_t *rom = (uint8_t *)malloc(0x100000);
-    memset((void *)rom, 0xff, 0x100000);
+    memset((void *)rom, config.real_hardware ? 0xff : 0, 0x100000);
     FILE *f = fopen(config.rom_file.c_str(), "rb");
     if (!f) {
         std::cout << "Cannot open ROM!" << std::endl;
         return -1;
     }
-    fread(rom, sizeof(uint8_t), 0x20000, f);
+    fseek(f, 0, SEEK_END);
+    int romsize = ftell(f);
+    rewind(f);
+    fread(rom, sizeof(uint8_t), romsize, f);
     fclose(f);
 
-    struct nxu8_decoder *decoder = nxu8_init_decoder(0x20000, rom);
+    struct nxu8_decoder *decoder = nxu8_init_decoder(romsize, rom);
     std::map<uint32_t, std::string> disas;
     uint32_t addr = 0;
 	while (addr < decoder->buf_sz) {
@@ -231,9 +234,11 @@ int main(int argc, char* argv[]) {
     case HW_CLASSWIZ_CW:
         ramstart = 0x9000;
         ramsize = 0x6000;
+        break;
     case HW_TI_MATHPRINT:
         ramstart = 0xb000;
         ramsize = 0x4000;
+        break;
     default:
         ramstart = 0x8000;
         ramsize = config.real_hardware ? 0xe00 : 0x7000;
@@ -256,8 +261,9 @@ int main(int argc, char* argv[]) {
     bool set_p[8];
     for (int i = 0; i < 8; i++) set_p[i] = pd_value & (1 << i);
 
-    char *memselect[] = {"Main RAM", "SFR region", "PRAM"};
-    if (config.hardware_id == HW_ES && config.is_5800p) memselect[2] = "Emulator RAM";
+    std::vector<std::string> memselect = {"Main RAM", "SFR region"};
+    if (config.hardware_id == HW_ES && config.is_5800p) memselect.push_back("PRAM");
+    else if ((config.hardware_id == HW_CLASSWIZ_EX || config.hardware_id == HW_CLASSWIZ_CW) && !config.real_hardware) memselect.push_back("Emulator RAM");
     static int memselect_idx = 0;
 
     unsigned int a, b;
@@ -510,12 +516,11 @@ int main(int argc, char* argv[]) {
         ImGui::End();
 
         ImGui::Begin("Hex Editor", NULL, 0);
-        const char* preview = memselect[memselect_idx];
+        const char* preview = memselect[memselect_idx].c_str();
         if (ImGui::BeginCombo("##", preview)) {
-            for (int n = 0; n < (config.hardware_id == HW_ES && config.is_5800p ||
-                                      (config.hardware_id == HW_CLASSWIZ_EX || config.hardware_id == HW_CLASSWIZ_CW) && !config.real_hardware) ? 3 : 2; n++) {
+            for (int n = 0; n < memselect.size(); n++) {
                 const bool is_selected = (memselect_idx == n);
-                if (ImGui::Selectable(memselect[n], is_selected))
+                if (ImGui::Selectable(memselect[n].c_str(), is_selected))
                     memselect_idx = n;
                 if (is_selected) ImGui::SetItemDefaultFocus();
             }

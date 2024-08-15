@@ -1,37 +1,55 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
 #include <cstdio>
+#include <cstdint>
 #include <iostream>
 #include <cmath>
+#include <cstring>
 #include "screen.hpp"
 #include "../mcu/mcu.hpp"
 
 const uint32_t WHITE_COLOR = 0;
-const uint32_t GRAY1_COLOR = 0x55FFFFFF;
-const uint32_t GRAY2_COLOR = 0xAAFFFFFF;
+const uint32_t GRAY1_COLOR = 0x55000000;
+const uint32_t GRAY2_COLOR = 0xAA000000;
 const uint32_t BLACK_COLOR = 0xFF000000;
 
 uint8_t draw_screen(mcu *mcu, uint16_t addr, uint8_t val) {
     int y = (int)((addr - 0x800) / mcu->screen->bytes_per_row_real);
     int x = ((addr - 0x800) % mcu->screen->bytes_per_row_real) * 8;
     SDL_Rect rect;
+    int j;
 
     for (int i = 7; i >= 0; i--) {
-        int j = ~i&7;
+        j = ~i & 7;
         rect = {(x+j) * mcu->screen->config->pix_w, y * mcu->screen->config->pix_h, mcu->screen->config->pix_w, mcu->screen->config->pix_h};
-        if (mcu->screen->cw_2bpp) {
-            if (!(val & (1 << i))) {
-                if (SDL_MUSTLOCK(mcu->screen->display)) SDL_LockSurface(mcu->screen->display);
-                uint32_t *pixels = (uint32_t *)mcu->screen->display->pixels;
-                uint32_t *cur_pixcolor = &pixels[(x+j)*mcu->screen->config->pix_w+y*mcu->screen->config->pix_h];
-                if (!mcu->screen->cw_2bpp_toggle) SDL_FillRect(mcu->screen->display, &rect, (*cur_pixcolor == BLACK_COLOR || *cur_pixcolor == GRAY2_COLOR) ? GRAY2_COLOR : WHITE_COLOR);
-                else SDL_FillRect(mcu->screen->display, &rect, (*cur_pixcolor == BLACK_COLOR || *cur_pixcolor == GRAY1_COLOR) ? GRAY1_COLOR : WHITE_COLOR);
-                if (SDL_MUSTLOCK(mcu->screen->display)) SDL_UnlockSurface(mcu->screen->display);
-            } else SDL_FillRect(mcu->screen->display, &rect, mcu->screen->cw_2bpp_toggle ? GRAY2_COLOR : GRAY1_COLOR);
+        SDL_FillRect(mcu->screen->display, &rect, (val & (1 << i)) ? BLACK_COLOR : WHITE_COLOR);
+    }
+    return val;
+}
+
+uint8_t draw_screen_cw(mcu *mcu, uint16_t addr, uint8_t val) {
+    int y = (int)((addr - 0x800) / mcu->screen->bytes_per_row_real);
+    int x = ((addr - 0x800) % mcu->screen->bytes_per_row_real) * 8;
+    SDL_Rect rect;
+    uint8_t *data;
+    int j;
+
+    for (int i = 7; i >= 0; i--) {
+        j = ~i & 7;
+        data = &mcu->screen->cw_screen_data[y][x+j];
+        rect = {(x+j) * mcu->screen->config->pix_w, y * mcu->screen->config->pix_h, mcu->screen->config->pix_w, mcu->screen->config->pix_h};
+        if (!(val & (1 << i))) {
+            if (mcu->screen->cw_2bpp_toggle) SDL_FillRect(mcu->screen->display, &rect, (*data == 3 || *data == 2) ? GRAY2_COLOR : WHITE_COLOR);
+            else SDL_FillRect(mcu->screen->display, &rect, (*data == 3 || *data == 1) ? GRAY1_COLOR : WHITE_COLOR);
+            *data |= mcu->screen->cw_2bpp_toggle ? 2 : 1;
+        } else {
+            if (mcu->screen->cw_2bpp_toggle) SDL_FillRect(mcu->screen->display, &rect, (*data == 0 || *data == 2) ? GRAY2_COLOR : BLACK_COLOR);
+            else SDL_FillRect(mcu->screen->display, &rect, (*data == 0 || *data == 1) ? GRAY1_COLOR : BLACK_COLOR);
+            *data &= ~(mcu->screen->cw_2bpp_toggle ? 2 : 1);
         }
-        else SDL_FillRect(mcu->screen->display, &rect, (val & (1 << i)) ? BLACK_COLOR : WHITE_COLOR);
     }
 
+    if (SDL_MUSTLOCK(mcu->screen->display)) SDL_UnlockSurface(mcu->screen->display);
     return val;
 }
 
@@ -74,7 +92,7 @@ screen::screen(class mcu *mcu, struct config *config) {
         this->status_bar_bits.push_back({0x16, 0}); // ☼
 
         register_sfr(0x30, 1, &default_write<0x7f>);
-        register_sfr(0x31, 1, &default_write<3>);
+        register_sfr(0x31, 1, &default_write<0xff>);
 
         break;
     case HW_CLASSWIZ_CW:
@@ -83,6 +101,7 @@ screen::screen(class mcu *mcu, struct config *config) {
         this->bytes_per_row = 0x18;
         this->bytes_per_row_real = 0x20;
         this->cw_2bpp = true;
+        memset(this->cw_screen_data, 0, sizeof(this->cw_screen_data));
 
         this->status_bar_bits.push_back({0x01, 0}); // [S]
         this->status_bar_bits.push_back({0x03, 0}); // √[]/
@@ -159,7 +178,7 @@ screen::screen(class mcu *mcu, struct config *config) {
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0");
 
     for (int i = 0; i < this->height; i++)
-        register_sfr(0x800+i*this->bytes_per_row_real, this->bytes_per_row, &draw_screen);
+        register_sfr(0x800+i*this->bytes_per_row_real, this->bytes_per_row, this->cw_2bpp ? &draw_screen_cw : &draw_screen);
 }
 
 screen::~screen() {
@@ -171,7 +190,7 @@ void screen::render(SDL_Renderer *renderer) {
     SDL_Surface *tmp = SDL_CreateRGBSurface(0, this->width*this->config->pix_w, this->height*this->config->pix_h+this->sbar_hi, 32, 0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000);
     SDL_Rect dispsrc, dispdest;
     if (this->use_status_bar_image) {
-        if (this->mcu->sfr[0x31] == 5 || this->mcu->sfr[0x31] == 6)
+        if ((this->mcu->sfr[0x31] & 0xf) == 5 || (this->mcu->sfr[0x31] & 0xf) == 6)
             for (int i = 0; i < this->config->status_bar_crops.size(); i++) {
                 SDL_Rect srcdest = this->config->status_bar_crops[i];
                 statusbit sbb = this->status_bar_bits[i];
@@ -180,7 +199,7 @@ void screen::render(SDL_Renderer *renderer) {
         dispsrc = {0, this->config->pix_h, this->width*this->config->pix_w, (this->height-1)*this->config->pix_h};
         dispdest = {0, this->sbar_hi, this->width*this->config->pix_w, (this->height-1)*this->config->pix_h};
     } else {
-        if (this->mcu->sfr[0x31] == 5 || this->mcu->sfr[0x31] == 6) {
+        if ((this->mcu->sfr[0x31] & 0xf) == 5 || (this->mcu->sfr[0x31] & 0xf) == 6) {
             dispsrc = {0, 0, this->config->pix_w, this->config->pix_h};
             dispdest = {0, 0, this->config->pix_w, this->config->pix_h};
             SDL_BlitSurface(this->display, &dispsrc, tmp, &dispdest);
@@ -189,7 +208,7 @@ void screen::render(SDL_Renderer *renderer) {
         dispdest = {0, this->sbar_hi, this->width*this->config->pix_w, (this->height-1)*this->config->pix_h};
     }
 
-    if (this->mcu->sfr[0x31] == 5) SDL_BlitSurface(this->display, &dispsrc, tmp, &dispdest);
+    if ((this->mcu->sfr[0x31] & 0xf) == 5) SDL_BlitSurface(this->display, &dispsrc, tmp, &dispdest);
 
     SDL_Texture* tmp2 = SDL_CreateTextureFromSurface(renderer, tmp);
     SDL_FreeSurface(tmp);
