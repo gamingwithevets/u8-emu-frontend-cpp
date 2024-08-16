@@ -7,6 +7,7 @@
 #include "../peripheral/timer.hpp"
 #include "../peripheral/keyboard.hpp"
 #include "../peripheral/screen.hpp"
+#include "../peripheral/battery.hpp"
 extern "C" {
 #include "../u8_emu/src/core/core.h"
 }
@@ -31,6 +32,7 @@ public:
     standby *standby;
     timer *timer;
     keyboard *keyboard;
+    battery *battery;
     class screen *screen;
 
     struct u8_core *core;

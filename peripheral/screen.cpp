@@ -4,13 +4,12 @@
 #include <cstdint>
 #include <iostream>
 #include <cmath>
-#include <cstring>
 #include "screen.hpp"
 #include "../mcu/mcu.hpp"
 
 const uint32_t WHITE_COLOR = 0;
-const uint32_t GRAY1_COLOR = 0x55000000;
-const uint32_t GRAY2_COLOR = 0xAA000000;
+const uint32_t GRAY1_COLOR = 0xFFAAAAAA;
+const uint32_t GRAY2_COLOR = 0xFF555555;
 const uint32_t BLACK_COLOR = 0xFF000000;
 
 uint8_t draw_screen(mcu *mcu, uint16_t addr, uint8_t val) {
@@ -36,16 +35,16 @@ uint8_t draw_screen_cw(mcu *mcu, uint16_t addr, uint8_t val) {
 
     for (int i = 7; i >= 0; i--) {
         j = ~i & 7;
-        data = &mcu->screen->cw_screen_data[y][x+j];
+        data = &mcu->screen->cw_screen_data[y*192+x+j];
         rect = {(x+j) * mcu->screen->config->pix_w, y * mcu->screen->config->pix_h, mcu->screen->config->pix_w, mcu->screen->config->pix_h};
         if (!(val & (1 << i))) {
-            if (mcu->screen->cw_2bpp_toggle) SDL_FillRect(mcu->screen->display, &rect, (*data == 3 || *data == 2) ? GRAY2_COLOR : WHITE_COLOR);
-            else SDL_FillRect(mcu->screen->display, &rect, (*data == 3 || *data == 1) ? GRAY1_COLOR : WHITE_COLOR);
-            *data |= mcu->screen->cw_2bpp_toggle ? 2 : 1;
+            if (mcu->screen->cw_2bpp_toggle) SDL_FillRect(mcu->screen->display, &rect, (*data == 3 || *data == 1) ? GRAY1_COLOR : WHITE_COLOR);
+            else SDL_FillRect(mcu->screen->display, &rect, (*data == 3 || *data == 2) ? GRAY2_COLOR : WHITE_COLOR);
+            *data &= ~(mcu->screen->cw_2bpp_toggle ? 2 : 1);
         } else {
             if (mcu->screen->cw_2bpp_toggle) SDL_FillRect(mcu->screen->display, &rect, (*data == 0 || *data == 2) ? GRAY2_COLOR : BLACK_COLOR);
             else SDL_FillRect(mcu->screen->display, &rect, (*data == 0 || *data == 1) ? GRAY1_COLOR : BLACK_COLOR);
-            *data &= ~(mcu->screen->cw_2bpp_toggle ? 2 : 1);
+            *data |= mcu->screen->cw_2bpp_toggle ? 2 : 1;
         }
     }
 
@@ -101,7 +100,6 @@ screen::screen(class mcu *mcu, struct config *config) {
         this->bytes_per_row = 0x18;
         this->bytes_per_row_real = 0x20;
         this->cw_2bpp = true;
-        memset(this->cw_screen_data, 0, sizeof(this->cw_screen_data));
 
         this->status_bar_bits.push_back({0x01, 0}); // [S]
         this->status_bar_bits.push_back({0x03, 0}); // √[]/

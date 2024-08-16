@@ -32,7 +32,7 @@ void write_sfr(struct u8_core *core, uint8_t seg, uint16_t addr, uint8_t val) {
     if (mcuptr->sfr_write[addr]) mcuptr->sfr[addr] = mcuptr->sfr_write[addr](mcuptr, addr, val);
 }
 
-uint8_t battery(struct u8_core *core, uint8_t seg, uint16_t addr) {
+uint8_t fx5800p_battery(struct u8_core *core, uint8_t seg, uint16_t addr) {
     return 0xff;
 }
 
@@ -321,7 +321,7 @@ mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *fla
                     .addr_l = 0x100000,
                     .addr_h = 0x100000,
                     .acc = U8_MACC_FUNC,
-                    .read = &battery
+                    .read = &fx5800p_battery
                 };
             }
             break;
@@ -334,6 +334,7 @@ mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *fla
     this->timer = new class timer(this, 10000);
     this->keyboard = new class keyboard(this, this->config, w, h);
     this->screen = new class screen(this, this->config);
+    this->battery = new class battery(this->config);
 
     this->reset();
 }
@@ -405,6 +406,11 @@ void mcu::reset() {
     u8_reset(this->core);
     this->standby->stop_mode = false;
     for (int i = 0; i < this->screen->height; i++) write_mem_data(this->core, 0, 0xf800 + i*this->screen->bytes_per_row_real, this->screen->bytes_per_row, 0);
+    if (this->config->hardware_id == HW_CLASSWIZ_CW) {
+        write_mem_data(this->core, 0, 0xf037, 1, 4);
+        for (int i = 0; i < this->screen->height; i++) write_mem_data(this->core, 0, 0xf800 + i*this->screen->bytes_per_row_real, this->screen->bytes_per_row, 0);
+        write_mem_data(this->core, 0, 0xf037, 1, 0);
+    }
     this->call_stack.clear();
     this->ips_start = get_time();
     this->ips = 0;

@@ -24,7 +24,7 @@ public:
     int bytes_per_row_real;
     bool cw_2bpp;
     bool cw_2bpp_toggle;
-    uint8_t cw_screen_data[192][64]{};
+    uint8_t cw_screen_data[192*64]{};
     screen(class mcu *mcu, struct config *config);
     ~screen();
     void render(SDL_Renderer *renderer);
