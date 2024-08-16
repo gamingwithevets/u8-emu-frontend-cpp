@@ -1,6 +1,9 @@
 Planned future replacement to [u8-emu-frontend](https://github.com/gamingwithevets/u8-emu-frontend) written in Python.
 This new, fresh emulator built fully from scratch and written in C++ will be faster than the previous Python-C hybrid version.
 
+## Building
+A `Makefile` for MSYS2 MinGW32 is provided in the repository. You may need to edit it to conform with your environment.
+
 ## Configuration
 The emulator uses the Genshit configuration format (definitely original name). The format uses the `.bin` extension. The file layout can be found in [`config/config.hpp`](config/config.hpp).
 

@@ -37,7 +37,6 @@ uint8_t bcdcmd_bcdmcr(mcu *mcu, uint16_t addr, uint8_t val) {
         bcd->data_mode = 0xFF;
     }
     do {
-        printf("%d\n", bcd->data_repeat_flag);
         bcd->data_repeat_flag = !(bcd->param1 == 0 && bcd->data_mode == 0x3F);
         bcd->state_manage();
         bcd->param3 = bcd->param2;
