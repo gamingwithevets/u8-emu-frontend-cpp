@@ -4,10 +4,11 @@
 #include <atomic>
 #include "../config/config.hpp"
 #include "../peripheral/standby.hpp"
+#include "../peripheral/interrupts.hpp"
 #include "../peripheral/timer.hpp"
 #include "../peripheral/keyboard.hpp"
-#include "../peripheral/screen.hpp"
 #include "../peripheral/battery.hpp"
+#include "../peripheral/screen.hpp"
 extern "C" {
 #include "../u8_emu/src/core/core.h"
 }
@@ -24,15 +25,18 @@ struct call_stack_data {
     uint32_t func_addr;
     uint32_t return_addr;
     uint16_t return_addr_ptr;
+    int_callstack interrupt;
 };
 
 class mcu {
 public:
     struct config *config;
     standby *standby;
+    interrupts *interrupts;
     timer *timer;
     keyboard *keyboard;
     battery *battery;
+    class bcd *bcd;
     class screen *screen;
 
     struct u8_core *core;

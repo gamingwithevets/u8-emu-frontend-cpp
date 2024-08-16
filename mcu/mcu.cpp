@@ -10,8 +10,10 @@
 #include "mcu.hpp"
 #include "../config/config.hpp"
 #include "../peripheral/standby.hpp"
+#include "../peripheral/interrupts.hpp"
 #include "../peripheral/timer.hpp"
 #include "../peripheral/keyboard.hpp"
+#include "../peripheral/bcd.hpp"
 extern "C" {
 #include "../u8_emu/src/core/core.h"
 }
@@ -331,10 +333,12 @@ mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *fla
     register_sfr(0, 1, &default_write<0xff>);
 
     this->standby = new class standby;
+    this->interrupts = new class interrupts(this, this->config);
     this->timer = new class timer(this, 10000);
     this->keyboard = new class keyboard(this, this->config, w, h);
-    this->screen = new class screen(this, this->config);
     this->battery = new class battery(this->config);
+    this->bcd = new class bcd(this, this->config);
+    this->screen = new class screen(this, this->config);
 
     this->reset();
 }
@@ -355,17 +359,17 @@ void mcu::core_step() {
         // BL Cadr
         if ((data & 0xf0ff) == 0xf001) {
             uint16_t addr = read_mem_code(this->core, this->core->regs.csr, this->core->regs.pc+2, 2);
-            call_stack.push_back((struct call_stack_data){(((data >> 8) & 0xf) << 16) | addr, (this->core->regs.csr << 16) | (this->core->regs.pc+4)});
+            call_stack.push_back({(((data >> 8) & 0xf) << 16) | addr, (this->core->regs.csr << 16) | (this->core->regs.pc+4)});
         // BL ERn
         } else if ((data & 0xff0f) == 0xf003) {
             uint16_t addr = read_mem_code(this->core, this->core->regs.csr, this->core->regs.pc+2, 2);
-            call_stack.push_back((struct call_stack_data){(this->core->regs.csr << 16) | read_reg_er(this->core, (data >> 4) & 0xf), (this->core->regs.csr << 16) | (this->core->regs.pc+4)});
+            call_stack.push_back({(this->core->regs.csr << 16) | read_reg_er(this->core, (data >> 4) & 0xf), (this->core->regs.csr << 16) | (this->core->regs.pc+4)});
         // PUSH LR
         } else if ((data & 0xf8ff) == 0xf8ce && !call_stack.empty()) call_stack.back().return_addr_ptr = this->core->regs.sp - 4;
         // POP PC
         else if ((data & 0xf2ff) == 0xf28e && !call_stack.empty()) call_stack.pop_back();
-        // RT
-        else if (data == 0xfe1f && !call_stack.empty()) call_stack.pop_back();
+        // RT / RTI
+        else if ((data == 0xfe1f || data == 0xfe0f) && !call_stack.empty()) call_stack.pop_back();
         else if (data == 0xffff && (this->core->regs.psw & 3) >= 2) call_stack.clear();
 
         u8_step(this->core);
@@ -380,6 +384,11 @@ void mcu::core_step() {
         if (!this->config->real_hardware) this->keyboard->tick_emu();
     }
     this->keyboard->tick();
+    int_callstack interrupt = this->interrupts->tick();
+    if (!interrupt.interrupt_name.empty()) {
+        uint8_t elevel = this->core->regs.psw & 3;
+        call_stack.push_back({this->core->regs.pc, (this->core->regs.ecsr[elevel-1] << 16) | (this->core->regs.elr[elevel-1]), 0, interrupt});
+    }
 }
 
 void core_step_loop(std::atomic<bool>& stop) {

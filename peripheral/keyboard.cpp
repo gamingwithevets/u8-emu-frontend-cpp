@@ -143,11 +143,7 @@ void keyboard::_tick(bool *reset, uint8_t *ki, uint8_t kimask, uint8_t ko, uint8
         uint8_t ko_bit = k >> 4;
         if (ko & (1 << ko_bit)) {
             *ki |= (1 << ki_bit);
-            // Fake interrupt code! Need to remove later
-            if (kimask & (1 << ki_bit)) {
-                this->mcu->sfr[0x14] |= 2;
-                this->mcu->standby->stop_mode = false;
-            }
+            if (kimask & (1 << ki_bit)) this->mcu->sfr[0x14] |= 2;
         }
     } else {
         this->mcu->reset();
