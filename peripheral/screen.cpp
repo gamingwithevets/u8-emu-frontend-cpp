@@ -34,9 +34,10 @@ const char *getTmpDir(void) {
 }
 const char *tmpdir = getTmpDir();
 
+<template int offset>
 uint8_t draw_screen(mcu *mcu, uint16_t addr, uint8_t val) {
-    int y = (int)((addr - 0x800) / mcu->screen->bytes_per_row_real);
-    int x = ((addr - 0x800) % mcu->screen->bytes_per_row_real) * 8;
+    int y = (int)((addr - offset) / mcu->screen->bytes_per_row_real);
+    int x = ((addr - offset) % mcu->screen->bytes_per_row_real) * 8;
     SDL_Rect rect;
     int j;
 
@@ -151,7 +152,10 @@ screen::screen(class mcu *mcu) {
 
         break;
     case HW_TI_MATHPRINT:
-        return;
+        this->width = 64;
+        this->height = 192;
+        this->bytes_per_row_real = 8;
+        break;
     default:
         this->width = 96;
         this->height = 32;
@@ -199,8 +203,8 @@ screen::screen(class mcu *mcu) {
     SDL_FillRect(this->display, NULL, WHITE_COLOR);
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0");
 
-    for (int i = 0; i < this->height; i++)
-        register_sfr(0x800+i*this->bytes_per_row_real, this->bytes_per_row, this->cw_2bpp ? &draw_screen_cw : &draw_screen);
+    if (this->config->hardware_id != HW_TI_MATHPRINT) for (int i = 0; i < this->height; i++)
+        register_sfr(0x800+i*this->bytes_per_row_real, this->bytes_per_row, this->cw_2bpp ? &draw_screen_cw : &draw_screen<offset>);
 }
 
 screen::~screen() {
