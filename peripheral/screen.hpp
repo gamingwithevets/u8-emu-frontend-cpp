@@ -25,7 +25,7 @@ public:
     bool cw_2bpp;
     bool cw_2bpp_toggle;
     uint8_t cw_screen_data[192*64]{};
-    screen(class mcu *mcu, struct config *config);
+    screen(class mcu *mcu);
     ~screen();
     SDL_Surface *get_surface(uint32_t background = 0);
     void render(SDL_Renderer *renderer);
@@ -38,3 +38,5 @@ private:
     int sbar_hi;
     std::vector<statusbit> status_bar_bits;
 };
+
+uint8_t draw_screen_cw(mcu *mcu, uint16_t addr, uint8_t val);

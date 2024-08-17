@@ -10,6 +10,7 @@
 #include "mcu.hpp"
 #include "../config/config.hpp"
 #include "../peripheral/standby.hpp"
+#include "../peripheral/wdt.hpp"
 #include "../peripheral/interrupts.hpp"
 #include "../peripheral/timer.hpp"
 #include "../peripheral/keyboard.hpp"
@@ -36,6 +37,12 @@ void write_sfr(struct u8_core *core, uint8_t seg, uint16_t addr, uint8_t val) {
     if (mcuptr->sfr_write[addr]) mcuptr->sfr[addr] = mcuptr->sfr_write[addr](mcuptr, addr, val);
 }
 
+
+uint8_t write_dsr(mcu *mcu, uint16_t addr, uint8_t val) {
+    mcu->core->regs.dsr = val;
+    return val;
+}
+
 uint8_t fx5800p_battery(struct u8_core *core, uint8_t seg, uint16_t addr) {
     return 0xff;
 }
@@ -47,11 +54,6 @@ uint8_t read_flash(struct u8_core *core, uint8_t seg, uint16_t offset) {
         return 0x80;
     }
     return mcuptr->flash[fo];
-}
-
-uint8_t write_dsr(mcu *mcu, uint16_t addr, uint8_t val) {
-    mcu->core->regs.dsr = val;
-    return val;
 }
 
 void write_flash(struct u8_core *core, uint8_t seg, uint16_t offset, uint8_t data) {
@@ -130,6 +132,19 @@ void write_flash(struct u8_core *core, uint8_t seg, uint16_t offset, uint8_t dat
 	}
 #endif
 	printf("write_flash: unknown JEDEC %05x = %02x\nflash_mode = %d - CSR:PC = %X:%04XH (after write)\n", (int)fo+0x80000, data, mcuptr->flash_mode, core->regs.csr, core->regs.pc);
+}
+
+uint8_t read_ram2(struct u8_core *core, uint8_t seg, uint16_t addr) {
+    return mcuptr->ram2[addr];
+}
+
+void write_ram2(struct u8_core *core, uint8_t seg, uint16_t addr, uint8_t val) {
+    mcuptr->ram2[addr] = val;
+    if (mcuptr->config->hardware_id == HW_CLASSWIZ_CW && !mcuptr->config->real_hardware && addr >= 0x9000 && addr < 0x97f8) {
+        mcuptr->screen->cw_2bpp_toggle = true;
+        draw_screen_cw(mcuptr, addr - 0x9000 + 0x800, val);
+        mcuptr->screen->cw_2bpp_toggle = false;
+    }
 }
 
 mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *flash, int ramstart, int ramsize, int w, int h) {
@@ -229,7 +244,8 @@ mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *fla
                     .addr_l = this->config->hardware_id == 5 ? 0x80000 : 0x40000,
                     .addr_h = this->config->hardware_id == 5 ? 0x8ffff : 0x4ffff,
                     .acc = U8_MACC_ARR,
-                    .array = this->ram2
+                    .read = &read_ram2,
+                    .write = &write_ram2
                 };
             }
 
@@ -341,12 +357,14 @@ mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *fla
     register_sfr(0, 1, &default_write<0xff>);
 
     this->standby = new class standby;
-    this->interrupts = new class interrupts(this, this->config);
+    this->wdt = new class wdt(this);
+    this->interrupts = new class interrupts(this);
     this->timer = new class timer(this, 10000);
-    this->keyboard = new class keyboard(this, this->config, w, h);
+    this->keyboard = new class keyboard(this, w, h);
     this->battery = new class battery(this->config);
-    this->bcd = new class bcd(this, this->config);
-    this->screen = new class screen(this, this->config);
+    //this->bcd = new class bcd(this);
+    this->screen = new class screen(this);
+
 
     this->reset();
 }
@@ -394,6 +412,8 @@ void mcu::core_step() {
         this->timer->tick();
         if (!this->config->real_hardware) this->keyboard->tick_emu();
     }
+
+    this->wdt->tick();
     this->keyboard->tick();
     int_callstack interrupt = this->interrupts->tick();
     if (!interrupt.interrupt_name.empty()) {
@@ -426,6 +446,7 @@ void core_step_loop(std::atomic<bool>& stop) {
 void mcu::reset() {
     u8_reset(this->core);
     this->standby->stop_mode = false;
+    this->wdt->reset();
     for (int i = 0; i < this->screen->height; i++) write_mem_data(this->core, 0, 0xf800 + i*this->screen->bytes_per_row_real, this->screen->bytes_per_row, 0);
     if (this->config->hardware_id == HW_CLASSWIZ_CW) {
         write_mem_data(this->core, 0, 0xf037, 1, 4);

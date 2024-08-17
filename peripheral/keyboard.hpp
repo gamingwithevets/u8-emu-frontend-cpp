@@ -32,7 +32,7 @@ private:
     struct config *config;
 public:
     struct es_stop_info emu_kb;
-    keyboard(class mcu *mcu, struct config *config, int w, int h);
+    keyboard(class mcu *mcu, int w, int h);
     void process_event(const SDL_Event *e);
     void render(SDL_Renderer *renderer);
     void tick();

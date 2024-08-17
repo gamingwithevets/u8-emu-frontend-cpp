@@ -4,6 +4,7 @@
 #include <atomic>
 #include "../config/config.hpp"
 #include "../peripheral/standby.hpp"
+#include "../peripheral/wdt.hpp"
 #include "../peripheral/interrupts.hpp"
 #include "../peripheral/timer.hpp"
 #include "../peripheral/keyboard.hpp"
@@ -31,7 +32,10 @@ struct call_stack_data {
 class mcu {
 public:
     struct config *config;
+
+    // Peripherals
     standby *standby;
+    wdt *wdt;
     interrupts *interrupts;
     timer *timer;
     keyboard *keyboard;

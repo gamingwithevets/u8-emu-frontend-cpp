@@ -30,7 +30,7 @@ public:
     data_F405_copy;
     bool data_repeat_flag;
 
-    bcd(class mcu *mcu, struct config *config);
+    bcd(class mcu *mcu);
     void check_BCDCMD();
     void state_manage();
     void calc_sl(int param);

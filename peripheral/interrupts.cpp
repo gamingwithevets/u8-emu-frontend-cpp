@@ -2,9 +2,9 @@
 #include "../config/config.hpp"
 #include "interrupts.hpp"
 
-interrupts::interrupts(class mcu *mcu, struct config *config) {
+interrupts::interrupts(class mcu *mcu) {
     this->mcu = mcu;
-    this->config = config;
+    this->config = mcu->config;
 
     switch (this->config->hardware_id) {
     case HW_SOLAR_II:

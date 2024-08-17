@@ -1,6 +1,8 @@
-﻿#include "bcd.hpp"
+#include <cstdint>
+
 #include "../mcu/mcu.hpp"
 #include "../config/config.hpp"
+#include "bcd.hpp"
 
 uint8_t bcdcon(mcu *mcu, uint16_t addr, uint8_t val) {
     if (val < 1) return 1;
@@ -46,9 +48,9 @@ uint8_t bcdcmd_bcdmcr(mcu *mcu, uint16_t addr, uint8_t val) {
     return mcu->sfr[addr];
 }
 
-bcd::bcd(class mcu *mcu, struct config *config) {
+bcd::bcd(class mcu *mcu) {
     this->mcu = mcu;
-    this->config = config;
+    this->config = mcu->config;
 
     if (this->config->hardware_id != HW_CLASSWIZ_CW) return;
 

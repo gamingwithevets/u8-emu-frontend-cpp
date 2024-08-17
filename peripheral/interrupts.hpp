@@ -25,6 +25,6 @@ public:
     struct config *config;
     std::map<std::string, intr_data> intr_tbl;
     char int_timer;
-    interrupts(class mcu *mcu, struct config *config);
+    interrupts(class mcu *mcu);
     int_callstack tick();
 };

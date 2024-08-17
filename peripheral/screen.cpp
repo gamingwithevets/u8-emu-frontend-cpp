@@ -79,9 +79,9 @@ uint8_t screen_select(mcu *mcu, uint16_t addr, uint8_t val) {
     return val;
 }
 
-screen::screen(class mcu *mcu, struct config *config) {
+screen::screen(class mcu *mcu) {
     this->mcu = mcu;
-    this->config = config;
+    this->config = mcu->config;
 
     switch (this->config->hardware_id) {
     case HW_CLASSWIZ_EX:
@@ -150,6 +150,8 @@ screen::screen(class mcu *mcu, struct config *config) {
         register_sfr(0x37, 1, &screen_select);
 
         break;
+    case HW_TI_MATHPRINT:
+        return;
     default:
         this->width = 96;
         this->height = 32;

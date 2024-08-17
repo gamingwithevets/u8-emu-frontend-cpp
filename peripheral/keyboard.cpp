@@ -7,9 +7,9 @@
 #include "../config/config.hpp"
 #include "keyboard.hpp"
 
-keyboard::keyboard(class mcu *mcu, struct config *config, int w, int h) {
+keyboard::keyboard(class mcu *mcu, int w, int h) {
     this->mcu = mcu;
-    this->config = config;
+    this->config = mcu->config;
 
     this->w = w;
     this->h = h;
