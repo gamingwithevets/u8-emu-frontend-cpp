@@ -82,12 +82,12 @@ int_callstack interrupts::tick() {
     if (this->int_timer-- == 0)
         for (const auto &[k, v] : this->intr_tbl)
             if (this->mcu->sfr[v.irq_adrs] & (1 << v.irq_bit)) {
-                this->mcu->standby->stop_mode = false;
                 if (v.vector_adrs == 8) {
                     elevel = 2;
                     interrupt.nmi = true;
                 } else elevel = 1;
                 if ((this->mcu->sfr[v.ie_adrs] & (1 << v.ie_bit)) && (this->mcu->core->regs.psw & 3) < elevel) {
+                    this->mcu->standby->stop_mode = false;
                     interrupt.interrupt_name = k;
 
                     this->mcu->core->regs.elr[elevel-1] = this->mcu->core->regs.pc;

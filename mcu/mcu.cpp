@@ -19,6 +19,8 @@ extern "C" {
 }
 #include "../imgui/imgui.h"
 
+//#define FLASHDEBUG
+
 mcu *mcuptr;
 double get_time() {
     struct timespec ts;
@@ -53,75 +55,81 @@ uint8_t write_dsr(mcu *mcu, uint16_t addr, uint8_t val) {
 }
 
 void write_flash(struct u8_core *core, uint8_t seg, uint16_t offset, uint8_t data) {
-    uint32_t fo = ((seg << 16) + offset) & 0x7ffff;
-    switch (mcuptr->flash_mode) {
-        case 0:
-            if (fo == 0xaaa && data == 0xaa) {
-                mcuptr->flash_mode = 1;
-                return;
-            }
-            break;
-        case 1:
-            if (fo == 0x555 && data == 0x55) {
-                mcuptr->flash_mode = 2;
-                return;
-            }
-            break;
-        case 2:
-            if (fo == 0xAAA && data == 0xA0) {
-                mcuptr->flash_mode = 3;
-                return;
-            }
-            if (fo == 0xaaa && data == 0x80) {
-                mcuptr->flash_mode = 4;
-                return;
-            }
-            break;
-        case 3:
-            //printf("%05X = %02x\n", fo + 0x80000, data);
-            mcuptr->flash[fo] = data;
-            mcuptr->flash_mode = 0;
-            return;
-        case 4:
-            if (fo == 0xAAA && data == 0xaa) {
-                mcuptr->flash_mode = 5;
-                return;
-            }
-            break;
-        case 5:
-            if (fo == 0x555 && data == 0x55) {
-                mcuptr->flash_mode = 6;
-                return;
-            }
-            break;
-        case 6: // we dont know sector's mapping(?)
-            if (fo == 0)
-                memset(&mcuptr->flash[fo], 0xff, 0x7fff);
-            if (fo == 0x20000 || fo == 0x30000)
-                memset(&mcuptr->flash[fo], 0xff, 0xffff);
-            //printf("erase %05X (%02x)\n", fo+0x80000, data);
-            return;
-        case 7:
-            if (fo == 0xaaa && data == 0xaa) {
-                mcuptr->flash_mode = 1;
-                return;
-            }
-            break;
-    }
-    if (data == 0xf0) {
-        //printf("reset mode\n");
-        mcuptr->flash_mode = 0;
-        return;
-    }
-    //if (data == 0xb0) {
-    //	printf("Erase Suspend.\n");
-    //	return;
-    //}
-    //if (data == 0x30) {
-    //	printf("Erase Suspend.\n");
-    //	return;
-    //}
-    printf("write_flash: unknown JEDEC %05x = %02x\n", (int)fo, data);
+	uint32_t fo = ((seg << 16) + offset) & 0x7ffff;
+	switch (mcuptr->flash_mode) {
+		case 0:
+			if (fo == 0xaaa && data == 0xaa) {
+				mcuptr->flash_mode = 1;
+				return;
+			}
+			break;
+		case 1:
+			if (fo == 0x555 && data == 0x55) {
+				mcuptr->flash_mode = 2;
+				return;
+			}
+			break;
+		case 2:
+			if (fo == 0xAAA && data == 0xA0) {
+				mcuptr->flash_mode = 3;
+				return;
+			}
+			if (fo == 0xaaa && data == 0x80) {
+				mcuptr->flash_mode = 4;
+				return;
+			}
+			break;
+		case 3:
+#ifdef FLASHDEBUG
+			printf("%05X = %02x\n", fo + 0x80000, data);
+#endif
+			mcuptr->flash[fo] = data;
+			mcuptr->flash_mode = 0;
+			return;
+		case 4:
+			if (fo == 0xAAA && data == 0xaa) {
+				mcuptr->flash_mode = 5;
+				return;
+			}
+			break;
+		case 5:
+			if (fo == 0x555 && data == 0x55) {
+				mcuptr->flash_mode = 6;
+				return;
+			}
+			break;
+		case 6: // we dont know sector's mapping(?)
+			if (fo == 0)
+				memset(&mcuptr->flash[fo], 0xff, 0x7fff);
+			if (fo == 0x20000 || fo == 0x30000)
+				memset(&mcuptr->flash[fo], 0xff, 0xffff);
+#ifdef FLASHDEBUG
+			printf("erase %05X (%02x)\n", fo+0x80000, data);
+#endif
+			return;
+		case 7:
+			if (fo == 0xaaa && data == 0xaa) {
+				mcuptr->flash_mode = 1;
+				return;
+			}
+			break;
+	}
+	if (data == 0xf0) {
+		printf("reset mode\n");
+		mcuptr->flash_mode = 0;
+		return;
+	}
+#ifdef FLASHDEBUG
+	if (data == 0xb0) {
+		printf("write_flash: Erase Suspend.\n");
+		return;
+	}
+	if (data == 0x30) {
+		printf("write_flash: Erase Suspend.\n");
+		return;
+	}
+#endif
+	printf("write_flash: unknown JEDEC %05x = %02x\nflash_mode = %d - CSR:PC = %X:%04XH (after write)\n", (int)fo+0x80000, data, mcuptr->flash_mode, core->regs.csr, core->regs.pc);
 }
 
 mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *flash, int ramstart, int ramsize, int w, int h) {
@@ -145,8 +153,8 @@ mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *fla
         .array = this->rom
     };
 
-    this->core->mem.num_regions = 8;
-    this->core->mem.regions = (struct u8_mem_reg *)malloc(sizeof(struct u8_mem_reg) * 8);
+    this->core->mem.num_regions = 7;
+    this->core->mem.regions = (struct u8_mem_reg *)malloc(sizeof(struct u8_mem_reg) * 7);
 
     // ROM window
     this->core->mem.regions[0] = (struct u8_mem_reg){
@@ -294,7 +302,7 @@ mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *fla
                 };
 
                 // Flash (data)
-                this->core->mem.regions[5] = (struct u8_mem_reg){
+                this->core->mem.regions[4] = (struct u8_mem_reg){
                     .type = U8_REGION_DATA,
                     .rw = true,
                     .addr_l = 0x80000,
@@ -307,7 +315,7 @@ mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *fla
                 // PRAM
                 this->ram2 = (uint8_t *)malloc(0x8000);
                 memset(this->ram2, 0, 0x8000);
-                this->core->mem.regions[6] = (struct u8_mem_reg){
+                this->core->mem.regions[5] = (struct u8_mem_reg){
                     .type = U8_REGION_DATA,
                     .rw = true,
                     .addr_l = 0x40000,
@@ -317,7 +325,7 @@ mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *fla
                 };
 
                 // Battery
-                this->core->mem.regions[7] = (struct u8_mem_reg){
+                this->core->mem.regions[6] = (struct u8_mem_reg){
                     .type = U8_REGION_DATA,
                     .rw = false,
                     .addr_l = 0x100000,
@@ -370,7 +378,10 @@ void mcu::core_step() {
         else if ((data & 0xf2ff) == 0xf28e && !call_stack.empty()) call_stack.pop_back();
         // RT / RTI
         else if ((data == 0xfe1f || data == 0xfe0f) && !call_stack.empty()) call_stack.pop_back();
-        else if (data == 0xffff && (this->core->regs.psw & 3) >= 2) call_stack.clear();
+        else if (data == 0xffff) {
+            if ((this->core->regs.psw & 3) >= 2) call_stack.clear();
+            else call_stack.push_back({read_mem_code(this->core, 0, 4, 2), (this->core->regs.ecsr[1] << 16) | (this->core->regs.elr[1]), 0, {"BRK", true}});
+        }
 
         u8_step(this->core);
 
@@ -406,6 +417,7 @@ void core_step_loop(std::atomic<bool>& stop) {
         delta_time = (current_time.tv_sec - last_ins_time.tv_sec) + (current_time.tv_nsec - last_ins_time.tv_nsec) / 1e9;
         if (delta_time >= interval) {
             mcuptr->core_step();
+            //if (mcuptr->core->regs.pc == 0x4e9a) stop = true;
             last_ins_time = current_time;
         }
     }

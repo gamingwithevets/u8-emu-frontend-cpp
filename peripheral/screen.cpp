@@ -2,8 +2,18 @@
 #include <SDL2/SDL_image.h>
 #include <cstdio>
 #include <cstdint>
+#include <cstdlib>
+#include <cstring>
 #include <iostream>
 #include <cmath>
+
+#if defined _WIN32 || defined __CYGWIN__
+#include <windows.h>
+#include <wingdi.h>
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb/stb_image.h>
+#endif
+
 #include "screen.hpp"
 #include "../mcu/mcu.hpp"
 
@@ -11,6 +21,18 @@ const uint32_t WHITE_COLOR = 0;
 const uint32_t GRAY1_COLOR = 0xFFAAAAAA;
 const uint32_t GRAY2_COLOR = 0xFF555555;
 const uint32_t BLACK_COLOR = 0xFF000000;
+
+// https://stackoverflow.com/a/4790496/24301572
+const char *getTmpDir(void) {
+    char *tmpdir;
+
+    if ((tmpdir = getenv("TEMP")) != NULL)   return tmpdir;
+    if ((tmpdir = getenv("TMP")) != NULL)    return tmpdir;
+    if ((tmpdir = getenv("TMPDIR")) != NULL) return tmpdir;
+
+    return "/tmp";
+}
+const char *tmpdir = getTmpDir();
 
 uint8_t draw_screen(mcu *mcu, uint16_t addr, uint8_t val) {
     int y = (int)((addr - 0x800) / mcu->screen->bytes_per_row_real);
@@ -184,8 +206,9 @@ screen::~screen() {
     SDL_FreeSurface(this->display);
 }
 
-void screen::render(SDL_Renderer *renderer) {
+SDL_Surface *screen::get_surface(uint32_t background) {
     SDL_Surface *tmp = SDL_CreateRGBSurface(0, this->width*this->config->pix_w, this->height*this->config->pix_h+this->sbar_hi, 32, 0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000);
+    SDL_FillRect(tmp, NULL, background);
     SDL_Rect dispsrc, dispdest;
     if (this->use_status_bar_image) {
         if ((this->mcu->sfr[0x31] & 0xf) == 5 || (this->mcu->sfr[0x31] & 0xf) == 6)
@@ -208,6 +231,12 @@ void screen::render(SDL_Renderer *renderer) {
 
     if ((this->mcu->sfr[0x31] & 0xf) == 5) SDL_BlitSurface(this->display, &dispsrc, tmp, &dispdest);
 
+    return tmp;
+}
+
+void screen::render(SDL_Renderer *renderer) {
+    SDL_Surface* tmp = this->get_surface();
+
     SDL_Texture* tmp2 = SDL_CreateTextureFromSurface(renderer, tmp);
     SDL_FreeSurface(tmp);
 
@@ -216,3 +245,92 @@ void screen::render(SDL_Renderer *renderer) {
 
     SDL_DestroyTexture(tmp2);
 }
+
+// not generated with ChatGPT i swear
+#if defined _WIN32 || defined __CYGWIN__
+bool CopyPNGToClipboard(const char* filePath) {
+    // Load the PNG file using stb_image
+    int width, height, channels;
+    unsigned char* data = stbi_load(filePath, &width, &height, &channels, 4);
+
+    if (data == NULL) {
+        std::cerr << "Failed to load PNG file." << std::endl;
+        return false;
+    }
+
+    // Create a compatible device context and bitmap
+    HDC hdc = GetDC(NULL);
+    HDC hdcMem = CreateCompatibleDC(hdc);
+    HBITMAP hBitmap = CreateCompatibleBitmap(hdc, width, height);
+
+    if (hBitmap == NULL) {
+        std::cerr << "Failed to create bitmap." << std::endl;
+        stbi_image_free(data);
+        DeleteDC(hdcMem);
+        ReleaseDC(NULL, hdc);
+        return false;
+    }
+
+    HBITMAP hOldBitmap = (HBITMAP)SelectObject(hdcMem, hBitmap);
+    BITMAPINFO bmi = {0};
+    bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+    bmi.bmiHeader.biWidth = width;
+    bmi.bmiHeader.biHeight = -height; // Negative to indicate top-down bitmap
+    bmi.bmiHeader.biPlanes = 1;
+    bmi.bmiHeader.biBitCount = 32;
+    bmi.bmiHeader.biCompression = BI_RGB;
+
+    // Set the bitmap bits
+    if (SetDIBits(hdcMem, hBitmap, 0, height, data, &bmi, DIB_RGB_COLORS) == 0) {
+        std::cerr << "Failed to set bitmap bits." << std::endl;
+        stbi_image_free(data);
+        SelectObject(hdcMem, hOldBitmap);
+        DeleteObject(hBitmap);
+        DeleteDC(hdcMem);
+        ReleaseDC(NULL, hdc);
+        return false;
+    }
+
+    // Clean up
+    stbi_image_free(data);
+    SelectObject(hdcMem, hOldBitmap);
+    DeleteDC(hdcMem);
+    ReleaseDC(NULL, hdc);
+
+    // Open the clipboard
+    if (!OpenClipboard(NULL)) {
+        std::cerr << "Failed to open clipboard." << std::endl;
+        DeleteObject(hBitmap);
+        return false;
+    }
+
+    // Empty the clipboard
+    EmptyClipboard();
+
+    // Set the bitmap to the clipboard
+    if (SetClipboardData(CF_BITMAP, hBitmap) == NULL) {
+        std::cerr << "Failed to set clipboard data." << std::endl;
+        CloseClipboard();
+        DeleteObject(hBitmap);
+        return false;
+    }
+
+    // Close the clipboard
+    CloseClipboard();
+
+    // Clean up
+    DeleteObject(hBitmap);
+
+    return true;
+}
+
+bool screen::render_clipboard() {
+    SDL_Surface* tmp = this->get_surface(0xffd6e3d6);
+    char fname[260]; strcpy(fname, tmpdir);
+    strcat(fname, "/image.png");
+    IMG_SavePNG(tmp, fname);
+    bool success = CopyPNGToClipboard(fname);
+    remove(fname);
+    return success;
+}
+#endif

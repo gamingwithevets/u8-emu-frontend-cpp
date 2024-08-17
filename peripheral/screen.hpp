@@ -27,7 +27,11 @@ public:
     uint8_t cw_screen_data[192*64]{};
     screen(class mcu *mcu, struct config *config);
     ~screen();
+    SDL_Surface *get_surface(uint32_t background = 0);
     void render(SDL_Renderer *renderer);
+#if defined _WIN32 || defined __CYGWIN__
+    bool render_clipboard();
+#endif
 private:
     bool use_status_bar_image;
     SDL_Surface *status_bar;

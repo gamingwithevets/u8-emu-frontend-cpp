@@ -14,6 +14,6 @@ To use the startup UI, all Genshit configuration files must be placed in the `co
 If the directory is not found, you need to specify the path to a configuration file as a command-line argument.
 
 ## Special thanks
-- [telecomadm1145](https://github.com/telecomadm1145), for making the startup UI and inspiring the name of the configuration format
+- [telecomadm1145](https://github.com/telecomadm1145), for making the startup UI, inspiring the name of the configuration format and wrote some of the code used
 - [Fraser Price / Delta / frsr](https://github.com/Fraserbc), for making the original U8 core library
 - [The Casio Calculator Hacking community](http://discord.gg/QjGpH6rSQQ) for all documentation, research, and help

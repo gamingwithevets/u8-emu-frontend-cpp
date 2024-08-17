@@ -55,6 +55,29 @@ void convert_shift(SDL_Event &event) {
     }
 }
 
+std::map<uint32_t, std::string> disassemble(size_t romsize, uint8_t *rom, uint32_t start_addr) {
+    struct nxu8_decoder *decoder = nxu8_init_decoder(romsize, rom);
+    std::map<uint32_t, std::string> disas;
+    uint32_t addr = 0;
+    while (addr < decoder->buf_sz) {
+        char tmp[30];
+        int len;
+        struct nxu8_instr *instr = nxu8_decode_instr(decoder, addr);
+        if (instr != NULL) {
+            sprintf(tmp, "%s", instr->assembly);
+            len = instr->len;
+        } else {
+            uint16_t val = nxu8_read16(decoder, addr);
+            sprintf(tmp, "DW %04XH", val);
+            len = 2;
+        }
+        std::string tmp2(tmp);
+        disas[addr+start_addr] = tmp2;
+        addr += len;
+    }
+    return disas;
+}
+
 int main(int argc, char* argv[]) {
     std::string path;
     if (argc < 2) {
@@ -178,8 +201,8 @@ int main(int argc, char* argv[]) {
 
     u8_core core{};
 
-    uint8_t *rom = (uint8_t *)malloc(0x100000);
-    memset((void *)rom, config.real_hardware ? 0xff : 0, 0x100000);
+    uint8_t *rom = (uint8_t *)malloc((config.hardware_id == HW_ES && config.is_5800p) ? 0x80000 : 0x100000);
+    memset((void *)rom, config.real_hardware ? 0xff : 0, sizeof(rom));
     FILE *f = fopen(config.rom_file.c_str(), "rb");
     if (!f) {
         std::cout << "Cannot open ROM!" << std::endl;
@@ -190,26 +213,25 @@ int main(int argc, char* argv[]) {
     rewind(f);
     fread(rom, sizeof(uint8_t), romsize, f);
     fclose(f);
+    auto romdisas = disassemble(romsize, rom, 0);
 
-    struct nxu8_decoder *decoder = nxu8_init_decoder(romsize, rom);
-    std::map<uint32_t, std::string> disas;
-    uint32_t addr = 0;
-	while (addr < decoder->buf_sz) {
-        char tmp[30];
-        int len;
-		struct nxu8_instr *instr = nxu8_decode_instr(decoder, addr);
-		if (instr != NULL) {
-			sprintf(tmp, "%s", instr->assembly);
-			len = instr->len;
-		} else {
-			uint16_t val = nxu8_read16(decoder, addr);
-			sprintf(tmp, "DW %04XH", val);
-			len = 2;
-		}
-        std::string tmp2(tmp);
-		disas[addr] = tmp2;
-		addr += len;
-	}
+    uint8_t *flash = NULL;
+    std::map<uint32_t, std::string> flashdisas;
+    if (config.hardware_id == HW_ES && config.is_5800p) {
+        flash = (uint8_t *)malloc(0x80000);
+        memset((void *)flash, 0xff, sizeof(flash));
+        FILE *f = fopen(config.flash_rom_file.c_str(), "rb");
+        if (!f) {
+            std::cout << "Cannot open flash ROM!" << std::endl;
+            return -1;
+        }
+        fseek(f, 0, SEEK_END);
+        int flashsize = ftell(f);
+        rewind(f);
+        fread(flash, sizeof(uint8_t), flashsize, f);
+        fclose(f);
+        flashdisas = disassemble(0x40000, (uint8_t *)(flash + 0x40000), 0xc0000);
+    }
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -247,7 +269,7 @@ int main(int argc, char* argv[]) {
 
     uint8_t pd_value;
     if (config.hardware_id != HW_TI_MATHPRINT) pd_value = config.pd_value;
-    mcu mcu(&core, &config, rom, NULL, ramstart, ramsize, w, h);
+    mcu mcu(&core, &config, rom, flash, ramstart, ramsize, w, h);
 
     bool quit = false;
     bool single_step = false;
@@ -288,6 +310,10 @@ int main(int argc, char* argv[]) {
                 cs_thread.join();
             }
         if (!single_step && stop.load()) cs_thread = std::thread(core_step_loop, std::ref(stop));
+        /*if (stop.load() && cs_thread.joinable()) {
+            cs_thread.join();
+            single_step = true;
+        }*/
 
         if (config.hardware_id != HW_TI_MATHPRINT) {
             for (int i = 0; i < 8; i++) {
@@ -471,11 +497,12 @@ int main(int argc, char* argv[]) {
         ImGui::End();
 
         ImGui::Begin("Disassembly", NULL, 0);
-        if (ImGui::BeginTable("disas", 2)) {
+        ImGui::Text("Internal ROM");
+        if (ImGui::BeginTable("romdisas", 2)) {
             ImGui::TableSetupColumn("Address");
             ImGui::TableSetupColumn("Instruction");
             ImGui::TableHeadersRow();
-            for (const auto& [k, v] : disas) {
+            for (const auto& [k, v] : romdisas) {
                 ImVec4 color = (k == ((mcu.core->regs.csr << 16) | (mcu.core->regs.pc))) ? (ImVec4)ImColor(255, 216, 0) : (ImVec4)ImColor(255, 255, 255);
                 ImGui::TableNextRow();
                 ImGui::TableSetColumnIndex(0);
@@ -484,6 +511,23 @@ int main(int argc, char* argv[]) {
                 ImGui::TextColored(color, v.c_str());
             }
             ImGui::EndTable();
+        }
+        if (config.hardware_id == HW_ES && config.is_5800p) {
+            ImGui::Text("Flash ROM");
+            if (ImGui::BeginTable("flashdisas", 2)) {
+                ImGui::TableSetupColumn("Address");
+                ImGui::TableSetupColumn("Instruction");
+                ImGui::TableHeadersRow();
+                for (const auto& [k, v] : flashdisas) {
+                    ImVec4 color = (k == ((mcu.core->regs.csr << 16) | (mcu.core->regs.pc))) ? (ImVec4)ImColor(255, 216, 0) : (ImVec4)ImColor(255, 255, 255);
+                    ImGui::TableNextRow();
+                    ImGui::TableSetColumnIndex(0);
+                    ImGui::TextColored(color, "%X:%04XH", k >> 16, k & 0xffff);
+                    ImGui::TableNextColumn();
+                    ImGui::TextColored(color, v.c_str());
+                }
+                ImGui::EndTable();
+            }
         }
         ImGui::End();
 
@@ -534,27 +578,54 @@ int main(int argc, char* argv[]) {
         }
         if (memselect_idx == 0) ramedit.DrawContents((void *)mcu.ram, ramsize, ramstart);
         else if (memselect_idx == 1) sfredit.DrawContents((void *)mcu.sfr, 0x1000, 0xf000);
-        else if (memselect_idx == 2) sfredit.DrawContents((void *)mcu.ram2, config.hardware_id == HW_ES && config.is_5800p ? 0x8000 : 0x10000,
+        else if (memselect_idx == 2) ram2edit.DrawContents((void *)mcu.ram2, config.hardware_id == HW_ES && config.is_5800p ? 0x8000 : 0x10000,
                                                           config.hardware_id == HW_CLASSWIZ_CW ? 0x80000 : 0x40000);
         ImGui::End();
 
         ImGui::Begin("Options", NULL, 0);
-        if (ImGui::Button("Reset core")) mcu.reset();
-        if (config.hardware_id != HW_TI_MATHPRINT) {
-            ImGui::Text("P mode");
-            ImGui::Text("");
-            for (int i = 7; i >= 0; i--) {
-                char a[3]; sprintf(a, "##%d", i);
+        if (ImGui::TreeNode("MCU Control")) {
+            if (ImGui::Button("Reset core")) mcu.reset();
+            if (config.hardware_id == HW_ES) {
+                ImGui::Text("P mode");
+                ImGui::Spacing();
+                for (int i = 7; i >= 0; i--) {
+                    char a[3]; sprintf(a, "##%d", i);
+                    ImGui::SameLine();
+                    ImGui::Checkbox(a, &set_p[i]);
+                }
                 ImGui::SameLine();
-                ImGui::Checkbox(a, &set_p[i]);
+                ImGui::Text("P%c", get_pmode(pd_value));
+                ImGui::Text("  7   6   5   4   3   2  1   0");
             }
-            ImGui::SameLine();
-            ImGui::Text("P%c", get_pmode(pd_value));
-            ImGui::Text("  7   6   5   4   3   2  1   0");
+            ImGui::Checkbox("Pause/Single-step", &single_step);
+            if (single_step) {
+                if (ImGui::Button("Step")) mcu.core_step();
+            }
+            ImGui::TreePop();
+            ImGui::Spacing();
         }
-        ImGui::Checkbox("Pause/Single-step", &single_step);
-        if (single_step) {
-            if (ImGui::Button("Step")) mcu.core_step();
+        if (ImGui::TreeNode("Other")) {
+            if (ImGui::Button("Copy screen to clipboard")) {
+#if defined _WIN32 || defined __CYGWIN__
+                ImGui::OpenPopup(mcu.screen->render_clipboard() ? "copyclip_success" : "copyclip_fail");
+#else
+                ImGui::OpenPopup("copyclip_linux");
+#endif
+            }
+            if (ImGui::BeginPopup("copyclip_success")) {
+                ImGui::Text("Screen copied to clipboard!");
+                ImGui::EndPopup();
+            }
+            if (ImGui::BeginPopup("copyclip_fail")) {
+                ImGui::Text("Oops! An error occurred.");
+                ImGui::EndPopup();
+            }
+            if (ImGui::BeginPopup("copyclip_linux")) {
+                ImGui::Text("Not supported on non-Windows systems.");
+                ImGui::EndPopup();
+            }
+            ImGui::TreePop();
+            ImGui::Spacing();
         }
         ImGui::End();
 
