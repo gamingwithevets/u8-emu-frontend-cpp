@@ -40,9 +40,9 @@ OBJDIR_RELEASE = obj/release
 DEP_RELEASE = 
 OUT_RELEASE = bin/release/u8-emu-frontend-cpp
 
-OBJ_DEBUG = $(OBJDIR_DEBUG)/u8_emu/src/core/regs.o $(OBJDIR_DEBUG)/u8_emu/src/core/mem.o $(OBJDIR_DEBUG)/u8_emu/src/core/instr_impl.o $(OBJDIR_DEBUG)/u8_emu/src/core/instr.o $(OBJDIR_DEBUG)/u8_emu/src/core/core.o $(OBJDIR_DEBUG)/startupui/startupui.o $(OBJDIR_DEBUG)/startupui/rominfo.o $(OBJDIR_DEBUG)/peripheral/wdt.o $(OBJDIR_DEBUG)/peripheral/timer.o $(OBJDIR_DEBUG)/peripheral/standby.o $(OBJDIR_DEBUG)/peripheral/screen.o $(OBJDIR_DEBUG)/peripheral/keyboard.o $(OBJDIR_DEBUG)/peripheral/interrupts.o $(OBJDIR_DEBUG)/peripheral/bcd.o $(OBJDIR_DEBUG)/peripheral/battery.o $(OBJDIR_DEBUG)/nxu8_disas/src/lib/nxu8_instr.o $(OBJDIR_DEBUG)/nxu8_disas/src/lib/nxu8_decode.o $(OBJDIR_DEBUG)/mcu/mcu.o $(OBJDIR_DEBUG)/main.o $(OBJDIR_DEBUG)/imgui/imgui_widgets.o $(OBJDIR_DEBUG)/imgui/imgui_tables.o $(OBJDIR_DEBUG)/imgui/imgui_impl_sdlrenderer2.o $(OBJDIR_DEBUG)/imgui/imgui_impl_sdl2.o $(OBJDIR_DEBUG)/imgui/imgui_draw.o $(OBJDIR_DEBUG)/imgui/imgui.o
+OBJ_DEBUG = $(OBJDIR_DEBUG)/u8_emu/src/core/regs.o $(OBJDIR_DEBUG)/u8_emu/src/core/mem.o $(OBJDIR_DEBUG)/u8_emu/src/core/instr_impl.o $(OBJDIR_DEBUG)/u8_emu/src/core/instr.o $(OBJDIR_DEBUG)/u8_emu/src/core/core.o $(OBJDIR_DEBUG)/startupui/startupui.o $(OBJDIR_DEBUG)/startupui/rominfo.o $(OBJDIR_DEBUG)/peripheral/wdt.o $(OBJDIR_DEBUG)/peripheral/timer.o $(OBJDIR_DEBUG)/peripheral/standby.o $(OBJDIR_DEBUG)/peripheral/screen.o $(OBJDIR_DEBUG)/peripheral/keyboard.o $(OBJDIR_DEBUG)/peripheral/interrupts.o $(OBJDIR_DEBUG)/peripheral/battery.o $(OBJDIR_DEBUG)/nxu8_disas/src/lib/nxu8_instr.o $(OBJDIR_DEBUG)/nxu8_disas/src/lib/nxu8_decode.o $(OBJDIR_DEBUG)/mcu/mcu.o $(OBJDIR_DEBUG)/main.o $(OBJDIR_DEBUG)/imgui/imgui_widgets.o $(OBJDIR_DEBUG)/imgui/imgui_tables.o $(OBJDIR_DEBUG)/imgui/imgui_impl_sdlrenderer2.o $(OBJDIR_DEBUG)/imgui/imgui_impl_sdl2.o $(OBJDIR_DEBUG)/imgui/imgui_draw.o $(OBJDIR_DEBUG)/imgui/imgui.o
 
-OBJ_RELEASE = $(OBJDIR_RELEASE)/u8_emu/src/core/regs.o $(OBJDIR_RELEASE)/u8_emu/src/core/mem.o $(OBJDIR_RELEASE)/u8_emu/src/core/instr_impl.o $(OBJDIR_RELEASE)/u8_emu/src/core/instr.o $(OBJDIR_RELEASE)/u8_emu/src/core/core.o $(OBJDIR_RELEASE)/startupui/startupui.o $(OBJDIR_RELEASE)/startupui/rominfo.o $(OBJDIR_RELEASE)/peripheral/wdt.o $(OBJDIR_RELEASE)/peripheral/timer.o $(OBJDIR_RELEASE)/peripheral/standby.o $(OBJDIR_RELEASE)/peripheral/screen.o $(OBJDIR_RELEASE)/peripheral/keyboard.o $(OBJDIR_RELEASE)/peripheral/interrupts.o $(OBJDIR_RELEASE)/peripheral/bcd.o $(OBJDIR_RELEASE)/peripheral/battery.o $(OBJDIR_RELEASE)/nxu8_disas/src/lib/nxu8_instr.o $(OBJDIR_RELEASE)/nxu8_disas/src/lib/nxu8_decode.o $(OBJDIR_RELEASE)/mcu/mcu.o $(OBJDIR_RELEASE)/main.o $(OBJDIR_RELEASE)/imgui/imgui_widgets.o $(OBJDIR_RELEASE)/imgui/imgui_tables.o $(OBJDIR_RELEASE)/imgui/imgui_impl_sdlrenderer2.o $(OBJDIR_RELEASE)/imgui/imgui_impl_sdl2.o $(OBJDIR_RELEASE)/imgui/imgui_draw.o $(OBJDIR_RELEASE)/imgui/imgui.o
+OBJ_RELEASE = $(OBJDIR_RELEASE)/u8_emu/src/core/regs.o $(OBJDIR_RELEASE)/u8_emu/src/core/mem.o $(OBJDIR_RELEASE)/u8_emu/src/core/instr_impl.o $(OBJDIR_RELEASE)/u8_emu/src/core/instr.o $(OBJDIR_RELEASE)/u8_emu/src/core/core.o $(OBJDIR_RELEASE)/startupui/startupui.o $(OBJDIR_RELEASE)/startupui/rominfo.o $(OBJDIR_RELEASE)/peripheral/wdt.o $(OBJDIR_RELEASE)/peripheral/timer.o $(OBJDIR_RELEASE)/peripheral/standby.o $(OBJDIR_RELEASE)/peripheral/screen.o $(OBJDIR_RELEASE)/peripheral/keyboard.o $(OBJDIR_RELEASE)/peripheral/interrupts.o $(OBJDIR_RELEASE)/peripheral/battery.o $(OBJDIR_RELEASE)/nxu8_disas/src/lib/nxu8_instr.o $(OBJDIR_RELEASE)/nxu8_disas/src/lib/nxu8_decode.o $(OBJDIR_RELEASE)/mcu/mcu.o $(OBJDIR_RELEASE)/main.o $(OBJDIR_RELEASE)/imgui/imgui_widgets.o $(OBJDIR_RELEASE)/imgui/imgui_tables.o $(OBJDIR_RELEASE)/imgui/imgui_impl_sdlrenderer2.o $(OBJDIR_RELEASE)/imgui/imgui_impl_sdl2.o $(OBJDIR_RELEASE)/imgui/imgui_draw.o $(OBJDIR_RELEASE)/imgui/imgui.o
 
 all: before_build build_debug build_release after_build
 
@@ -110,9 +110,6 @@ $(OBJDIR_DEBUG)/peripheral/keyboard.o: peripheral/keyboard.cpp
 
 $(OBJDIR_DEBUG)/peripheral/interrupts.o: peripheral/interrupts.cpp
 	$(CXX) $(CFLAGS_DEBUG) $(INC_DEBUG) -c peripheral/interrupts.cpp -o $(OBJDIR_DEBUG)/peripheral/interrupts.o
-
-$(OBJDIR_DEBUG)/peripheral/bcd.o: peripheral/bcd.cpp
-	$(CXX) $(CFLAGS_DEBUG) $(INC_DEBUG) -c peripheral/bcd.cpp -o $(OBJDIR_DEBUG)/peripheral/bcd.o
 
 $(OBJDIR_DEBUG)/peripheral/battery.o: peripheral/battery.cpp
 	$(CXX) $(CFLAGS_DEBUG) $(INC_DEBUG) -c peripheral/battery.cpp -o $(OBJDIR_DEBUG)/peripheral/battery.o
@@ -215,9 +212,6 @@ $(OBJDIR_RELEASE)/peripheral/keyboard.o: peripheral/keyboard.cpp
 
 $(OBJDIR_RELEASE)/peripheral/interrupts.o: peripheral/interrupts.cpp
 	$(CXX) $(CFLAGS_RELEASE) $(INC_RELEASE) -c peripheral/interrupts.cpp -o $(OBJDIR_RELEASE)/peripheral/interrupts.o
-
-$(OBJDIR_RELEASE)/peripheral/bcd.o: peripheral/bcd.cpp
-	$(CXX) $(CFLAGS_RELEASE) $(INC_RELEASE) -c peripheral/bcd.cpp -o $(OBJDIR_RELEASE)/peripheral/bcd.o
 
 $(OBJDIR_RELEASE)/peripheral/battery.o: peripheral/battery.cpp
 	$(CXX) $(CFLAGS_RELEASE) $(INC_RELEASE) -c peripheral/battery.cpp -o $(OBJDIR_RELEASE)/peripheral/battery.o
