@@ -29,6 +29,7 @@ public:
     ~screen();
     SDL_Surface *get_surface(uint32_t background = 0);
     void render(SDL_Renderer *renderer);
+    void save(const char *fname);
 #if defined _WIN32 || defined __CYGWIN__
     bool render_clipboard();
 #endif

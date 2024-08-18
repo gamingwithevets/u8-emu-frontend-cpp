@@ -19,7 +19,8 @@ keyboard::keyboard(class mcu *mcu, int w, int h) {
 
     // KI/KO
     // TODO: Actually implement KO filter
-    if (this->config->hardware_id != HW_ES) {
+    if (this->config->hardware_id == HW_TI_MATHPRINT) {}
+    else if (this->config->hardware_id != HW_ES) {
         register_sfr(0x41, 4, &default_write<0xff>);
         register_sfr(0x45, 1, &default_write<4>);
         register_sfr(0x46, 1, &default_write<0xff>);
@@ -53,6 +54,7 @@ keyboard::keyboard(class mcu *mcu, int w, int h) {
             }
             this->emu_kb.ES_QR_DATATOP_ADR = (char *)&this->mcu->ram2[0xa800];
             break;
+        case HW_TI_MATHPRINT: break;
         default:
             this->emu_kb.ES_STOPTYPEADR = (es_stop_type *)&this->mcu->ram[0xe00];
             this->emu_kb.ES_KIADR = &this->mcu->ram[0xe01];
@@ -156,10 +158,8 @@ void keyboard::tick_emu() {
     switch (*this->emu_kb.ES_STOPTYPEADR) {
     case ES_STOP_GETKEY:
         if (this->enable_keypress) {
-            if (this->held_buttons.size()) k = this->held_buttons.back();
-            else if (this->mouse_held) k = this->held_button_mouse;
-            else break;
-
+            k = this->get_button();
+            if (!k) break;
             uint8_t ki_bit = k & 0xf;
             uint8_t ko_bit = k >> 4;
             *this->emu_kb.ES_KIADR = 1 << ki_bit;
@@ -170,10 +170,7 @@ void keyboard::tick_emu() {
         break;
     case ES_STOP_ACBREAK:
     case ES_STOP_ACBREAK2:
-        if (this->enable_keypress) {
-            if (this->held_buttons.size()) k = this->held_buttons.back();
-            else if (this->mouse_held) k = this->held_button_mouse;
-        }
+        if (this->enable_keypress) k = this->get_button();
         *this->emu_kb.ES_STOPTYPEADR = (es_stop_type)(k == 0x42);
         break;
     case ES_STOP_QRCODE_IN:
@@ -185,4 +182,10 @@ void keyboard::tick_emu() {
         this->emu_kb.qr_active = false;
         break;
     }
+}
+
+uint8_t keyboard::get_button() {
+    if (this->held_buttons.size()) return this->held_buttons.back();
+    else if (this->mouse_held) return this->held_button_mouse;
+    return 0;
 }

@@ -32,16 +32,17 @@ private:
     struct config *config;
 public:
     struct es_stop_info emu_kb;
+    bool enable_keypress;
     keyboard(class mcu *mcu, int w, int h);
     void process_event(const SDL_Event *e);
     void render(SDL_Renderer *renderer);
     void tick();
     void tick_emu();
+    uint8_t get_button();
 private:
     std::vector<uint8_t> held_buttons;
     bool mouse_held;
     uint8_t held_button_mouse;
-    bool enable_keypress;
     int w;
     int h;
     void _tick(bool *reset, uint8_t *ki, uint8_t kimask, uint8_t ko, uint8_t k);

@@ -21,6 +21,7 @@ extern "C" {
 #include "../imgui/imgui.h"
 
 //#define FLASHDEBUG
+//#define SFRDEBUG
 
 mcu *mcuptr;
 double get_time() {
@@ -34,7 +35,13 @@ uint8_t read_sfr(struct u8_core *core, uint8_t seg, uint16_t addr) {
 }
 
 void write_sfr(struct u8_core *core, uint8_t seg, uint16_t addr, uint8_t val) {
-    if (mcuptr->sfr_write[addr]) mcuptr->sfr[addr] = mcuptr->sfr_write[addr](mcuptr, addr, val);
+    if (addr > 0xfff) printf("WARNING: Overflown write @ %04XH\nCSR:PC = %X:%04XH (after write)\n", (addr + 0xf000) & 0xffff, core->regs.csr, core->regs.pc);
+    else if (mcuptr->sfr_write[addr]) mcuptr->sfr[addr] = mcuptr->sfr_write[addr](mcuptr, addr, val);
+    else {
+#ifdef SFRDEBUG
+        printf("Write to unmapped SFR %04XH\nCSR:PC = %X:%04XH (after write)\n", addr + 0xf000, core->regs.csr, core->regs.pc);
+#endif
+    }
 }
 
 
@@ -147,7 +154,7 @@ void write_ram2(struct u8_core *core, uint8_t seg, uint16_t addr, uint8_t val) {
     }
 }
 
-mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *flash, int ramstart, int ramsize, int w, int h) {
+mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *flash, uint8_t *ram, int ramstart, int ramsize, int w, int h) {
     this->core = core;
     this->config = config;
     this->rom = rom;
@@ -182,8 +189,8 @@ mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *fla
     };
 
     // Main RAM
-    this->ram = (uint8_t *)malloc(ramsize);
-    memset(this->ram, 0, ramsize);
+    if (!ram) this->ram = (uint8_t *)malloc(ramsize);
+    else this->ram = ram;
     this->core->mem.regions[1] = (struct u8_mem_reg){
         .type = U8_REGION_DATA,
         .rw = true,
@@ -253,6 +260,8 @@ mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *fla
 
         // TI MathPrint - LAPIS ML620418A
         case HW_TI_MATHPRINT:
+            this->cycles_per_second = 1024 * 1024 * 2;
+
             // Code segment 1+ mirror
             this->core->mem.regions[3] = (struct u8_mem_reg){
                 .type = U8_REGION_DATA,
@@ -272,11 +281,13 @@ mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *fla
                 .acc = U8_MACC_ARR,
                 .array = this->rom
             };
+            this->sfr[0x60] = 1;
 
             break;
 
         // SOLAR II
         case HW_SOLAR_II:
+            this->cycles_per_second = 1024 * 1024 * 2;
             this->core->small_mm = true;
             break;
 
@@ -359,7 +370,7 @@ mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *fla
     this->standby = new class standby;
     this->wdt = new class wdt(this);
     this->interrupts = new class interrupts(this);
-    this->timer = new class timer(this, 10000);
+    this->timer = new class sfrtimer(this, 10000);
     this->keyboard = new class keyboard(this, w, h);
     this->battery = new class battery(this->config);
     //this->bcd = new class bcd(this);
@@ -398,7 +409,12 @@ void mcu::core_step() {
         else if ((data == 0xfe1f || data == 0xfe0f) && !call_stack.empty()) call_stack.pop_back();
         else if (data == 0xffff) {
             if ((this->core->regs.psw & 3) >= 2) call_stack.clear();
-            else call_stack.push_back({read_mem_code(this->core, 0, 4, 2), (this->core->regs.ecsr[1] << 16) | (this->core->regs.elr[1]), 0, {"BRK", true}});
+            else call_stack.push_back({read_mem_code(this->core, 0, 4, 2), (this->core->regs.csr << 16) | (this->core->regs.pc+2), 0, {"BRK", true}});
+        }
+        else if ((data & 0xffc0) == 0xe500) {
+            uint8_t snum = data & 0x3f;
+            char s[8]; sprintf(s, "SWI #%d", snum);
+            call_stack.push_back({read_mem_code(this->core, 0, 0x80+snum<<1, 2), (this->core->regs.csr << 16) | (this->core->regs.pc+2), 0, {std::string(s)}});
         }
 
         u8_step(this->core);
@@ -410,15 +426,42 @@ void mcu::core_step() {
         }
     } else {
         this->timer->tick();
-        if (!this->config->real_hardware) this->keyboard->tick_emu();
+        if (!this->config->real_hardware && this->config->hardware_id != HW_TI_MATHPRINT) this->keyboard->tick_emu();
     }
 
     this->wdt->tick();
-    this->keyboard->tick();
+    if (this->config->hardware_id != HW_TI_MATHPRINT) this->keyboard->tick();
     int_callstack interrupt = this->interrupts->tick();
     if (!interrupt.interrupt_name.empty()) {
         uint8_t elevel = this->core->regs.psw & 3;
         call_stack.push_back({this->core->regs.pc, (this->core->regs.ecsr[elevel-1] << 16) | (this->core->regs.elr[elevel-1]), 0, interrupt});
+    }
+
+    if (this->config->hardware_id == HW_TI_MATHPRINT) {
+        if (this->config->real_hardware) {
+            // TODO
+        } else if (this->core->last_swi < 0x40) {
+            switch (this->core->last_swi) {
+            case 1:
+                this->ti_screen_addr = read_reg_er(this->core, 0) - 0xb000;
+                write_reg_er(this->core, 0, 0);
+                this->ti_screen_changed = true;
+                break;
+            case 2: {
+                uint16_t k = 0;
+                if (this->keyboard->enable_keypress) {
+                    k = this->keyboard->get_button();
+                    if (k) this->keyboard->enable_keypress = false;
+                }
+                write_reg_er(this->core, 0, k);
+                break;
+            }case 4:
+                this->ti_status_bar_addr = read_reg_er(this->core, 0) - 0xb000;
+                write_reg_er(this->core, 0, 0);
+                this->ti_screen_changed = true;
+                break;
+            }
+        }
     }
 }
 
@@ -447,11 +490,18 @@ void mcu::reset() {
     u8_reset(this->core);
     this->standby->stop_mode = false;
     this->wdt->reset();
-    for (int i = 0; i < this->screen->height; i++) write_mem_data(this->core, 0, 0xf800 + i*this->screen->bytes_per_row_real, this->screen->bytes_per_row, 0);
-    if (this->config->hardware_id == HW_CLASSWIZ_CW) {
-        write_mem_data(this->core, 0, 0xf037, 1, 4);
+    //this->bcd->perApi_Reset();
+    if (this->config->hardware_id == HW_TI_MATHPRINT) {
+        this->ti_screen_changed = false;
+        this->ti_screen_addr = 0;
+        this->ti_status_bar_addr = 0;
+    } else {
         for (int i = 0; i < this->screen->height; i++) write_mem_data(this->core, 0, 0xf800 + i*this->screen->bytes_per_row_real, this->screen->bytes_per_row, 0);
-        write_mem_data(this->core, 0, 0xf037, 1, 0);
+        if (this->config->hardware_id == HW_CLASSWIZ_CW) {
+            write_mem_data(this->core, 0, 0xf037, 1, 4);
+            for (int i = 0; i < this->screen->height; i++) write_mem_data(this->core, 0, 0xf800 + i*this->screen->bytes_per_row_real, this->screen->bytes_per_row, 0);
+            write_mem_data(this->core, 0, 0xf037, 1, 0);
+        }
     }
     this->call_stack.clear();
     this->ips_start = get_time();

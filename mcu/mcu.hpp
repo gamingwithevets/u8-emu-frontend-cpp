@@ -37,7 +37,7 @@ public:
     standby *standby;
     wdt *wdt;
     interrupts *interrupts;
-    timer *timer;
+    sfrtimer *timer;
     keyboard *keyboard;
     battery *battery;
     class bcd *bcd;
@@ -55,7 +55,12 @@ public:
     double ips, ips_start;
     unsigned int ips_ctr;
     unsigned int cycles_per_second;
-	mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *flash, int ramstart, int ramsize, int w, int h);
+
+    uint16_t ti_screen_addr;
+    uint16_t ti_status_bar_addr;
+    bool ti_screen_changed;
+
+	mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *flash, uint8_t *ram, int ramstart, int ramsize, int w, int h);
 	~mcu();
 	void core_step();
 	void reset();

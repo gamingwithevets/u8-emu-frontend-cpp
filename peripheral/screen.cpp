@@ -17,7 +17,9 @@
 #include "screen.hpp"
 #include "../mcu/mcu.hpp"
 
-const uint32_t WHITE_COLOR = 0;
+const uint32_t NO_COLOR = 0;
+const uint32_t WHITE_COLOR = 0xFFFFFFFF;
+const uint32_t WHITE_COLOR_CASIO = 0xFFFFFFFF;
 const uint32_t GRAY1_COLOR = 0xFFAAAAAA;
 const uint32_t GRAY2_COLOR = 0xFF555555;
 const uint32_t BLACK_COLOR = 0xFF000000;
@@ -34,17 +36,16 @@ const char *getTmpDir(void) {
 }
 const char *tmpdir = getTmpDir();
 
-<template int offset>
 uint8_t draw_screen(mcu *mcu, uint16_t addr, uint8_t val) {
-    int y = (int)((addr - offset) / mcu->screen->bytes_per_row_real);
-    int x = ((addr - offset) % mcu->screen->bytes_per_row_real) * 8;
+    int y = (int)((addr - 0x800) / mcu->screen->bytes_per_row_real);
+    int x = ((addr - 0x800) % mcu->screen->bytes_per_row_real) * 8;
     SDL_Rect rect;
     int j;
 
     for (int i = 7; i >= 0; i--) {
         j = ~i & 7;
-        rect = {(x+j) * mcu->screen->config->pix_w, y * mcu->screen->config->pix_h, mcu->screen->config->pix_w, mcu->screen->config->pix_h};
-        SDL_FillRect(mcu->screen->display, &rect, (val & (1 << i)) ? BLACK_COLOR : WHITE_COLOR);
+        rect = {(x+j) * mcu->config->pix_w, y * mcu->config->pix_h, mcu->config->pix_w, mcu->config->pix_h};
+        SDL_FillRect(mcu->screen->display, &rect, (val & (1 << i)) ? BLACK_COLOR : NO_COLOR);
     }
     return val;
 }
@@ -59,10 +60,10 @@ uint8_t draw_screen_cw(mcu *mcu, uint16_t addr, uint8_t val) {
     for (int i = 7; i >= 0; i--) {
         j = ~i & 7;
         data = &mcu->screen->cw_screen_data[y*192+x+j];
-        rect = {(x+j) * mcu->screen->config->pix_w, y * mcu->screen->config->pix_h, mcu->screen->config->pix_w, mcu->screen->config->pix_h};
+        rect = {(x+j) * mcu->config->pix_w, y * mcu->config->pix_h, mcu->config->pix_w, mcu->config->pix_h};
         if (!(val & (1 << i))) {
-            if (mcu->screen->cw_2bpp_toggle) SDL_FillRect(mcu->screen->display, &rect, (*data == 3 || *data == 1) ? GRAY1_COLOR : WHITE_COLOR);
-            else SDL_FillRect(mcu->screen->display, &rect, (*data == 3 || *data == 2) ? GRAY2_COLOR : WHITE_COLOR);
+            if (mcu->screen->cw_2bpp_toggle) SDL_FillRect(mcu->screen->display, &rect, (*data == 3 || *data == 1) ? GRAY1_COLOR : NO_COLOR);
+            else SDL_FillRect(mcu->screen->display, &rect, (*data == 3 || *data == 2) ? GRAY2_COLOR : NO_COLOR);
             *data &= ~(mcu->screen->cw_2bpp_toggle ? 2 : 1);
         } else {
             if (mcu->screen->cw_2bpp_toggle) SDL_FillRect(mcu->screen->display, &rect, (*data == 0 || *data == 2) ? GRAY2_COLOR : BLACK_COLOR);
@@ -152,9 +153,8 @@ screen::screen(class mcu *mcu) {
 
         break;
     case HW_TI_MATHPRINT:
-        this->width = 64;
-        this->height = 192;
-        this->bytes_per_row_real = 8;
+        this->width = 192;
+        this->height = 64;
         break;
     default:
         this->width = 96;
@@ -200,11 +200,11 @@ screen::screen(class mcu *mcu) {
     }
 
     this->display = SDL_CreateRGBSurface(0, this->width * this->config->pix_w, this->height * this->config->pix_h, 32, 0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000);
-    SDL_FillRect(this->display, NULL, WHITE_COLOR);
+    SDL_FillRect(this->display, NULL, NO_COLOR);
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0");
 
-    if (this->config->hardware_id != HW_TI_MATHPRINT) for (int i = 0; i < this->height; i++)
-        register_sfr(0x800+i*this->bytes_per_row_real, this->bytes_per_row, this->cw_2bpp ? &draw_screen_cw : &draw_screen<offset>);
+    if (this->config->hardware_id != HW_TI_MATHPRINT)
+        for (int i = 0; i < this->height; i++) register_sfr(0x800+i*this->bytes_per_row_real, this->bytes_per_row, this->cw_2bpp ? &draw_screen_cw : &draw_screen);
 }
 
 screen::~screen() {
@@ -213,31 +213,66 @@ screen::~screen() {
 }
 
 SDL_Surface *screen::get_surface(uint32_t background) {
-    SDL_Surface *tmp = SDL_CreateRGBSurface(0, this->width*this->config->pix_w, this->height*this->config->pix_h+this->sbar_hi, 32, 0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000);
-    SDL_FillRect(tmp, NULL, background);
-    SDL_Rect dispsrc, dispdest;
-    if (this->use_status_bar_image) {
-        if ((this->mcu->sfr[0x31] & 0xf) == 5 || (this->mcu->sfr[0x31] & 0xf) == 6)
+    if (this->config->hardware_id == HW_TI_MATHPRINT) {
+        SDL_Surface *tmp = SDL_CreateRGBSurface(0, 192*this->config->pix_w, 64*this->config->pix_h+this->sbar_hi, 32, 0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000);
+        SDL_FillRect(tmp, NULL, background);
+        if (!this->mcu->ti_status_bar_addr) return tmp;
+        if (this->use_status_bar_image) {
+            uint32_t data = (this->mcu->ram[this->mcu->ti_status_bar_addr+2] << 16) | (this->mcu->ram[this->mcu->ti_status_bar_addr+1] << 8) | this->mcu->ram[this->mcu->ti_status_bar_addr];
             for (int i = 0; i < this->config->status_bar_crops.size(); i++) {
                 SDL_Rect srcdest = this->config->status_bar_crops[i];
-                statusbit sbb = this->status_bar_bits[i];
-                if (this->mcu->sfr[0x800+sbb.idx] & (1 << sbb.bit)) SDL_BlitSurface(this->status_bar, &srcdest, tmp, &srcdest);
+                if (data & (1 << i)) SDL_BlitSurface(this->status_bar, &srcdest, tmp, &srcdest);
             }
-        dispsrc = {0, this->config->pix_h, this->width*this->config->pix_w, (this->height-1)*this->config->pix_h};
-        dispdest = {0, this->sbar_hi, this->width*this->config->pix_w, (this->height-1)*this->config->pix_h};
-    } else {
-        if ((this->mcu->sfr[0x31] & 0xf) == 5 || (this->mcu->sfr[0x31] & 0xf) == 6) {
-            dispsrc = {0, 0, this->config->pix_w, this->config->pix_h};
-            dispdest = {0, 0, this->config->pix_w, this->config->pix_h};
-            SDL_BlitSurface(this->display, &dispsrc, tmp, &dispdest);
         }
-        dispsrc = {0, this->sbar_hi, this->width*this->config->pix_w, (this->height-1)*this->config->pix_h};
-        dispdest = {0, this->sbar_hi, this->width*this->config->pix_w, (this->height-1)*this->config->pix_h};
+
+        if (!this->mcu->ti_screen_addr) return tmp;
+        if (this->mcu->ti_screen_changed) {
+            SDL_FillRect(this->display, NULL, NO_COLOR);
+            for (int y = 0; y < 192; y++) {
+                int yinv = ~y & 191;
+                for (int x = 0; x < 8; x++) {
+                    SDL_Rect k;
+                    for (int i = 7; i >= 0; i--) {
+                        k = {y * this->config->pix_h, (x*8+i) * this->config->pix_w, this->config->pix_w, this->config->pix_h};
+                        if (this->mcu->ram[this->mcu->ti_screen_addr+y*8+x] & (1 << i)) SDL_FillRect(this->display, &k, BLACK_COLOR);
+                    }
+                }
+            }
+            this->mcu->ti_screen_changed = false;
+        }
+
+        SDL_Rect dispsrc {0, this->config->pix_h, 192*this->config->pix_w, 64*this->config->pix_h};
+        SDL_Rect dispdest {0, this->sbar_hi, 192*this->config->pix_w, 64*this->config->pix_h};
+        SDL_BlitSurface(this->display, &dispsrc, tmp, &dispdest);
+
+        return tmp;
+    } else {
+        SDL_Surface *tmp = SDL_CreateRGBSurface(0, this->width*this->config->pix_w, this->height*this->config->pix_h+this->sbar_hi, 32, 0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000);
+        SDL_FillRect(tmp, NULL, background);
+        SDL_Rect dispsrc, dispdest;
+        if (this->use_status_bar_image) {
+            if ((this->mcu->sfr[0x31] & 0xf) == 5 || (this->mcu->sfr[0x31] & 0xf) == 6)
+                for (int i = 0; i < this->config->status_bar_crops.size(); i++) {
+                    SDL_Rect srcdest = this->config->status_bar_crops[i];
+                    statusbit sbb = this->status_bar_bits[i];
+                    if (this->mcu->sfr[0x800+sbb.idx] & (1 << sbb.bit)) SDL_BlitSurface(this->status_bar, &srcdest, tmp, &srcdest);
+                }
+            dispsrc = {0, this->config->pix_h, this->width*this->config->pix_w, (this->height-1)*this->config->pix_h};
+            dispdest = {0, this->sbar_hi, this->width*this->config->pix_w, (this->height-1)*this->config->pix_h};
+        } else {
+            if ((this->mcu->sfr[0x31] & 0xf) == 5 || (this->mcu->sfr[0x31] & 0xf) == 6) {
+                dispsrc = {0, 0, this->config->pix_w, this->config->pix_h};
+                dispdest = {0, 0, this->config->pix_w, this->config->pix_h};
+                SDL_BlitSurface(this->display, &dispsrc, tmp, &dispdest);
+            }
+            dispsrc = {0, this->sbar_hi, this->width*this->config->pix_w, (this->height-1)*this->config->pix_h};
+            dispdest = {0, this->sbar_hi, this->width*this->config->pix_w, (this->height-1)*this->config->pix_h};
+        }
+
+        if ((this->mcu->sfr[0x31] & 0xf) == 5) SDL_BlitSurface(this->display, &dispsrc, tmp, &dispdest);
+
+        return tmp;
     }
-
-    if ((this->mcu->sfr[0x31] & 0xf) == 5) SDL_BlitSurface(this->display, &dispsrc, tmp, &dispdest);
-
-    return tmp;
 }
 
 void screen::render(SDL_Renderer *renderer) {
@@ -246,10 +281,17 @@ void screen::render(SDL_Renderer *renderer) {
     SDL_Texture* tmp2 = SDL_CreateTextureFromSurface(renderer, tmp);
     SDL_FreeSurface(tmp);
 
-    SDL_Rect dest {this->config->screen_tl_w, this->config->screen_tl_h, this->width*this->config->pix_w, this->height*this->config->pix_h+this->sbar_hi};
+    SDL_Rect dest;
+    if (this->config->hardware_id == HW_TI_MATHPRINT) dest = {this->config->screen_tl_w, this->config->screen_tl_h, 192*this->config->pix_w, 64*this->config->pix_h+this->sbar_hi};
+    else dest = {this->config->screen_tl_w, this->config->screen_tl_h, this->width*this->config->pix_w, this->height*this->config->pix_h+this->sbar_hi};
     SDL_RenderCopy(renderer, tmp2, NULL, &dest);
 
     SDL_DestroyTexture(tmp2);
+}
+
+void screen::save(const char *fname) {
+    SDL_Surface* tmp = this->get_surface(this->config->hardware_id == HW_TI_MATHPRINT ? WHITE_COLOR : WHITE_COLOR_CASIO);
+    IMG_SavePNG(tmp, fname);
 }
 
 // not generated with ChatGPT i swear
@@ -331,10 +373,9 @@ bool CopyPNGToClipboard(const char* filePath) {
 }
 
 bool screen::render_clipboard() {
-    SDL_Surface* tmp = this->get_surface(0xffd6e3d6);
     char fname[260]; strcpy(fname, tmpdir);
     strcat(fname, "/image.png");
-    IMG_SavePNG(tmp, fname);
+    this->save(fname);
     bool success = CopyPNGToClipboard(fname);
     remove(fname);
     return success;

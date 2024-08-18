@@ -172,8 +172,8 @@ int main(int argc, char* argv[]) {
         return -1;
     }
 
-    int w = interface_sf->w;
-    int h = interface_sf->h;
+    int w = config.width ? config.width : interface_sf->w;
+    int h = config.height ? config.height : interface_sf->h;
 
     SDL_Window* window = SDL_CreateWindow(!config.w_name.empty() ? config.w_name.c_str() : "u8-emu-frontend-cpp", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, w, h, SDL_WINDOW_SHOWN);
     if (!window) {
@@ -199,13 +199,13 @@ int main(int argc, char* argv[]) {
     SDL_Texture* interface = SDL_CreateTextureFromSurface(renderer, interface_sf);
     SDL_FreeSurface(interface_sf);
 
-    u8_core core{};
+    struct u8_core core{};
 
     uint8_t *rom = (uint8_t *)malloc((config.hardware_id == HW_ES && config.is_5800p) ? 0x80000 : 0x100000);
-    memset((void *)rom, config.real_hardware ? 0xff : 0, sizeof(rom));
+    memset((void *)rom, (config.real_hardware || config.hardware_id == HW_TI_MATHPRINT) ? 0xff : 0, (config.hardware_id == HW_ES && config.is_5800p) ? 0x80000 : 0x100000);
     FILE *f = fopen(config.rom_file.c_str(), "rb");
     if (!f) {
-        std::cout << "Cannot open ROM!" << std::endl;
+        std::cerr << "ERROR: Cannot open ROM:" << strerror(errno) << std::endl;
         return -1;
     }
     fseek(f, 0, SEEK_END);
@@ -222,7 +222,7 @@ int main(int argc, char* argv[]) {
         memset((void *)flash, 0xff, sizeof(flash));
         FILE *f = fopen(config.flash_rom_file.c_str(), "rb");
         if (!f) {
-            std::cout << "Cannot open flash ROM!" << std::endl;
+            std::cerr << "ERROR: Cannot open flash ROM:" << strerror(errno) << std::endl;
             return -1;
         }
         fseek(f, 0, SEEK_END);
@@ -232,16 +232,6 @@ int main(int argc, char* argv[]) {
         fclose(f);
         flashdisas = disassemble(0x40000, (uint8_t *)(flash + 0x40000), 0xc0000);
     }
-
-    IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO();
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-
-    ImGui::StyleColorsDark();
-
-    ImGui_ImplSDL2_InitForSDLRenderer(window2, renderer2);
-    ImGui_ImplSDLRenderer2_Init(renderer2);
 
     int ramstart, ramsize;
     switch (config.hardware_id) {
@@ -267,9 +257,29 @@ int main(int argc, char* argv[]) {
         break;
     }
 
+    uint8_t *ram = NULL;
+    if (!config.ram.empty()) {
+        FILE *f = fopen(config.ram.c_str(), "rb");
+        if (f) {
+            ram = (uint8_t *)malloc(ramsize);
+            fread(ram, sizeof(uint8_t), ramsize, f);
+            fclose(f);
+        } else std::cerr << "WARNING: cannot load RAM data: " << strerror(errno) << std::endl;
+    }
+
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO();
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+
+    ImGui::StyleColorsDark();
+
+    ImGui_ImplSDL2_InitForSDLRenderer(window2, renderer2);
+    ImGui_ImplSDLRenderer2_Init(renderer2);
+
     uint8_t pd_value;
     if (config.hardware_id != HW_TI_MATHPRINT) pd_value = config.pd_value;
-    mcu mcu(&core, &config, rom, flash, ramstart, ramsize, w, h);
+    mcu mcu(&core, &config, rom, flash, ram, ramstart, ramsize, w, h);
 
     bool quit = false;
     bool single_step = false;
@@ -337,7 +347,7 @@ int main(int argc, char* argv[]) {
             for (int i = 0; i < 8; i++)
             {
                 ImGui::TableSetColumnIndex(i);
-                ImGui::Text("%02X", mcu.core->regs.gp[i]);
+                ImGui::Text("%02X", core.regs.gp[i]);
             }
             ImGui::EndTable();
         }
@@ -349,7 +359,7 @@ int main(int argc, char* argv[]) {
             for (int i = 0; i < 8; i++)
             {
                 ImGui::TableSetColumnIndex(i);
-                ImGui::Text("%02X", mcu.core->regs.gp[i+8]);
+                ImGui::Text("%02X", core.regs.gp[i+8]);
             }
             ImGui::EndTable();
         }
@@ -363,26 +373,26 @@ int main(int argc, char* argv[]) {
             ImGui::TableSetColumnIndex(0);
             ImGui::Text("CSR:PC");
             ImGui::TableNextColumn();
-            ImGui::Text("%X:%04XH", mcu.core->regs.csr, mcu.core->regs.pc);
+            ImGui::Text("%X:%04XH", core.regs.csr, core.regs.pc);
 
             ImGui::TableNextRow();
             ImGui::TableSetColumnIndex(0);
             ImGui::Text("SP");
             ImGui::TableNextColumn();
-            ImGui::Text("%04XH", mcu.core->regs.sp);
+            ImGui::Text("%04XH", core.regs.sp);
 
             ImGui::TableNextRow();
             ImGui::TableSetColumnIndex(0);
             ImGui::Text("DSR:EA");
             ImGui::TableNextColumn();
-            ImGui::Text("%02X:%04XH", mcu.core->regs.dsr, mcu.core->regs.ea);
+            ImGui::Text("%02X:%04XH", core.regs.dsr, core.regs.ea);
 
             ImGui::EndTable();
         }
         ImGui::Text("\n");
         if (ImGui::BeginTable("psw", 2, ImGuiTableFlags_Resizable)) {
             ImGui::TableSetupColumn("PSW");
-            char val[2]; sprintf(val, "%02X", mcu.core->regs.psw);
+            char val[2]; sprintf(val, "%02X", core.regs.psw);
             ImGui::TableSetupColumn(val);
             ImGui::TableHeadersRow();
 
@@ -390,43 +400,43 @@ int main(int argc, char* argv[]) {
             ImGui::TableSetColumnIndex(0);
             ImGui::Text("C");
             ImGui::TableNextColumn();
-            ImGui::Text("[%s]", (mcu.core->regs.psw & (1 << 7)) ? "x" : " ");
+            ImGui::Text("[%s]", (core.regs.psw & (1 << 7)) ? "x" : " ");
 
             ImGui::TableNextRow();
             ImGui::TableSetColumnIndex(0);
             ImGui::Text("Z");
             ImGui::TableNextColumn();
-            ImGui::Text("[%s]", (mcu.core->regs.psw & (1 << 6)) ? "x" : " ");
+            ImGui::Text("[%s]", (core.regs.psw & (1 << 6)) ? "x" : " ");
 
             ImGui::TableNextRow();
             ImGui::TableSetColumnIndex(0);
             ImGui::Text("S");
             ImGui::TableNextColumn();
-            ImGui::Text("[%s]", (mcu.core->regs.psw & (1 << 5)) ? "x" : " ");
+            ImGui::Text("[%s]", (core.regs.psw & (1 << 5)) ? "x" : " ");
 
             ImGui::TableNextRow();
             ImGui::TableSetColumnIndex(0);
             ImGui::Text("OV");
             ImGui::TableNextColumn();
-            ImGui::Text("[%s]", (mcu.core->regs.psw & (1 << 4)) ? "x" : " ");
+            ImGui::Text("[%s]", (core.regs.psw & (1 << 4)) ? "x" : " ");
 
             ImGui::TableNextRow();
             ImGui::TableSetColumnIndex(0);
             ImGui::Text("MIE");
             ImGui::TableNextColumn();
-            ImGui::Text("[%s]", (mcu.core->regs.psw & (1 << 3)) ? "x" : " ");
+            ImGui::Text("[%s]", (core.regs.psw & (1 << 3)) ? "x" : " ");
 
             ImGui::TableNextRow();
             ImGui::TableSetColumnIndex(0);
             ImGui::Text("HC");
             ImGui::TableNextColumn();
-            ImGui::Text("[%s]", (mcu.core->regs.psw & (1 << 2)) ? "x" : " ");
+            ImGui::Text("[%s]", (core.regs.psw & (1 << 2)) ? "x" : " ");
 
             ImGui::TableNextRow();
             ImGui::TableSetColumnIndex(0);
             ImGui::Text("ELEVEL");
             ImGui::TableNextColumn();
-            ImGui::Text("%d", mcu.core->regs.psw & 3);
+            ImGui::Text("%d", core.regs.psw & 3);
 
             ImGui::EndTable();
         }
@@ -440,14 +450,14 @@ int main(int argc, char* argv[]) {
             ImGui::TableSetColumnIndex(0);
             ImGui::Text("LCSR:LR");
             ImGui::TableNextColumn();
-            ImGui::Text("%X:%04XH", mcu.core->regs.lcsr, mcu.core->regs.lr);
+            ImGui::Text("%X:%04XH", core.regs.lcsr, core.regs.lr);
 
             for (int i = 0; i < 3; i++) {
                 ImGui::TableNextRow();
                 ImGui::TableSetColumnIndex(0);
                 ImGui::Text("ECSR%d:ELR%d", i+1, i+1);
                 ImGui::TableNextColumn();
-                ImGui::Text("%X:%04XH", mcu.core->regs.ecsr[i], mcu.core->regs.elr[i]);
+                ImGui::Text("%X:%04XH", core.regs.ecsr[i], core.regs.elr[i]);
             }
 
             for (int i = 0; i < 3; i++) {
@@ -455,7 +465,7 @@ int main(int argc, char* argv[]) {
                 ImGui::TableSetColumnIndex(0);
                 ImGui::Text("EPSW%d", i+1);
                 ImGui::TableNextColumn();
-                ImGui::Text("%02X", mcu.core->regs.epsw[i]);
+                ImGui::Text("%02X", core.regs.epsw[i]);
             }
 
             ImGui::EndTable();
@@ -465,12 +475,6 @@ int main(int argc, char* argv[]) {
             ImGui::TableSetupColumn("Description");
             ImGui::TableSetupColumn("State/Value");
             ImGui::TableHeadersRow();
-
-            ImGui::TableNextRow();
-            ImGui::TableSetColumnIndex(0);
-            ImGui::Text("STOP acceptor state");
-            ImGui::TableNextColumn();
-            ImGui::Text("1 [%s]  2 [%s]", (mcu.standby->stop_accept[0]) ? "x" : " ", (mcu.standby->stop_accept[1]) ? "x" : " ");
 
             ImGui::TableNextRow();
             ImGui::TableSetColumnIndex(0);
@@ -503,7 +507,7 @@ int main(int argc, char* argv[]) {
             ImGui::TableSetupColumn("Instruction");
             ImGui::TableHeadersRow();
             for (const auto& [k, v] : romdisas) {
-                ImVec4 color = (k == ((mcu.core->regs.csr << 16) | (mcu.core->regs.pc))) ? (ImVec4)ImColor(255, 216, 0) : (ImVec4)ImColor(255, 255, 255);
+                ImVec4 color = (k == ((core.regs.csr << 16) | (core.regs.pc))) ? (ImVec4)ImColor(255, 216, 0) : (ImVec4)ImColor(255, 255, 255);
                 ImGui::TableNextRow();
                 ImGui::TableSetColumnIndex(0);
                 ImGui::TextColored(color, "%X:%04XH", k >> 16, k & 0xffff);
@@ -519,7 +523,7 @@ int main(int argc, char* argv[]) {
                 ImGui::TableSetupColumn("Instruction");
                 ImGui::TableHeadersRow();
                 for (const auto& [k, v] : flashdisas) {
-                    ImVec4 color = (k == ((mcu.core->regs.csr << 16) | (mcu.core->regs.pc))) ? (ImVec4)ImColor(255, 216, 0) : (ImVec4)ImColor(255, 255, 255);
+                    ImVec4 color = (k == ((core.regs.csr << 16) | (core.regs.pc))) ? (ImVec4)ImColor(255, 216, 0) : (ImVec4)ImColor(255, 255, 255);
                     ImGui::TableNextRow();
                     ImGui::TableSetColumnIndex(0);
                     ImGui::TextColored(color, "%X:%04XH", k >> 16, k & 0xffff);
@@ -605,12 +609,9 @@ int main(int argc, char* argv[]) {
             ImGui::Spacing();
         }
         if (ImGui::TreeNode("Other")) {
-            if (ImGui::Button("Copy screen to clipboard")) {
 #if defined _WIN32 || defined __CYGWIN__
+            if (ImGui::Button("Copy screen to clipboard")) {
                 ImGui::OpenPopup(mcu.screen->render_clipboard() ? "copyclip_success" : "copyclip_fail");
-#else
-                ImGui::OpenPopup("copyclip_linux");
-#endif
             }
             if (ImGui::BeginPopup("copyclip_success")) {
                 ImGui::Text("Screen copied to clipboard!");
@@ -620,10 +621,7 @@ int main(int argc, char* argv[]) {
                 ImGui::Text("Oops! An error occurred.");
                 ImGui::EndPopup();
             }
-            if (ImGui::BeginPopup("copyclip_linux")) {
-                ImGui::Text("Not supported on non-Windows systems.");
-                ImGui::EndPopup();
-            }
+#endif
             ImGui::TreePop();
             ImGui::Spacing();
         }
@@ -649,6 +647,15 @@ int main(int argc, char* argv[]) {
         stop = true;
         cs_thread.join();
     }
+
+    {
+        FILE *f = fopen(config.ram.c_str(), "wb");
+        if (f) {
+            fwrite(ram, sizeof(uint8_t), ramsize, f);
+            fclose(f);
+        } else std::cerr << "WARNING: cannot save RAM data: " << strerror(errno) << std::endl;
+    }
+
 
     ImGui_ImplSDLRenderer2_Shutdown();
     ImGui_ImplSDL2_Shutdown();

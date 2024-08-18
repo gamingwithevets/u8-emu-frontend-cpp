@@ -57,6 +57,11 @@ struct config {
     std::vector<SDL_Rect> status_bar_crops;
     // Keyboard
     std::map<uint8_t, keydata> keymap;
+
+    int width;
+    int height;
+    std::string ram;
+
     void Write(std::ostream &os) const {
         Binary::Write(os, header);
 
@@ -80,6 +85,10 @@ struct config {
         Binary::Write(os, status_bar_crops);
 
         Binary::Write(os, keymap);
+
+        Binary::Write(os, width);
+        Binary::Write(os, height);
+        Binary::Write(os, ram);
     }
     void Read(std::istream &is) {
         std::string unused;
@@ -105,5 +114,9 @@ struct config {
         Binary::Read(is, status_bar_crops);
 
         Binary::Read(is, keymap);
+
+        Binary::Read(is, width);
+        Binary::Read(is, height);
+        Binary::Read(is, ram);
     }
 };
