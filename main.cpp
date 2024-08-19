@@ -107,7 +107,7 @@ std::optional<std::string> get_instruction_label(std::map<uint32_t, Label>& labe
     uint32_t offset = addr - near;
 
     std::stringstream offset_str;
-    if (offset > 9) offset_str << std::hex << offset;
+    if (offset > 9) offset_str << std::showbase << std::hex << offset;
     else offset_str << offset;
 
     std::string result = label.is_func ? label.name : labels[label.parent_addr].name;
@@ -306,8 +306,8 @@ int main(int argc, char* argv[]) {
     }
 
     std::map<uint32_t, Label> labels;
-    //std::map<uint32_t, std::string> data_labels;
-    //std::map<std::string, std::string> data_bit_labels;
+    std::map<uint32_t, std::string> data_labels;
+    std::map<std::string, std::string> data_bit_labels;
     for (const auto &labelfile : config.labels) {
         if (labelfile.empty()) continue;
         std::ifstream is(labelfile.c_str());
@@ -315,9 +315,12 @@ int main(int argc, char* argv[]) {
             std::cerr << "WARNING: Cannot load label file '" << path << "': " << strerror(errno) << std::endl;
             continue;
         }
-        auto labeltuples = load_labels(is, 0);
-        labels = std::get<0>(labeltuples);
+        load_labels(is, 0, &labels, &data_labels, &data_bit_labels);
     }
+    uint16_t start = read_mem_code(&core, 0, 2, 2);
+    uint16_t brk = read_mem_code(&core, 0, 4, 2);
+    if (labels.find(start) == labels.end()) labels[start] = {"start", true};
+    if (labels.find(brk) == labels.end()) labels[brk] = {"brk", true};
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -425,7 +428,9 @@ int main(int argc, char* argv[]) {
             ImGui::TableSetColumnIndex(0);
             ImGui::Text("CSR:PC");
             ImGui::TableNextColumn();
-            ImGui::Text("%X:%04XH", core.regs.csr, core.regs.pc);
+            auto a = get_instruction_label(labels, (core.regs.csr << 16) | core.regs.pc);
+            if (a.has_value()) ImGui::Text("%s (%X:%04XH)", a.value().c_str(), core.regs.csr, core.regs.pc);
+            else ImGui::Text("%X:%04XH", core.regs.csr, core.regs.pc);
 
             ImGui::TableNextRow();
             ImGui::TableSetColumnIndex(0);
@@ -606,16 +611,19 @@ int main(int argc, char* argv[]) {
                 auto a = get_instruction_label(labels, v.func_addr);
                 if (a.has_value()) {
                     ImGui::TextColored(color, a.value().c_str());
-                    ImGui::SetTooltip("%X:%04XH", v.func_addr >> 16, v.func_addr & 0xffff);
-                }
-                else ImGui::TextColored(color, "%X:%04XH", v.func_addr >> 16, v.func_addr & 0xffff);
+                    ImGui::SetItemTooltip("%X:%04XH", v.func_addr >> 16, v.func_addr & 0xffff);
+                } else ImGui::TextColored(color, "%X:%04XH", v.func_addr >> 16, v.func_addr & 0xffff);
                 ImGui::TableNextColumn();
-                if (v.return_addr_ptr) {
+                if (v.return_addr_ptr && return_addr_real != v.return_addr) {
                     ImGui::TextColored(color, "%X:%04XH (%X:%04XH)", return_addr_real >> 16, return_addr_real & 0xffff, v.return_addr >> 16, v.return_addr & 0xffff);
                     ImGui::TableNextColumn();
                     ImGui::TextColored(color, "%04XH", v.return_addr_ptr);
                 } else {
-                    ImGui::TextColored(color, "%X:%04XH", v.return_addr >> 16, v.return_addr & 0xffff);
+                    auto b = get_instruction_label(labels, v.return_addr);
+                    if (b.has_value()) {
+                        ImGui::TextColored(color, b.value().c_str());
+                        ImGui::SetItemTooltip("%X:%04XH", v.return_addr >> 16, v.return_addr & 0xffff);
+                    } else ImGui::TextColored(color, "%X:%04XH", v.return_addr >> 16, v.return_addr & 0xffff);
                     if (!v.interrupt.interrupt_name.empty()) {
                         ImGui::TableNextColumn();
                         ImGui::TextColored(color, "[%s: %s]", v.interrupt.nmi ? "NMI" : "MI", v.interrupt.interrupt_name.c_str());
