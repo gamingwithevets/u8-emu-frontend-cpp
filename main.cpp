@@ -7,11 +7,15 @@
 #include <cmath>
 #include <thread>
 #include <atomic>
+#include <optional>
+#include <sstream>
+#include <iomanip>
 
 #include "mcu/mcu.hpp"
 #include "config/config.hpp"
 #include "config/binary.hpp"
 #include "startupui/startupui.hpp"
+#include "labeltool/labeltool.hpp"
 extern "C" {
 #include "u8_emu/src/core/core.h"
 #include "nxu8_disas/src/lib/lib_nxu8.h"
@@ -76,6 +80,40 @@ std::map<uint32_t, std::string> disassemble(size_t romsize, uint8_t *rom, uint32
         addr += len;
     }
     return disas;
+}
+
+// Find the nearest number in a map that is less than or equal to n
+std::optional<uint32_t> nearest_num(const std::map<uint32_t, Label>& labels, uint32_t n) {
+    std::optional<uint32_t> result = std::nullopt;
+    for (const auto& [key, value] : labels) {
+        if (key <= n) {
+            if (!result.has_value() || key > result.value()) {
+                result = key;
+            }
+        }
+    }
+    return result;
+}
+
+// Get the instruction label for the given address
+std::optional<std::string> get_instruction_label(std::map<uint32_t, Label>& labels, uint32_t addr) {
+    auto near_opt = nearest_num(labels, addr);
+    if (!near_opt.has_value()) return std::nullopt;
+    uint32_t near = near_opt.value();
+
+    if ((near >> 16) != (addr >> 16)) return std::nullopt;
+
+    Label label = labels[near];
+    uint32_t offset = addr - near;
+
+    std::stringstream offset_str;
+    if (offset > 9) offset_str << std::hex << offset;
+    else offset_str << offset;
+
+    std::string result = label.is_func ? label.name : labels[label.parent_addr].name;
+    if (offset != 0) result += "+" + offset_str.str();
+
+    return result;
 }
 
 int main(int argc, char* argv[]) {
@@ -265,6 +303,20 @@ int main(int argc, char* argv[]) {
             fread(ram, sizeof(uint8_t), ramsize, f);
             fclose(f);
         } else std::cerr << "WARNING: cannot load RAM data: " << strerror(errno) << std::endl;
+    }
+
+    std::map<uint32_t, Label> labels;
+    //std::map<uint32_t, std::string> data_labels;
+    //std::map<std::string, std::string> data_bit_labels;
+    for (const auto &labelfile : config.labels) {
+        if (labelfile.empty()) continue;
+        std::ifstream is(labelfile.c_str());
+        if (!is) {
+            std::cerr << "WARNING: Cannot load label file '" << path << "': " << strerror(errno) << std::endl;
+            continue;
+        }
+        auto labeltuples = load_labels(is, 0);
+        labels = std::get<0>(labeltuples);
     }
 
     IMGUI_CHECKVERSION();
@@ -551,7 +603,12 @@ int main(int argc, char* argv[]) {
                 ImGui::TableSetColumnIndex(0);
                 ImGui::TextColored(color, "#%d", j);
                 ImGui::TableNextColumn();
-                ImGui::TextColored(color, "%X:%04XH", v.func_addr >> 16, v.func_addr & 0xffff);
+                auto a = get_instruction_label(labels, v.func_addr);
+                if (a.has_value()) {
+                    ImGui::TextColored(color, a.value().c_str());
+                    ImGui::SetTooltip("%X:%04XH", v.func_addr >> 16, v.func_addr & 0xffff);
+                }
+                else ImGui::TextColored(color, "%X:%04XH", v.func_addr >> 16, v.func_addr & 0xffff);
                 ImGui::TableNextColumn();
                 if (v.return_addr_ptr) {
                     ImGui::TextColored(color, "%X:%04XH (%X:%04XH)", return_addr_real >> 16, return_addr_real & 0xffff, v.return_addr >> 16, v.return_addr & 0xffff);

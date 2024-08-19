@@ -61,6 +61,7 @@ struct config {
     int width;
     int height;
     std::string ram;
+    std::vector<std::string> labels;
 
     void Write(std::ostream &os) const {
         Binary::Write(os, header);
@@ -89,6 +90,7 @@ struct config {
         Binary::Write(os, width);
         Binary::Write(os, height);
         Binary::Write(os, ram);
+        Binary::Write(os, labels);
     }
     void Read(std::istream &is) {
         std::string unused;
@@ -118,5 +120,6 @@ struct config {
         Binary::Read(is, width);
         Binary::Read(is, height);
         Binary::Read(is, ram);
+        Binary::Read(is, labels);
     }
 };

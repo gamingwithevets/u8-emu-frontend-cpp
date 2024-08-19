@@ -40,9 +40,9 @@ OBJDIR_RELEASE = obj/release
 DEP_RELEASE = 
 OUT_RELEASE = bin/release/u8-emu-frontend-cpp
 
-OBJ_DEBUG = $(OBJDIR_DEBUG)/u8_emu/src/core/regs.o $(OBJDIR_DEBUG)/u8_emu/src/core/mem.o $(OBJDIR_DEBUG)/u8_emu/src/core/instr_impl.o $(OBJDIR_DEBUG)/u8_emu/src/core/instr.o $(OBJDIR_DEBUG)/u8_emu/src/core/core.o $(OBJDIR_DEBUG)/startupui/startupui.o $(OBJDIR_DEBUG)/startupui/rominfo.o $(OBJDIR_DEBUG)/peripheral/wdt.o $(OBJDIR_DEBUG)/peripheral/timer.o $(OBJDIR_DEBUG)/peripheral/standby.o $(OBJDIR_DEBUG)/peripheral/screen.o $(OBJDIR_DEBUG)/peripheral/keyboard.o $(OBJDIR_DEBUG)/peripheral/interrupts.o $(OBJDIR_DEBUG)/peripheral/battery.o $(OBJDIR_DEBUG)/nxu8_disas/src/lib/nxu8_instr.o $(OBJDIR_DEBUG)/nxu8_disas/src/lib/nxu8_decode.o $(OBJDIR_DEBUG)/mcu/mcu.o $(OBJDIR_DEBUG)/main.o $(OBJDIR_DEBUG)/imgui/imgui_widgets.o $(OBJDIR_DEBUG)/imgui/imgui_tables.o $(OBJDIR_DEBUG)/imgui/imgui_impl_sdlrenderer2.o $(OBJDIR_DEBUG)/imgui/imgui_impl_sdl2.o $(OBJDIR_DEBUG)/imgui/imgui_draw.o $(OBJDIR_DEBUG)/imgui/imgui.o
+OBJ_DEBUG = $(OBJDIR_DEBUG)/u8_emu/src/core/regs.o $(OBJDIR_DEBUG)/u8_emu/src/core/mem.o $(OBJDIR_DEBUG)/u8_emu/src/core/instr_impl.o $(OBJDIR_DEBUG)/u8_emu/src/core/instr.o $(OBJDIR_DEBUG)/u8_emu/src/core/core.o $(OBJDIR_DEBUG)/startupui/startupui.o $(OBJDIR_DEBUG)/startupui/rominfo.o $(OBJDIR_DEBUG)/peripheral/wdt.o $(OBJDIR_DEBUG)/peripheral/timer.o $(OBJDIR_DEBUG)/peripheral/standby.o $(OBJDIR_DEBUG)/peripheral/screen.o $(OBJDIR_DEBUG)/peripheral/keyboard.o $(OBJDIR_DEBUG)/peripheral/interrupts.o $(OBJDIR_DEBUG)/peripheral/battery.o $(OBJDIR_DEBUG)/nxu8_disas/src/lib/nxu8_instr.o $(OBJDIR_DEBUG)/nxu8_disas/src/lib/nxu8_decode.o $(OBJDIR_DEBUG)/mcu/mcu.o $(OBJDIR_DEBUG)/main.o $(OBJDIR_DEBUG)/labeltool/labeltool.o $(OBJDIR_DEBUG)/imgui/imgui_widgets.o $(OBJDIR_DEBUG)/imgui/imgui_tables.o $(OBJDIR_DEBUG)/imgui/imgui_impl_sdlrenderer2.o $(OBJDIR_DEBUG)/imgui/imgui_impl_sdl2.o $(OBJDIR_DEBUG)/imgui/imgui_draw.o $(OBJDIR_DEBUG)/imgui/imgui.o
 
-OBJ_RELEASE = $(OBJDIR_RELEASE)/u8_emu/src/core/regs.o $(OBJDIR_RELEASE)/u8_emu/src/core/mem.o $(OBJDIR_RELEASE)/u8_emu/src/core/instr_impl.o $(OBJDIR_RELEASE)/u8_emu/src/core/instr.o $(OBJDIR_RELEASE)/u8_emu/src/core/core.o $(OBJDIR_RELEASE)/startupui/startupui.o $(OBJDIR_RELEASE)/startupui/rominfo.o $(OBJDIR_RELEASE)/peripheral/wdt.o $(OBJDIR_RELEASE)/peripheral/timer.o $(OBJDIR_RELEASE)/peripheral/standby.o $(OBJDIR_RELEASE)/peripheral/screen.o $(OBJDIR_RELEASE)/peripheral/keyboard.o $(OBJDIR_RELEASE)/peripheral/interrupts.o $(OBJDIR_RELEASE)/peripheral/battery.o $(OBJDIR_RELEASE)/nxu8_disas/src/lib/nxu8_instr.o $(OBJDIR_RELEASE)/nxu8_disas/src/lib/nxu8_decode.o $(OBJDIR_RELEASE)/mcu/mcu.o $(OBJDIR_RELEASE)/main.o $(OBJDIR_RELEASE)/imgui/imgui_widgets.o $(OBJDIR_RELEASE)/imgui/imgui_tables.o $(OBJDIR_RELEASE)/imgui/imgui_impl_sdlrenderer2.o $(OBJDIR_RELEASE)/imgui/imgui_impl_sdl2.o $(OBJDIR_RELEASE)/imgui/imgui_draw.o $(OBJDIR_RELEASE)/imgui/imgui.o
+OBJ_RELEASE = $(OBJDIR_RELEASE)/u8_emu/src/core/regs.o $(OBJDIR_RELEASE)/u8_emu/src/core/mem.o $(OBJDIR_RELEASE)/u8_emu/src/core/instr_impl.o $(OBJDIR_RELEASE)/u8_emu/src/core/instr.o $(OBJDIR_RELEASE)/u8_emu/src/core/core.o $(OBJDIR_RELEASE)/startupui/startupui.o $(OBJDIR_RELEASE)/startupui/rominfo.o $(OBJDIR_RELEASE)/peripheral/wdt.o $(OBJDIR_RELEASE)/peripheral/timer.o $(OBJDIR_RELEASE)/peripheral/standby.o $(OBJDIR_RELEASE)/peripheral/screen.o $(OBJDIR_RELEASE)/peripheral/keyboard.o $(OBJDIR_RELEASE)/peripheral/interrupts.o $(OBJDIR_RELEASE)/peripheral/battery.o $(OBJDIR_RELEASE)/nxu8_disas/src/lib/nxu8_instr.o $(OBJDIR_RELEASE)/nxu8_disas/src/lib/nxu8_decode.o $(OBJDIR_RELEASE)/mcu/mcu.o $(OBJDIR_RELEASE)/main.o $(OBJDIR_RELEASE)/labeltool/labeltool.o $(OBJDIR_RELEASE)/imgui/imgui_widgets.o $(OBJDIR_RELEASE)/imgui/imgui_tables.o $(OBJDIR_RELEASE)/imgui/imgui_impl_sdlrenderer2.o $(OBJDIR_RELEASE)/imgui/imgui_impl_sdl2.o $(OBJDIR_RELEASE)/imgui/imgui_draw.o $(OBJDIR_RELEASE)/imgui/imgui.o
 
 all: before_build build_debug build_release after_build
 
@@ -61,6 +61,7 @@ before_debug:
 	test -d $(OBJDIR_DEBUG)/nxu8_disas/src/lib || mkdir -p $(OBJDIR_DEBUG)/nxu8_disas/src/lib
 	test -d $(OBJDIR_DEBUG)/mcu || mkdir -p $(OBJDIR_DEBUG)/mcu
 	test -d $(OBJDIR_DEBUG) || mkdir -p $(OBJDIR_DEBUG)
+	test -d $(OBJDIR_DEBUG)/labeltool || mkdir -p $(OBJDIR_DEBUG)/labeltool
 	test -d $(OBJDIR_DEBUG)/imgui || mkdir -p $(OBJDIR_DEBUG)/imgui
 
 after_debug: 
@@ -126,6 +127,9 @@ $(OBJDIR_DEBUG)/mcu/mcu.o: mcu/mcu.cpp
 $(OBJDIR_DEBUG)/main.o: main.cpp
 	$(CXX) $(CFLAGS_DEBUG) $(INC_DEBUG) -c main.cpp -o $(OBJDIR_DEBUG)/main.o
 
+$(OBJDIR_DEBUG)/labeltool/labeltool.o: labeltool/labeltool.cpp
+	$(CXX) $(CFLAGS_DEBUG) $(INC_DEBUG) -c labeltool/labeltool.cpp -o $(OBJDIR_DEBUG)/labeltool/labeltool.o
+
 $(OBJDIR_DEBUG)/imgui/imgui_widgets.o: imgui/imgui_widgets.cpp
 	$(CXX) $(CFLAGS_DEBUG) $(INC_DEBUG) -c imgui/imgui_widgets.cpp -o $(OBJDIR_DEBUG)/imgui/imgui_widgets.o
 
@@ -153,6 +157,7 @@ clean_debug:
 	rm -rf $(OBJDIR_DEBUG)/nxu8_disas/src/lib
 	rm -rf $(OBJDIR_DEBUG)/mcu
 	rm -rf $(OBJDIR_DEBUG)
+	rm -rf $(OBJDIR_DEBUG)/labeltool
 	rm -rf $(OBJDIR_DEBUG)/imgui
 
 before_release: 
@@ -163,6 +168,7 @@ before_release:
 	test -d $(OBJDIR_RELEASE)/nxu8_disas/src/lib || mkdir -p $(OBJDIR_RELEASE)/nxu8_disas/src/lib
 	test -d $(OBJDIR_RELEASE)/mcu || mkdir -p $(OBJDIR_RELEASE)/mcu
 	test -d $(OBJDIR_RELEASE) || mkdir -p $(OBJDIR_RELEASE)
+	test -d $(OBJDIR_RELEASE)/labeltool || mkdir -p $(OBJDIR_RELEASE)/labeltool
 	test -d $(OBJDIR_RELEASE)/imgui || mkdir -p $(OBJDIR_RELEASE)/imgui
 
 after_release: 
@@ -228,6 +234,9 @@ $(OBJDIR_RELEASE)/mcu/mcu.o: mcu/mcu.cpp
 $(OBJDIR_RELEASE)/main.o: main.cpp
 	$(CXX) $(CFLAGS_RELEASE) $(INC_RELEASE) -c main.cpp -o $(OBJDIR_RELEASE)/main.o
 
+$(OBJDIR_RELEASE)/labeltool/labeltool.o: labeltool/labeltool.cpp
+	$(CXX) $(CFLAGS_RELEASE) $(INC_RELEASE) -c labeltool/labeltool.cpp -o $(OBJDIR_RELEASE)/labeltool/labeltool.o
+
 $(OBJDIR_RELEASE)/imgui/imgui_widgets.o: imgui/imgui_widgets.cpp
 	$(CXX) $(CFLAGS_RELEASE) $(INC_RELEASE) -c imgui/imgui_widgets.cpp -o $(OBJDIR_RELEASE)/imgui/imgui_widgets.o
 
@@ -255,6 +264,7 @@ clean_release:
 	rm -rf $(OBJDIR_RELEASE)/nxu8_disas/src/lib
 	rm -rf $(OBJDIR_RELEASE)/mcu
 	rm -rf $(OBJDIR_RELEASE)
+	rm -rf $(OBJDIR_RELEASE)/labeltool
 	rm -rf $(OBJDIR_RELEASE)/imgui
 
 .PHONY: before_build after_build before_debug after_debug clean_debug before_release after_release clean_release
