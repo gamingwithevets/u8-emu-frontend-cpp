@@ -24,7 +24,6 @@ private:
 	bool calc_en;
 	bool calc_en_d;
 	bool calc_en_dd;
-	bool wait_state;
 	bool divsn_mode;
 	bool div_mode;
 	bool mul_mode;
@@ -515,6 +514,7 @@ private:
 
 	void check_BCD_Register() {
 		check_BCDCMD();
+		calc_len = mcu->sfr[REG_BCDCON];
 		check_BCDMCR();
 	}
 
@@ -560,8 +560,6 @@ private:
 		b = mcu->sfr[REG_BCDMCR];
 		b = (byte)((b & 0x7fu) | ((mul_mode | div_mode | divsn_mode | sft_mode) ? 0x80u : 0u));
 		mcu->sfr[REG_BCDMCR] = b;
-		calc_en_dd = calc_en_d;
-		calc_en_d = calc_en;
 	}
 
 	void state_set(int s_mode, int s_src, int s_dst, uint s_state) {
@@ -897,26 +895,44 @@ private:
 
 public:
 	void perApi_Run() {
+#ifdef BCDDEBUG
+        printf("===== START =====\nf400 = %02x, f405 = %02x\n", mcu->sfr[REG_BCDCMD], mcu->sfr[REG_BCDMCR]);
+#endif // BCDDEBUG
+	    macro_state = MACRO_END;
+	    calc_en = false;
+	    calc_en_d = false;
+	    calc_en_dd = false;
 	    check_BCD_Register();
+	    bool repeat = true;
 	    do {
+            repeat = !(!calc_en && macro_state == MACRO_END);
+#ifdef BCDDEBUG
+            printf("=== loop ===\ncalc_en = %d, macro_state = %02x, repeat = %d\n", calc_en, macro_state, repeat);
+#endif // BCDDEBUG
             state_manage();
             calc_en_dd = calc_en_d;
             calc_en = calc_en_d;
             exec_calc();
-	    } while (calc_en || macro_state != MACRO_END);
+#ifdef BCDDEBUG
+            printf("=== end loop ===\n");
+#endif
+	    } while (repeat);
+#ifdef BCDDEBUG
+	    printf("===== END =====\n");
+#endif
 	}
 
 	void perApi_Reset() {
 	    if (config->hardware_id != HW_CLASSWIZ_CW) return;
 		mcu->sfr[REG_BCDCMD] = 0;
-		mcu->sfr[REG_BCDCON] = 6;
+		mcu->sfr[REG_BCDCON] = 0;
 		mcu->sfr[REG_BCDMCN] = 0;
 		mcu->sfr[REG_BCDMCR] = 0;
 		mcu->sfr[REG_BCDFLG] = 0;
 		mcu->sfr[REG_BCDLLZ] = 0;
 		mcu->sfr[REG_BCDMLZ] = 0;
 		for (int i = 0; i < 4; i++) for (int j = 0; j < 12; j++) mcu->sfr[0x480 + i*0x20 + j] = 0;
-		calc_len = 6;
+		calc_len = 0;
 		calc_pos = 0;
 	}
 };

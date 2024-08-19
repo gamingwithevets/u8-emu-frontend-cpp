@@ -23,7 +23,7 @@ extern "C" {
 
 //#define FLASHDEBUG
 //#define SFRDEBUG
-//#define BCD
+#define BCD
 
 mcu *mcuptr;
 double get_time() {
