@@ -19,7 +19,7 @@ LIB = -lmingw32 -lSDL2main SDL2.dll -luser32 -lgdi32 -lwinmm -ldxguid
 LDFLAGS = 
 
 INC_DEBUG = $(INC)
-CFLAGS_DEBUG = $(CFLAGS) -O3 -g -IC:/msys64/mingw32/include/SDL2 -std=gnu++20 -fconcepts-diagnostics-depth=2 -D__LITTLE_ENDIAN__
+CFLAGS_DEBUG = $(CFLAGS) -g -IC:/msys64/mingw32/include/SDL2 -std=gnu++20 -fconcepts-diagnostics-depth=2 -O0 -D__LITTLE_ENDIAN__
 RESINC_DEBUG = $(RESINC)
 RCFLAGS_DEBUG = $(RCFLAGS)
 LIBDIR_DEBUG = $(LIBDIR)

@@ -1,7 +1,10 @@
 ﻿#pragma once
 
+#include <cstdio>
 #include "../mcu/mcu.hpp"
 #include "../config/config.hpp"
+
+#define BCDDEBUG
 
 using byte = unsigned char;
 using uint = unsigned int;
@@ -138,6 +141,9 @@ private:
 
 	uint abcd44(bool m, uint a, uint b, uint ci)
 	{
+#ifdef BCDDEBUG
+        printf("abcd44: m = %d, a = %d, b = %d, ci = %d\n", m, a, b, ci);
+#endif // BCDDEBUG
 		ci = (m ? (ci ^ 1u) : ci) & 1u;
 		uint num = 0u;
 		for (int i = 0; i < 4; i++)
@@ -154,11 +160,17 @@ private:
 			num |= num4 << i * 4;
 		}
 		ci = (m ? (ci ^ 1u) : ci);
+#ifdef BCDDEBUG
+        printf("abcd44: ci = %d, retval = %d\n", ci, (ci << 16) + num);
+#endif // BCDDEBUG
 		return (ci << 16) + num;
 	}
 
 	void calc_sl(bool ex)
 	{
+#ifdef BCDDEBUG
+        printf("calc_sl: ex = %d, dst = %d, src = %d\n", ex, dst, src);
+#endif // BCDDEBUG
 		byte b = 0;
 		byte b2 = 0;
 		byte b3 = 0;
@@ -251,6 +263,9 @@ private:
 
 	void calc_sr(bool ex)
 	{
+#ifdef BCDDEBUG
+        printf("calc_sr: ex = %d, dst = %d, src = %d\n", ex, dst, src);
+#endif // BCDDEBUG
 		byte b = 0;
 		byte b2 = 0;
 		byte b3 = 0;
@@ -372,6 +387,9 @@ private:
 				{
 					mcu->sfr[RegAdr(dst, i * 2) + 1] = num >> 8 & 0xff; mcu->sfr[RegAdr(dst, i * 2)] = num & 0xff;
 				}
+#ifdef BCDDEBUG
+                printf("exec_Add_Sub: i = %d, calc_len = %d, a = %04x, b = %04x, flag = %d\n", i, calc_len, 0xf000+RegAdr(dst, i * 2), 0xf000+RegAdr(src, i * 2), flag);
+#endif // BCDDEBUG
 				a = (mcu->sfr[RegAdr(dst, i * 2 + 2) + 1] << 8) | mcu->sfr[RegAdr(dst, i * 2 + 2)];
 				b = (mcu->sfr[RegAdr(src, i * 2 + 2) + 1] << 8) | mcu->sfr[RegAdr(src, i * 2 + 2)];
 				num = abcd44(calc_mode == 2, a, b, num3);

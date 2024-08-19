@@ -23,6 +23,7 @@ extern "C" {
 
 //#define FLASHDEBUG
 //#define SFRDEBUG
+//#define BCD
 
 mcu *mcuptr;
 double get_time() {
@@ -374,7 +375,9 @@ mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *fla
     this->timer = new class sfrtimer(this, 10000);
     this->keyboard = new class keyboard(this, w, h);
     this->battery = new class battery(this->config);
-    //this->bcd = new class bcd(this);
+#ifdef BCD
+    this->bcd = new class bcd(this);
+#endif
     this->screen = new class screen(this);
 
 
@@ -493,7 +496,9 @@ void mcu::reset() {
     u8_reset(this->core);
     this->standby->stop_mode = false;
     this->wdt->reset();
-    //this->bcd->perApi_Reset();
+#ifdef BCD
+    this->bcd->perApi_Reset();
+#endif
     if (this->config->hardware_id == HW_TI_MATHPRINT) {
         this->ti_screen_changed = false;
         this->ti_screen_addr = 0;
