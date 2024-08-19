@@ -38,6 +38,7 @@
 *.cbp
 *.depend
 *.layout
+*.txt
 images
 configs/
 roms
