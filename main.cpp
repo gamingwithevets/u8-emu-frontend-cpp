@@ -593,9 +593,11 @@ int main(int argc, char* argv[]) {
         ImGui::End();
 
         ImGui::Begin("Call Stack Display", NULL, 0);
-        if (ImGui::BeginTable("callstack", 4)) {
-            ImGui::TableSetupColumn(NULL);
+        if (ImGui::BeginTable("callstack", 6)) {
+            ImGui::TableSetupColumn(NULL, ImGuiTableColumnFlags_WidthFixed, 20);
             ImGui::TableSetupColumn("Function address");
+            ImGui::TableSetupColumn("ER0", ImGuiTableColumnFlags_WidthFixed, 50);
+            ImGui::TableSetupColumn("ER2", ImGuiTableColumnFlags_WidthFixed, 50);
             ImGui::TableSetupColumn("Return address");
             ImGui::TableSetupColumn("LR pushed at");
             ImGui::TableHeadersRow();
@@ -613,6 +615,12 @@ int main(int argc, char* argv[]) {
                     ImGui::TextColored(color, a.value().c_str());
                     ImGui::SetItemTooltip("%X:%04XH", v.func_addr >> 16, v.func_addr & 0xffff);
                 } else ImGui::TextColored(color, "%X:%04XH", v.func_addr >> 16, v.func_addr & 0xffff);
+                ImGui::TableNextColumn();
+                if (!ends_with(v.interrupt.interrupt_name, "INT")) {
+                    ImGui::TextColored(color, "%04XH", v.er0);
+                    ImGui::TableNextColumn();
+                    ImGui::TextColored(color, "%04XH", v.er2);
+                } else ImGui::TableNextColumn();
                 ImGui::TableNextColumn();
                 if (v.return_addr_ptr && return_addr_real != v.return_addr) {
                     ImGui::TextColored(color, "%X:%04XH (%X:%04XH)", return_addr_real >> 16, return_addr_real & 0xffff, v.return_addr >> 16, v.return_addr & 0xffff);

@@ -2,6 +2,7 @@
 #include <cstdio>
 #include <algorithm>
 #include <map>
+#include <optional>
 
 #include "../mcu/mcu.hpp"
 #include "../config/config.hpp"
@@ -154,14 +155,14 @@ void keyboard::_tick(bool *reset, uint8_t *ki, uint8_t kimask, uint8_t ko, uint8
 }
 
 void keyboard::tick_emu() {
-    uint8_t k = 0;
+    std::optional<uint8_t> k;
     switch (*this->emu_kb.ES_STOPTYPEADR) {
     case ES_STOP_GETKEY:
         if (this->enable_keypress) {
             k = this->get_button();
-            if (!k) break;
-            uint8_t ki_bit = k & 0xf;
-            uint8_t ko_bit = k >> 4;
+            if (!k.has_value()) break;
+            uint8_t ki_bit = k.value() & 0xf;
+            uint8_t ko_bit = k.value() >> 4;
             *this->emu_kb.ES_KIADR = 1 << ki_bit;
             *this->emu_kb.ES_KOADR = 1 << ko_bit;
             this->mcu->standby->stop_mode = false;
@@ -171,7 +172,7 @@ void keyboard::tick_emu() {
     case ES_STOP_ACBREAK:
     case ES_STOP_ACBREAK2:
         if (this->enable_keypress) k = this->get_button();
-        *this->emu_kb.ES_STOPTYPEADR = (es_stop_type)(k == 0x42);
+        *this->emu_kb.ES_STOPTYPEADR = (es_stop_type)(k.value() == 0x42);
         break;
     case ES_STOP_QRCODE_IN:
     case ES_STOP_QRCODE_IN3:
@@ -184,8 +185,8 @@ void keyboard::tick_emu() {
     }
 }
 
-uint8_t keyboard::get_button() {
+std::optional<uint8_t> keyboard::get_button() {
     if (this->held_buttons.size()) return this->held_buttons.back();
     else if (this->mouse_held) return this->held_button_mouse;
-    return 0;
+    return std::nullopt;
 }

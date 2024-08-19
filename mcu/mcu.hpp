@@ -24,6 +24,8 @@ double get_time();
 
 struct call_stack_data {
     uint32_t func_addr;
+    uint16_t er0;
+    uint16_t er2;
     uint32_t return_addr;
     uint16_t return_addr_ptr;
     int_callstack interrupt;

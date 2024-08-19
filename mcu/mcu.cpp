@@ -5,6 +5,7 @@
 #include <vector>
 #include <atomic>
 #include <ctime>
+#include <optional>
 #include <unistd.h>
 
 #include "mcu.hpp"
@@ -250,7 +251,7 @@ mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *fla
                     .rw = true,
                     .addr_l = this->config->hardware_id == 5 ? 0x80000 : 0x40000,
                     .addr_h = this->config->hardware_id == 5 ? 0x8ffff : 0x4ffff,
-                    .acc = U8_MACC_ARR,
+                    .acc = U8_MACC_FUNC,
                     .read = &read_ram2,
                     .write = &write_ram2
                 };
@@ -396,25 +397,27 @@ void mcu::core_step() {
         // BL Cadr
         if ((data & 0xf0ff) == 0xf001) {
             uint16_t addr = read_mem_code(this->core, this->core->regs.csr, this->core->regs.pc+2, 2);
-            call_stack.push_back({(((data >> 8) & 0xf) << 16) | addr, (this->core->regs.csr << 16) | (this->core->regs.pc+4)});
+            call_stack.push_back({(((data >> 8) & 0xf) << 16) | addr, read_reg_er(this->core, 0), read_reg_er(this->core, 2), (this->core->regs.csr << 16) | (this->core->regs.pc+4)});
         // BL ERn
         } else if ((data & 0xff0f) == 0xf003) {
             uint16_t addr = read_mem_code(this->core, this->core->regs.csr, this->core->regs.pc+2, 2);
-            call_stack.push_back({(this->core->regs.csr << 16) | read_reg_er(this->core, (data >> 4) & 0xf), (this->core->regs.csr << 16) | (this->core->regs.pc+4)});
+            call_stack.push_back({(this->core->regs.csr << 16) | read_reg_er(this->core, (data >> 4) & 0xf), read_reg_er(this->core, 0), read_reg_er(this->core, 2), (this->core->regs.csr << 16) | (this->core->regs.pc+4)});
         // PUSH LR
         } else if ((data & 0xf8ff) == 0xf8ce && !call_stack.empty()) call_stack.back().return_addr_ptr = this->core->regs.sp - 4;
         // POP PC
         else if ((data & 0xf2ff) == 0xf28e && !call_stack.empty()) call_stack.pop_back();
         // RT / RTI
         else if ((data == 0xfe1f || data == 0xfe0f) && !call_stack.empty()) call_stack.pop_back();
+        // BRK
         else if (data == 0xffff) {
             if ((this->core->regs.psw & 3) >= 2) call_stack.clear();
-            else call_stack.push_back({read_mem_code(this->core, 0, 4, 2), (this->core->regs.csr << 16) | (this->core->regs.pc+2), 0, {"BRK", true}});
+            else call_stack.push_back({read_mem_code(this->core, 0, 4, 2), read_reg_er(this->core, 0), read_reg_er(this->core, 2), (this->core->regs.csr << 16) | (this->core->regs.pc+2), 0, {"BRK", true}});
         }
+        // SWI #snum
         else if ((data & 0xffc0) == 0xe500) {
             uint8_t snum = data & 0x3f;
             char s[8]; sprintf(s, "SWI #%d", snum);
-            call_stack.push_back({read_mem_code(this->core, 0, 0x80+snum<<1, 2), (this->core->regs.csr << 16) | (this->core->regs.pc+2), 0, {std::string(s)}});
+            call_stack.push_back({read_mem_code(this->core, 0, 0x80+snum<<1, 2), read_reg_er(this->core, 0), read_reg_er(this->core, 2), (this->core->regs.csr << 16) | (this->core->regs.pc+2), 0, {std::string(s)}});
         }
 
         u8_step(this->core);
@@ -434,7 +437,7 @@ void mcu::core_step() {
     int_callstack interrupt = this->interrupts->tick();
     if (!interrupt.interrupt_name.empty()) {
         uint8_t elevel = this->core->regs.psw & 3;
-        call_stack.push_back({this->core->regs.pc, (this->core->regs.ecsr[elevel-1] << 16) | (this->core->regs.elr[elevel-1]), 0, interrupt});
+        call_stack.push_back({this->core->regs.pc, 0, 0, (this->core->regs.ecsr[elevel-1] << 16) | (this->core->regs.elr[elevel-1]), 0, interrupt});
     }
 
     if (this->config->hardware_id == HW_TI_MATHPRINT) {
@@ -448,12 +451,12 @@ void mcu::core_step() {
                 this->ti_screen_changed = true;
                 break;
             case 2: {
-                uint16_t k = 0;
+                std::optional<uint8_t> k;
                 if (this->keyboard->enable_keypress) {
                     k = this->keyboard->get_button();
-                    if (k) this->keyboard->enable_keypress = false;
+                    if (k.has_value()) this->keyboard->enable_keypress = false;
                 }
-                write_reg_er(this->core, 0, k);
+                write_reg_er(this->core, 0, k.has_value() ? k.value() : 0);
                 break;
             }case 4:
                 this->ti_status_bar_addr = read_reg_er(this->core, 0) - 0xb000;

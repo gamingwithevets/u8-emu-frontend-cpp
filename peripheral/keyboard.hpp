@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <optional>
 #include <SDL.h>
 #include <vector>
 #include "../mcu/mcu.hpp"
@@ -38,7 +39,7 @@ public:
     void render(SDL_Renderer *renderer);
     void tick();
     void tick_emu();
-    uint8_t get_button();
+    std::optional<uint8_t> get_button();
 private:
     std::vector<uint8_t> held_buttons;
     bool mouse_held;

@@ -24,3 +24,4 @@ constexpr ImGuiTableFlags pretty_table = ImGuiTableFlags_RowBg | ImGuiTableFlags
 
 std::string sui_loop();
 char get_pmode(uint8_t value);
+bool ends_with(std::string const &fullString, std::string const &ending);
