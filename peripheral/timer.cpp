@@ -47,7 +47,7 @@ void sfrtimer::tick() {
         counter += this->timer->ticks;
         this->mcu->sfr[0x310] = (uint8_t)counter;
         this->mcu->sfr[0x311] = (uint8_t)(counter >> 8);
-        if (counter >= target && this->mcu->standby->stop_mode) this->mcu->raise_int("TM0INT");
+        if (counter >= target && this->mcu->standby->stop_mode) this->mcu->sfr[0x1d] |= 1;
 
     } else {
         if (this->mcu->sfr[0x25]) {
@@ -58,7 +58,7 @@ void sfrtimer::tick() {
             this->mcu->sfr[0x22] = (uint8_t)counter;
             this->mcu->sfr[0x23] = (uint8_t)(counter >> 8);
 
-            if (counter >= target && this->mcu->standby->stop_mode) this->mcu->raise_int("TM0INT");
+            if (counter >= target && this->mcu->standby->stop_mode) this->mcu->sfr[0x14] |= 0x20;
         }
     }
 }

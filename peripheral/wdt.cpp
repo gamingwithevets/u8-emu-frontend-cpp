@@ -21,11 +21,13 @@ wdt::wdt(class mcu *mcu) {
 
     register_sfr(0xe, 1, &wdtc);
     if (this->mcu->config->hardware_id == HW_CLASSWIZ_CW) register_sfr(0xf, 1, &default_write<7>);
+    else if (this->mcu->config->hardware_id == HW_TI_MATHPRINT) register_sfr(0xf, 1, &default_write<0x82>);
 }
 
 void wdt::reset() {
+    if (this->mcu->config->hardware_id != HW_CLASSWIZ_CW && this->mcu->config->hardware_id != HW_TI_MATHPRINT) return;
     this->mcu->sfr[0xe] = 0;
-    this->mcu->sfr[0xf] = 2;
+    this->mcu->sfr[0xf] = this->mcu->config->hardware_id == HW_TI_MATHPRINT ? 0x82 : 2;
     this->wdp = false;
     this->overflow_count = false;
     this->wdt_count = 0;

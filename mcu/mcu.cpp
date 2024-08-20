@@ -49,7 +49,7 @@ void write_sfr(struct u8_core *core, uint8_t seg, uint16_t addr, uint8_t val) {
 }
 
 
-uint8_t write_dsr(mcu *mcu, uint16_t addr, uint8_t val) {
+uint8_t write_dsr(mcu *mcu, uint16_t, uint8_t val) {
     mcu->core->regs.dsr = val;
     return val;
 }
@@ -65,6 +65,11 @@ uint8_t read_flash(struct u8_core *core, uint8_t seg, uint16_t offset) {
         return 0x80;
     }
     return mcuptr->flash[fo];
+}
+
+// TODO: Actually implement VLS
+uint8_t ti_vlsconh(mcu *, uint16_t, uint8_t val) {
+    return !val;
 }
 
 void write_flash(struct u8_core *core, uint8_t seg, uint16_t offset, uint8_t data) {
@@ -379,6 +384,7 @@ mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *fla
     this->wdt = new class wdt(this);
     this->interrupts = new class interrupts(this);
     this->timer = new class sfrtimer(this);
+    this->ltb = new class ltb(this);
     this->keyboard = new class keyboard(this, w, h);
     this->battery = new class battery(this->config);
 #ifdef BCD
@@ -386,8 +392,11 @@ mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *fla
 #endif
     this->screen = new class screen(this);
 
-
     this->reset();
+    if (this->config->hardware_id == HW_TI_MATHPRINT) {
+        this->sfr[0x900] = 0x34;
+        register_sfr(0x901, 1, &ti_vlsconh);
+    }
 }
 
 mcu::~mcu() {
@@ -443,6 +452,7 @@ void mcu::core_step() {
 
     this->wdt->tick();
     if (this->config->hardware_id != HW_TI_MATHPRINT) this->keyboard->tick();
+    else this->ltb->tick();
     int_callstack interrupt = this->interrupts->tick();
     if (!interrupt.interrupt_name.empty()) {
         uint8_t elevel = this->core->regs.psw & 3;
@@ -498,15 +508,9 @@ void core_step_loop(std::atomic<bool>& stop) {
     }
 }
 
-void mcu::raise_int(std::string interrupt_name) {
-    intr_data interrupt = this->interrupts->intr_tbl[interrupt_name];
-    this->sfr[interrupt.irq_adrs] |= this->sfr[interrupt.irq_bit];
-}
-
 void mcu::reset() {
     u8_reset(this->core);
     this->standby->stop_mode = false;
-    this->wdt->reset();
 #ifdef BCD
     this->bcd->perApi_Reset();
 #endif
@@ -514,6 +518,16 @@ void mcu::reset() {
         this->ti_screen_changed = false;
         this->ti_screen_addr = 0;
         this->ti_status_bar_addr = 0;
+
+        // TODO: Implement the peripherals and move these to their respective peripheral's code
+        this->sfr[2] = 0x13;
+        this->sfr[3] = 3;
+        this->sfr[4] = 2;
+        this->sfr[5] = 0x40;
+        this->sfr[0xa] = 3;
+        this->sfr[0x65] = 6;
+        this->sfr[0x64] = 0x30;
+        memset(&this->sfr[0x10], 0, 0x3f);
     } else {
         for (int i = 0; i < this->screen->height; i++) write_mem_data(this->core, 0, 0xf800 + i*this->screen->bytes_per_row_real, this->screen->bytes_per_row, 0);
         if (this->config->hardware_id == HW_CLASSWIZ_CW) {

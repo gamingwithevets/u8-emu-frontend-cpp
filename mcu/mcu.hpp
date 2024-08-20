@@ -7,6 +7,7 @@
 #include "../peripheral/wdt.hpp"
 #include "../peripheral/interrupts.hpp"
 #include "../peripheral/timer.hpp"
+#include "../peripheral/ltb.hpp"
 #include "../peripheral/keyboard.hpp"
 #include "../peripheral/battery.hpp"
 #include "../peripheral/screen.hpp"
@@ -40,6 +41,7 @@ public:
     wdt *wdt;
     interrupts *interrupts;
     sfrtimer *timer;
+    ltb *ltb;
     keyboard *keyboard;
     battery *battery;
     class bcd *bcd;
