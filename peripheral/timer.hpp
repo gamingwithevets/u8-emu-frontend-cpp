@@ -21,6 +21,6 @@ private:
     standby *standby;
     class timer *timer;
 public:
-    sfrtimer(class mcu *mcu, double tps);
+    sfrtimer(class mcu *mcu);
     void tick();
 };

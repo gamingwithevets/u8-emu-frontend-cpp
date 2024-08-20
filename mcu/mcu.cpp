@@ -15,6 +15,7 @@
 #include "../peripheral/wdt.hpp"
 #include "../peripheral/interrupts.hpp"
 #include "../peripheral/timer.hpp"
+#include "../peripheral/ltb.hpp"
 #include "../peripheral/keyboard.hpp"
 #include "../peripheral/bcd.hpp"
 extern "C" {
@@ -377,7 +378,7 @@ mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *fla
     this->standby = new class standby;
     this->wdt = new class wdt(this);
     this->interrupts = new class interrupts(this);
-    this->timer = new class sfrtimer(this, 10000);
+    this->timer = new class sfrtimer(this);
     this->keyboard = new class keyboard(this, w, h);
     this->battery = new class battery(this->config);
 #ifdef BCD
@@ -495,6 +496,11 @@ void core_step_loop(std::atomic<bool>& stop) {
             last_ins_time = current_time;
         }
     }
+}
+
+void mcu::raise_int(std::string interrupt_name) {
+    intr_data interrupt = this->interrupts->intr_tbl[interrupt_name];
+    this->sfr[interrupt.irq_adrs] |= this->sfr[interrupt.irq_bit];
 }
 
 void mcu::reset() {

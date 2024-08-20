@@ -2,17 +2,14 @@
 
 #include "../mcu/mcu.hpp"
 #include "standby.hpp"
+#include "timer.hpp"
 
 class ltb {
 private:
     class mcu *mcu;
     standby *standby;
-    double tps;
-    uint64_t last_time;
+    class timer *timer;
 public:
-    int ticks;
-    double time_scale;
-    double passed_time;
-    timer(class mcu *mcu, double tps);
+    ltb(class mcu *mcu);
     void tick();
 };

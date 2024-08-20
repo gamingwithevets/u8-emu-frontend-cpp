@@ -65,6 +65,7 @@ public:
 	mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *flash, uint8_t *ram, int ramstart, int ramsize, int w, int h);
 	~mcu();
 	void core_step();
+	void raise_int(std::string interrupt_name);
 	void reset();
 };
 
