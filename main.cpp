@@ -10,6 +10,7 @@
 #include <optional>
 #include <sstream>
 #include <iomanip>
+#include <ctime>
 
 #include "mcu/mcu.hpp"
 #include "config/config.hpp"
@@ -300,6 +301,8 @@ int main(int argc, char* argv[]) {
         FILE *f = fopen(config.ram.c_str(), "rb");
         if (f) {
             ram = (uint8_t *)malloc(ramsize);
+            srand(time(NULL));
+            for (size_t i = 0; i < ramsize; i++) ram[i] = rand();
             fread(ram, sizeof(uint8_t), ramsize, f);
             fclose(f);
         } else std::cerr << "WARNING: cannot load RAM data: " << strerror(errno) << std::endl;

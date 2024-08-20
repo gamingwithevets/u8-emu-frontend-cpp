@@ -32,6 +32,7 @@
 *.app
 
 # Extra
+*.diff
 *.bin
 *.bat
 *.ini

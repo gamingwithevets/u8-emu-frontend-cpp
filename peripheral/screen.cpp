@@ -19,7 +19,7 @@
 
 const uint32_t NO_COLOR = 0;
 const uint32_t WHITE_COLOR = 0xFFFFFFFF;
-const uint32_t WHITE_COLOR_CASIO = 0xFFFFFFFF;
+const uint32_t WHITE_COLOR_CASIO = 0xFFD6E3D6;
 const uint32_t GRAY1_COLOR = 0xFFAAAAAA;
 const uint32_t GRAY2_COLOR = 0xFF555555;
 const uint32_t BLACK_COLOR = 0xFF000000;

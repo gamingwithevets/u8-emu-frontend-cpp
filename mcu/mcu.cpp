@@ -2,6 +2,7 @@
 #include <cstring>
 #include <cstdlib>
 #include <cstdint>
+#include <ctime>
 #include <vector>
 #include <atomic>
 #include <ctime>
@@ -191,7 +192,11 @@ mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *fla
     };
 
     // Main RAM
-    if (!ram) this->ram = (uint8_t *)malloc(ramsize);
+    if (!ram) {
+        this->ram = (uint8_t *)malloc(ramsize);
+        srand(time(NULL));
+        for (int i = 0; i < ramsize; i++) this->ram[i] = rand();
+    }
     else this->ram = ram;
     this->core->mem.regions[1] = (struct u8_mem_reg){
         .type = U8_REGION_DATA,
