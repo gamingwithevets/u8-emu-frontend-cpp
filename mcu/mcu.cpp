@@ -273,6 +273,7 @@ mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *fla
 
         // TI MathPrint - LAPIS ML620418A
         case HW_TI_MATHPRINT:
+            this->core->u16_mode = true;
             this->cycles_per_second = 1024 * 1024 * 2;
 
             // Code segment 1+ mirror

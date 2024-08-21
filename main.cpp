@@ -635,10 +635,12 @@ int main(int argc, char* argv[]) {
                         ImGui::TextColored(color, b.value().c_str());
                         ImGui::SetItemTooltip("%X:%04XH", v.return_addr >> 16, v.return_addr & 0xffff);
                     } else ImGui::TextColored(color, "%X:%04XH", v.return_addr >> 16, v.return_addr & 0xffff);
-                    if (!v.interrupt.interrupt_name.empty()) {
-                        ImGui::TableNextColumn();
-                        ImGui::TextColored(color, "[%s: %s]", v.interrupt.nmi ? "NMI" : "MI", v.interrupt.interrupt_name.c_str());
-                    }
+                }
+                ImGui::TableNextColumn();
+                if (v.return_addr_ptr) ImGui::TextColored(color, "%04XH", v.return_addr_ptr);
+                if (!v.interrupt.interrupt_name.empty()) {
+                    ImGui::TableNextColumn();
+                    ImGui::TextColored(color, "[%s: %s]", v.interrupt.nmi ? "NMI" : "MI", v.interrupt.interrupt_name.c_str());
                 }
             }
             ImGui::EndTable();
