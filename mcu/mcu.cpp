@@ -529,14 +529,7 @@ void mcu::reset() {
         this->sfr[0x65] = 6;
         this->sfr[0x64] = 0x30;
         memset(&this->sfr[0x10], 0, 0x3f);
-    } else {
-        for (int i = 0; i < this->screen->height; i++) write_mem_data(this->core, 0, 0xf800 + i*this->screen->bytes_per_row_real, this->screen->bytes_per_row, 0);
-        if (this->config->hardware_id == HW_CLASSWIZ_CW) {
-            write_mem_data(this->core, 0, 0xf037, 1, 4);
-            for (int i = 0; i < this->screen->height; i++) write_mem_data(this->core, 0, 0xf800 + i*this->screen->bytes_per_row_real, this->screen->bytes_per_row, 0);
-            write_mem_data(this->core, 0, 0xf037, 1, 0);
-        }
-    }
+    } else this->screen->reset();
     this->call_stack.clear();
     this->ips_start = get_time();
     this->ips = 0;

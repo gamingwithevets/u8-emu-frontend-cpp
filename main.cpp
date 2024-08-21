@@ -53,9 +53,7 @@ void convert_shift(SDL_Event &event) {
         const Uint8* keystate = SDL_GetKeyboardState(NULL);
         if (keystate[SDL_SCANCODE_LSHIFT] || keystate[SDL_SCANCODE_RSHIFT]) {
             auto it = shift_keycombos.find(event.key.keysym.scancode);
-            if (it != shift_keycombos.end()) {
-                event.key.keysym.sym = it->second;
-            }
+            if (it != shift_keycombos.end()) event.key.keysym.sym = it->second;
         }
     }
 }
@@ -678,6 +676,17 @@ int main(int argc, char* argv[]) {
                 ImGui::SameLine();
                 ImGui::Text("P%c", get_pmode(pd_value));
                 ImGui::Text("  7   6   5   4   3   2  1   0");
+            } else if (config.hardware_id == HW_SOLAR_II) {
+                ImGui::Text("P mode");
+                ImGui::Spacing();
+                for (int i = 2; i >= 0; i--) {
+                    char a[3]; sprintf(a, "##%d", i);
+                    ImGui::SameLine();
+                    ImGui::Checkbox(a, &set_p[i]);
+                }
+                ImGui::SameLine();
+                ImGui::Text("P%d%d%d", set_p[2], set_p[1], set_p[0]);
+                ImGui::Text("  2   1   0");
             }
             ImGui::Checkbox("Pause/Single-step", &single_step);
             if (single_step) {

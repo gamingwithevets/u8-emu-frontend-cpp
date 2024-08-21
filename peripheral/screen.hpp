@@ -33,6 +33,7 @@ public:
 #if defined _WIN32 || defined __CYGWIN__
     bool render_clipboard();
 #endif
+    void reset();
 private:
     bool use_status_bar_image;
     SDL_Surface *status_bar;

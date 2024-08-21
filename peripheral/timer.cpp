@@ -58,7 +58,7 @@ void sfrtimer::tick() {
             this->mcu->sfr[0x22] = (uint8_t)counter;
             this->mcu->sfr[0x23] = (uint8_t)(counter >> 8);
 
-            if (counter >= target && this->mcu->standby->stop_mode) this->mcu->sfr[0x14] |= 0x20;
+            if (counter >= target && this->mcu->standby->stop_mode) this->mcu->sfr[0x14] |= this->mcu->config->hardware_id == HW_SOLAR_II ? 2 : 0x20;
         }
     }
 }

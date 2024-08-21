@@ -76,6 +76,20 @@ uint8_t draw_screen_cw(mcu *mcu, uint16_t addr, uint8_t val) {
     return val;
 }
 
+uint8_t draw_screen_solarii(mcu *mcu, uint16_t addr, uint8_t val) {
+    int y = (int)((addr - 0x800) / 8);
+    int x = ((addr - 0x800) % 8) * 8;
+    SDL_Rect rect;
+    int j;
+
+    for (int i = 7; i >= 0; i--) {
+        j = ~i & 7;
+        rect = {(x+j) * mcu->config->pix_w, y * mcu->config->pix_h, mcu->config->pix_w, mcu->config->pix_h};
+        SDL_FillRect(mcu->screen->display, &rect, (val & (1 << i)) ? BLACK_COLOR : NO_COLOR);
+    }
+    return val & 0x77;
+}
+
 uint8_t screen_select(mcu *mcu, uint16_t addr, uint8_t val) {
     mcu->screen->cw_2bpp_toggle = (bool)(val & 4);
     return val;
@@ -116,6 +130,8 @@ screen::screen(class mcu *mcu) {
 
         register_sfr(0x30, 1, &default_write<0x7f>);
         register_sfr(0x31, 1, &default_write<0xff>);
+        register_sfr(0x32, 1, &default_write<0x3f>);
+        register_sfr(0x33, 1, &default_write<7>);
 
         break;
     case HW_CLASSWIZ_CW:
@@ -149,12 +165,38 @@ screen::screen(class mcu *mcu) {
 
         register_sfr(0x30, 1, &default_write<0x7f>);
         register_sfr(0x31, 1, &default_write<0xff>);
+        register_sfr(0x32, 1, &default_write<0x3f>);
+        register_sfr(0x33, 1, &default_write<7>);
         register_sfr(0x37, 1, &screen_select);
 
         break;
     case HW_TI_MATHPRINT:
         this->width = 192;
         this->height = 64;
+        break;
+    case HW_SOLAR_II:
+        this->width = 64;
+        this->height = 13;
+
+        this->status_bar_bits.push_back({0x11, 6}); // SHIFT
+        this->status_bar_bits.push_back({0x11, 2}); // MODE
+        this->status_bar_bits.push_back({0x12, 6}); // STO
+        this->status_bar_bits.push_back({0x12, 2}); // RCL
+        this->status_bar_bits.push_back({0x13, 6}); // hyp
+        this->status_bar_bits.push_back({0x13, 2}); // M
+        this->status_bar_bits.push_back({0x14, 6}); // K
+        this->status_bar_bits.push_back({0x14, 2}); // DEG
+        this->status_bar_bits.push_back({0x15, 6}); // RAD
+        this->status_bar_bits.push_back({0x15, 2}); // GRA
+        this->status_bar_bits.push_back({0x16, 4}); // FIX
+        this->status_bar_bits.push_back({0x16, 2}); // SCI
+        this->status_bar_bits.push_back({0x16, 0}); // SD
+
+        register_sfr(0x30, 1, &default_write<0x7f>);
+        register_sfr(0x31, 1, &default_write<7>);
+        register_sfr(0x32, 1, &default_write<0x1f>);
+        register_sfr(0x33, 1, &default_write<7>);
+
         break;
     default:
         this->width = 96;
@@ -186,15 +228,15 @@ screen::screen(class mcu *mcu) {
 
         register_sfr(0x30, 1, &default_write<0x7f>);
         register_sfr(0x31, 1, &default_write<7>);
+        register_sfr(0x32, 1, &default_write<0x1f>);
+        register_sfr(0x33, 1, &default_write<7>);
 
         break;
     }
 
     this->status_bar = IMG_Load(this->config->status_bar_path.c_str());
-    if (!this->status_bar) {
-        std::cerr << "WARNING: Failed to load status bar image. SDL_image Error: " << IMG_GetError() << std::endl << "Using fallback status bar." << std::endl;
-        this->use_status_bar_image = false;
-    } else {
+    if (!this->status_bar) this->use_status_bar_image = false;
+    else {
         this->sbar_hi = this->status_bar->h;
         this->use_status_bar_image = true;
     }
@@ -203,7 +245,9 @@ screen::screen(class mcu *mcu) {
     SDL_FillRect(this->display, NULL, NO_COLOR);
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0");
 
-    if (this->config->hardware_id != HW_TI_MATHPRINT)
+    if (this->config->hardware_id == HW_SOLAR_II)
+        for (int i = 0; i < 3; i++) register_sfr(0x800+i*8, 8, &draw_screen_solarii);
+    else if (this->config->hardware_id != HW_TI_MATHPRINT)
         for (int i = 0; i < this->height; i++) register_sfr(0x800+i*this->bytes_per_row_real, this->bytes_per_row, this->cw_2bpp ? &draw_screen_cw : &draw_screen);
 }
 
@@ -250,24 +294,22 @@ SDL_Surface *screen::get_surface(uint32_t background) {
         SDL_Surface *tmp = SDL_CreateRGBSurface(0, this->width*this->config->pix_w, this->height*this->config->pix_h+this->sbar_hi, 32, 0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000);
         SDL_FillRect(tmp, NULL, background);
         SDL_Rect dispsrc, dispdest;
-        if (this->use_status_bar_image) {
+        int src = this->config->hardware_id == HW_SOLAR_II ? 0 : this->config->pix_h;
+        int hi = this->config->hardware_id == HW_SOLAR_II ? this->height : this->height-1;
+        if (this->use_status_bar_image)
             if ((this->mcu->sfr[0x31] & 0xf) == 5 || (this->mcu->sfr[0x31] & 0xf) == 6)
                 for (int i = 0; i < this->config->status_bar_crops.size(); i++) {
                     SDL_Rect srcdest = this->config->status_bar_crops[i];
                     statusbit sbb = this->status_bar_bits[i];
                     if (this->mcu->sfr[0x800+sbb.idx] & (1 << sbb.bit)) SDL_BlitSurface(this->status_bar, &srcdest, tmp, &srcdest);
                 }
-            dispsrc = {0, this->config->pix_h, this->width*this->config->pix_w, (this->height-1)*this->config->pix_h};
-            dispdest = {0, this->sbar_hi, this->width*this->config->pix_w, (this->height-1)*this->config->pix_h};
-        } else {
-            if ((this->mcu->sfr[0x31] & 0xf) == 5 || (this->mcu->sfr[0x31] & 0xf) == 6) {
-                dispsrc = {0, 0, this->config->pix_w, this->config->pix_h};
-                dispdest = {0, 0, this->config->pix_w, this->config->pix_h};
-                SDL_BlitSurface(this->display, &dispsrc, tmp, &dispdest);
-            }
-            dispsrc = {0, this->sbar_hi, this->width*this->config->pix_w, (this->height-1)*this->config->pix_h};
-            dispdest = {0, this->sbar_hi, this->width*this->config->pix_w, (this->height-1)*this->config->pix_h};
+        else if (((this->mcu->sfr[0x31] & 0xf) == 5 || (this->mcu->sfr[0x31] & 0xf) == 6) && this->config->hardware_id != HW_SOLAR_II) {
+            dispsrc = {0, 0, this->config->pix_w, this->config->pix_h};
+            dispdest = {0, 0, this->config->pix_w, this->config->pix_h};
+            SDL_BlitSurface(this->display, &dispsrc, tmp, &dispdest);
         }
+        dispsrc = {0, src, this->width*this->config->pix_w, hi*this->config->pix_h};
+        dispdest = {0, this->sbar_hi, this->width*this->config->pix_w, hi*this->config->pix_h};
 
         if ((this->mcu->sfr[0x31] & 0xf) == 5) SDL_BlitSurface(this->display, &dispsrc, tmp, &dispdest);
 
@@ -381,3 +423,13 @@ bool screen::render_clipboard() {
     return success;
 }
 #endif
+
+void screen::reset() {
+    for (int i = 0; i < this->height; i++)
+        for (int j = 0; j < this->bytes_per_row; j++) this->mcu->sfr[0x800 + i*this->bytes_per_row_real+j] = 0;
+    this->mcu->sfr[0x30] = 0;
+    this->mcu->sfr[0x31] = 0;
+    this->mcu->sfr[0x32] = 0;
+    this->mcu->sfr[0x33] = 0;
+    if (this->config->hardware_id == HW_CLASSWIZ_CW) this->mcu->sfr[0x37] = 0;
+}
