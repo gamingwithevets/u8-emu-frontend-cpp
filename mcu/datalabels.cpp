@@ -27,16 +27,60 @@ dlabels::dlabels(class mcu *mcu) {
         ramlabels.push_back({0x10b, 1, "Setup: Manual simplification"});
         ramlabels.push_back({0x10c, 1, "Setup: Decimal output toggle"});
         ramlabels.push_back({0x10e, 1, "Setup: Contrast"});
-        ramlabels.push_back({0x117, 1, "Font size"});
-
-        if (mcu->config->hardware_id == HW_ES) {
-            ramlabels.push_back({0x140, 100, "Input area", "Contains the tokens inputted onto the screen."});
-            ramlabels.push_back({0x5e6, 0x10, "Memory integrity check", "Also known as the \"magic string\". Should always contain the bytes 0F 0E ... 01 00.\nIf on startup this area is found to be corrupted, the calculator will automatically\nreset all settings."});
-        } else {
-            ramlabels.push_back({0x154, 100, "Input area", "Contains the tokens inputted onto the screen."});
-            ramlabels.push_back({0x60e, 0x10, "Memory integrity check", "Also known as the \"magic string\". Should always contain the bytes 0F 0E ... 01 00.\nIf on startup this area is found to be corrupted, the calculator will automatically\nreset all settings."});
+        ramlabels.push_back({0x110, 1, "Cursor position"});
+        ramlabels.push_back({0x112, 1, "Formula X coordinate"});
+        ramlabels.push_back({0x113, 1, "Formula Y coordinate"});
+        ramlabels.push_back({0x114, 1, "Cursor X coordinate"});
+        ramlabels.push_back({0x115, 1, "Cursor Y coordinate"});
+        ramlabels.push_back({0x116, 1, "Cursor character", "The font character to use for the cursor."});
+        ramlabels.push_back({0x117, 1, mcu->config->hardware_id == HW_ES ? "Font size" : "Table font size"});
+        int offset = 0x118;
+        if (mcu->config->hardware_id == HW_ES_PLUS) {
+            ramlabels.push_back({0x118, 1, "Table viewport", "The index (into the table) of the first row printed to the screen.\nChanges when scrolling."});
+            ramlabels.push_back({0x119, 1, "Table highlighted row", "Relative to the current viewport."});
+            ramlabels.push_back({0x11a, 1, "Table highlighted column", "Relative to the current viewport."});
+            ramlabels.push_back({0x11b, 1, "Font size"});
+            ramlabels.push_back({0x123, 1, "Use output character set", "If non-zero, some characters in the input will be displayed as a font character."});
+            ramlabels.push_back({0x128, 2, "Formula pointer", "Contains a pointer to the current formula. (?)"});
+            offset += 4;
         }
-        ramlabels.push_back({0xa18, 1000, "Stack data", "Allocated for the stack.\nFor some reason, on ES and ES PLUS this region is filled with byte 90 (0x5A)."});
+        ramlabels.push_back({offset, 1, "Draw mode", "0: White background\n4: White background (sanitize, only draw inside background)\n1: Transparent background\n2: AND with screen\n3 (otherwise): XOR with screen"});
+        ramlabels.push_back({offset+1, 1, "Buffer toggle", "Switches between the real screen and the RAM screen buffer."});
+        offset += mcu->config->hardware_id == HW_ES ? 12 : 36;
+        ramlabels.push_back({offset, 10, "Displayed result (part 1)"});
+        ramlabels.push_back({offset+10, 10, "Displayed result (part 2)"});
+        ramlabels.push_back({offset+20, 100, "Input area", "Contains the tokens inputted onto the screen."});
+        ramlabels.push_back({offset+120, 100, "Cache area", "The input area is copied to this area when a calculation happens.\nAlso used by the input recall feature by pressing [<-] or [->] when the input is\nempty."});
+        ramlabels.push_back({offset+220, 8, "Random seed", "Used by the calculator's random number generator."});
+        ramlabels.push_back({offset+228, 2, "Timer", "Counts up by 1 on every tick (i.e. every time the cursor turns on or off).\nAlso known as the \"unstable characters\"."});
+        ramlabels.push_back({offset+230, 10, "Variable: M"});
+        ramlabels.push_back({offset+230 + 10, 10, "Variable: Ans"});
+        ramlabels.push_back({offset+230 + 10 * 2, 10, "Variable: A"});
+        ramlabels.push_back({offset+230 + 10 * 3, 10, "Variable: B"});
+        ramlabels.push_back({offset+230 + 10 * 4, 10, "Variable: C"});
+        ramlabels.push_back({offset+230 + 10 * 5, 10, "Variable: D"});
+        ramlabels.push_back({offset+230 + 10 * 6, 10, "Variable: E"});
+        ramlabels.push_back({offset+230 + 10 * 7, 10, "Variable: F"});
+        ramlabels.push_back({offset+230 + 10 * 8, 10, "Variable: X"});
+        ramlabels.push_back({offset+230 + 10 * 9, 10, "Variable: Y"});
+        ramlabels.push_back({offset+230 + 10 * (mcu->config->hardware_id == HW_ES ? 10 : 12), 250, "Calculation history",
+                            "Can store up to 16 entries. Each entry's input data ends with a colon token.\nEach entry is not a fixed address, therefore if there's more input data then there\nis less space for new entries."});
+        ramlabels.push_back({offset+588, 100, mcu->config->hardware_id == HW_ES ? "Result area" : "Undo buffer / Result area"});
+        if (mcu->config->hardware_id == HW_ES_PLUS) offset += 12;
+        ramlabels.push_back({offset+700, 10, "Variable: M im"});
+        ramlabels.push_back({offset+700 + 10, 10, "Variable: Ans im"});
+        ramlabels.push_back({offset+700 + 10 * 2, 10, "Variable: A im"});
+        ramlabels.push_back({offset+700 + 10 * 3, 10, "Variable: B im"});
+        ramlabels.push_back({offset+700 + 10 * 4, 10, "Variable: C im"});
+        ramlabels.push_back({offset+700 + 10 * 5, 10, "Variable: D im"});
+        ramlabels.push_back({offset+700 + 10 * 6, 10, "Variable: E im"});
+        ramlabels.push_back({offset+700 + 10 * 7, 10, "Variable: F im"});
+        ramlabels.push_back({offset+700 + 10 * 8, 10, "Variable: X im"});
+        ramlabels.push_back({offset+700 + 10 * 9, 10, "Variable: Y im"});
+        ramlabels.push_back({offset+1018, 100, "f(x)"});
+        ramlabels.push_back({offset+1218, 0x10, "Memory integrity check", "Also known as the \"magic string\". Should always contain the bytes 0F 0E ... 01 00.\nIf on startup this area is found to be corrupted, the calculator will automatically\nreset all settings."});
+        ramlabels.push_back({mcu->config->hardware_id == HW_ES ? 0x600 : 0x7d0, 12*32, "Screen buffer"});
+        ramlabels.push_back({0xa18, 1000, "Stack data", "Allocated for the stack."});
         break;
     }
 }
