@@ -553,9 +553,9 @@ notfail:
             }
             ImGui::SameLine();
             ImGui::Checkbox("Hide emulator ROMs",  &not_show_emu);
+            auto i = 200;
             if (ImGui::BeginTable("All", 6, pretty_table)) {
                 RenderHeaders();
-                auto i = 114;
                 for (auto& model : models) {
                     bool matches_filter = (!strcmp(current_filter, "##")) || (current_filter == model.type);
                     bool matches_search = (stristr(model.name.c_str(), search_txt) != nullptr || stristr(model.version.c_str(), search_txt) != nullptr);
@@ -565,6 +565,7 @@ notfail:
                 }
                 ImGui::EndTable();
             }
+            ImGui::Text("Found %d models", i-199);
         }
         ImGui::End();
     }

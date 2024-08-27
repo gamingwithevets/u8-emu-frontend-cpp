@@ -15,7 +15,7 @@
 #include <stdexcept>
 #include "labeltool.hpp"
 
-void load_labels(std::ifstream& f, uint32_t start, std::map<uint32_t, Label>* labels, std::map<uint32_t, std::string>* data_labels, std::map<std::string, std::string>* data_bit_labels) {
+void load_labels(std::ifstream& f, uint32_t start, std::map<uint32_t, Label>* labels/*, std::map<uint32_t, std::string>* data_labels, std::map<std::string, std::string>* data_bit_labels*/) {
     std::vector<std::vector<std::string>> label_data;
 
     std::string line;
@@ -53,14 +53,14 @@ void load_labels(std::ifstream& f, uint32_t start, std::map<uint32_t, Label>* la
                     } else {
                         (*labels)[addr] = {data[1], false, static_cast<uint32_t>(curr_func), {}};
                     }
-                } else if (data[0].rfind("d_", 0) == 0) {
+                /*} else if (data[0].rfind("d_", 0) == 0) {
                     uint32_t addr = std::stoi(data[0].substr(2), nullptr, 16);
                     if (data_labels->find(addr) != data_labels->end()) {
                         std::cerr << std::format("Duplicate data label {:05X}, skipping\n", addr);
                     } else {
                         (*data_labels)[addr] = data[1];
                     }
-                } else {
+                */} else {
                     try {
                         std::size_t idx;
                         uint32_t addr = std::stoi(data[0], &idx, 16) - start;
@@ -72,7 +72,7 @@ void load_labels(std::ifstream& f, uint32_t start, std::map<uint32_t, Label>* la
                             curr_func = addr;
                         }
                     } catch (const std::exception&) {
-                        if (data[0].find('.') != std::string::npos) {
+                        /*if (data[0].find('.') != std::string::npos) {
                             auto s = data[0].substr(0, data[0].find('.'));
                             auto s1 = data[0].substr(s.length()+1, 1);
                             auto it = std::find_if(data_labels->begin(), data_labels->end(), [&s](const std::pair<const unsigned int, std::string>& element) { return element.second == s; });
@@ -91,11 +91,11 @@ void load_labels(std::ifstream& f, uint32_t start, std::map<uint32_t, Label>* la
                             }
                         } else {
                             std::cerr << "Invalid label " << data[0] << ", skipping\n";
-                        }
+                        }*/
                     }
                 }
             } catch (const std::exception& e) {
-                std::cerr << "Exception occurred: " << e.what() << " [" << typeid(e).name() << "]\n";
+                std::cerr << "Exception occurred: " << e.what() << "\n";
             }
         }
     }
@@ -103,7 +103,7 @@ void load_labels(std::ifstream& f, uint32_t start, std::map<uint32_t, Label>* la
     return;
 }
 
-void save_labels(std::ofstream& f, uint32_t start, std::map<uint32_t, Label>& labels, std::map<uint32_t, std::string>& data_labels, std::map<std::string, std::string>& data_bit_labels) {
+/*void save_labels(std::ofstream& f, uint32_t start, std::map<uint32_t, Label>& labels, std::map<uint32_t, std::string>& data_labels, std::map<std::string, std::string>& data_bit_labels) {
     std::map<uint32_t, Label> sorted_labels;
     for (const auto& label : labels) {
         if (label.second.is_func) {
@@ -132,3 +132,4 @@ void save_labels(std::ofstream& f, uint32_t start, std::map<uint32_t, Label>& la
 
     f << content;
 }
+*/

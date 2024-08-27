@@ -14,5 +14,5 @@ struct Label {
     std::vector<uint32_t> bcond_jmp_list;
 };
 
-void load_labels(std::ifstream& f, uint32_t start, std::map<uint32_t, Label>* labels, std::map<uint32_t, std::string>* data_labels, std::map<std::string, std::string>* data_bit_labels);
-void save_labels(std::ofstream& f, uint32_t start, std::map<uint32_t, Label>& labels, std::map<uint32_t, std::string>& data_labels, std::map<std::string, std::string>& data_bit_labels);
+void load_labels(std::ifstream& f, uint32_t start, std::map<uint32_t, Label>* labels/*, std::map<uint32_t, std::string>* data_labels, std::map<std::string, std::string>* data_bit_labels*/);
+//void save_labels(std::ofstream& f, uint32_t start, std::map<uint32_t, Label>& labels, std::map<uint32_t, std::string>& data_labels, std::map<std::string, std::string>& data_bit_labels);

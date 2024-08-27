@@ -11,6 +11,7 @@
 
 #include "mcu.hpp"
 #include "../config/config.hpp"
+#include "datalabels.hpp"
 #include "../peripheral/standby.hpp"
 #include "../peripheral/wdt.hpp"
 #include "../peripheral/interrupts.hpp"
@@ -381,6 +382,7 @@ mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *fla
     memset((void *)this->sfr_write, 0, sizeof(this->sfr_write));
     register_sfr(0, 1, &default_write<0xff>);
 
+    this->labels = new class dlabels(this);
     this->standby = new class standby;
     this->wdt = new class wdt(this);
     this->interrupts = new class interrupts(this);

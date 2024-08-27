@@ -13,6 +13,7 @@
 #include <ctime>
 
 #include "mcu/mcu.hpp"
+#include "mcu/datalabels.hpp"
 #include "config/config.hpp"
 #include "config/binary.hpp"
 #include "startupui/startupui.hpp"
@@ -201,22 +202,22 @@ int main(int argc, char* argv[]) {
         return -1;
     }
 
+    int w, h;
     SDL_Surface* interface_sf = IMG_Load(config.interface_path.c_str());
-    if (interface_sf == nullptr) {
-        std::cerr << "Failed to load interface image. SDL_image Error: " << IMG_GetError() << std::endl;
-        IMG_Quit();
-        SDL_Quit();
-        return -1;
+    if (interface_sf) {
+        w = config.width ? config.width : interface_sf->w;
+        h = config.height ? config.height : interface_sf->h;
+    } else {
+        std::cerr << "WARNING: Failed to load interface image. SDL_Error: " << SDL_GetError() << std::endl;
+        w = config.width;
+        h = config.height;
     }
-
-    int w = config.width ? config.width : interface_sf->w;
-    int h = config.height ? config.height : interface_sf->h;
 
     SDL_Window* window = SDL_CreateWindow(!config.w_name.empty() ? config.w_name.c_str() : "u8-emu-frontend-cpp", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, w, h, SDL_WINDOW_SHOWN);
     if (!window) {
         std::cerr << "Failed to create window. SDL_Error: " << SDL_GetError() << std::endl;
         SDL_DestroyWindow(window2);
-        SDL_FreeSurface(interface_sf);
+        if (interface_sf) SDL_FreeSurface(interface_sf);
         IMG_Quit();
         SDL_Quit();
         return -1;
@@ -232,9 +233,13 @@ int main(int argc, char* argv[]) {
         SDL_Quit();
         return -1;
     }
+    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
 
-    SDL_Texture* interface = SDL_CreateTextureFromSurface(renderer, interface_sf);
-    SDL_FreeSurface(interface_sf);
+    SDL_Texture* interface = nullptr;
+    if (interface_sf != nullptr) {
+        interface = SDL_CreateTextureFromSurface(renderer, interface_sf);
+        SDL_FreeSurface(interface_sf);
+    }
 
     struct u8_core core{};
 
@@ -307,8 +312,6 @@ int main(int argc, char* argv[]) {
     }
 
     std::map<uint32_t, Label> labels;
-    std::map<uint32_t, std::string> data_labels;
-    std::map<std::string, std::string> data_bit_labels;
     for (const auto &labelfile : config.labels) {
         if (labelfile.empty()) continue;
         std::ifstream is(labelfile.c_str());
@@ -316,10 +319,10 @@ int main(int argc, char* argv[]) {
             std::cerr << "WARNING: Cannot load label file '" << path << "': " << strerror(errno) << std::endl;
             continue;
         }
-        load_labels(is, 0, &labels, &data_labels, &data_bit_labels);
+        load_labels(is, 0, &labels);
     }
-    uint16_t start = read_mem_code(&core, 0, 2, 2);
-    uint16_t brk = read_mem_code(&core, 0, 4, 2);
+    uint16_t start = (rom[3] << 8) | rom[2];
+    uint16_t brk = (rom[5] << 8) | rom[4];
     if (labels.find(start) == labels.end()) labels[start] = {"start", true};
     if (labels.find(brk) == labels.end()) labels[brk] = {"brk", true};
 
@@ -353,9 +356,13 @@ int main(int argc, char* argv[]) {
     if (config.hardware_id == HW_ES && config.is_5800p) memselect.push_back("PRAM");
     else if ((config.hardware_id == HW_CLASSWIZ_EX || config.hardware_id == HW_CLASSWIZ_CW) && !config.real_hardware) memselect.push_back("Emulator RAM");
     static int memselect_idx = 0;
+    static uint16_t addr = 0xffff;
+    static uint32_t addrbase = 0;
+    static char labeltext[1000];
 
     unsigned int a, b;
     double fps;
+
 
     std::thread cs_thread(core_step_loop, std::ref(stop));
     SDL_Event e;
@@ -636,10 +643,7 @@ int main(int argc, char* argv[]) {
                 }
                 ImGui::TableNextColumn();
                 if (v.return_addr_ptr) ImGui::TextColored(color, "%04XH", v.return_addr_ptr);
-                if (!v.interrupt.interrupt_name.empty()) {
-                    ImGui::TableNextColumn();
-                    ImGui::TextColored(color, "[%s: %s]", v.interrupt.nmi ? "NMI" : "MI", v.interrupt.interrupt_name.c_str());
-                }
+                else if (!v.interrupt.interrupt_name.empty()) ImGui::TextColored(color, "[%s: %s]", v.interrupt.nmi ? "NMI" : "MI", v.interrupt.interrupt_name.c_str());
             }
             ImGui::EndTable();
         }
@@ -656,10 +660,32 @@ int main(int argc, char* argv[]) {
             }
             ImGui::EndCombo();
         }
-        if (memselect_idx == 0) ramedit.DrawContents((void *)mcu.ram, ramsize, ramstart);
-        else if (memselect_idx == 1) sfredit.DrawContents((void *)mcu.sfr, 0x1000, 0xf000);
-        else if (memselect_idx == 2) ram2edit.DrawContents((void *)mcu.ram2, config.hardware_id == HW_ES && config.is_5800p ? 0x8000 : 0x10000,
-                                                          config.hardware_id == HW_CLASSWIZ_CW ? 0x80000 : 0x40000);
+        struct dldata data{};
+        mcu.labels->get_name(memselect_idx, addr, &data);
+        if (!data.name.empty()) {
+            if (data.len > 1) sprintf(labeltext, "%s  %04X - %04X (size %d)\n\n%s", data.name.c_str(), data.addr + addrbase, data.addr + addrbase + data.len - 1, data.len, data.desc.c_str());
+            else sprintf(labeltext, "%s  %04X\n\n%s", data.name.c_str(), data.addr + addrbase, data.desc.c_str());
+        }
+        else labeltext[0] = NULL;
+        ImVec2 footer_size = ImGui::CalcTextSize(labeltext);
+
+        float hex_editor_height = ImGui::GetContentRegionAvail().y - footer_size.y;
+        ImGui::BeginChild("hexed", ImVec2(0, hex_editor_height), true);
+        if (memselect_idx == 0) {
+            addrbase = ramstart;
+            ramedit.DrawContents((void *)mcu.ram, ramsize, addrbase);
+            addr = ramedit.DataEditingAddr;
+        } else if (memselect_idx == 1) {
+            addrbase = 0xf000;
+            sfredit.DrawContents((void *)mcu.sfr, 0x1000, addrbase);
+            addr = sfredit.DataEditingAddr;
+        } else if (memselect_idx == 2) {
+            addrbase = config.hardware_id == HW_CLASSWIZ_CW ? 0x80000 : 0x40000;
+            ram2edit.DrawContents((void *)mcu.ram2, config.hardware_id == HW_ES && config.is_5800p ? 0x8000 : 0x10000, addrbase);
+            addr = ram2edit.DataEditingAddr;
+        }
+        ImGui::EndChild();
+        ImGui::Text(labeltext);
         ImGui::End();
 
         ImGui::Begin("Options", NULL, 0);
@@ -717,7 +743,8 @@ int main(int argc, char* argv[]) {
         ImGui::Render();
 
         SDL_RenderClear(renderer);
-        SDL_RenderCopy(renderer, interface, NULL, NULL);
+        SDL_RenderFillRect(renderer, NULL);
+        if (interface) SDL_RenderCopy(renderer, interface, NULL, NULL);
         mcu.screen->render(renderer);
         mcu.keyboard->render(renderer);
         SDL_RenderPresent(renderer);
@@ -749,7 +776,7 @@ int main(int argc, char* argv[]) {
     ImGui::DestroyContext();
     mcu.~mcu();
     free((void *)rom);
-    SDL_DestroyTexture(interface);
+    if (interface) SDL_DestroyTexture(interface);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyRenderer(renderer2);
     SDL_DestroyWindow(window);

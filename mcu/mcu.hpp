@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <atomic>
 #include "../config/config.hpp"
+#include "datalabels.hpp"
 #include "../peripheral/standby.hpp"
 #include "../peripheral/wdt.hpp"
 #include "../peripheral/interrupts.hpp"
@@ -35,6 +36,8 @@ struct call_stack_data {
 class mcu {
 public:
     struct config *config;
+
+    dlabels *labels;
 
     // Peripherals
     standby *standby;

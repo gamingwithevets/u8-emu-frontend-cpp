@@ -37,6 +37,7 @@ RomInfo rom_info(std::vector<byte> rom, std::vector<byte> flash, bool checksum) 
 	auto spinit = *(word*)dat;
 	enum {
 		Unk,
+		ESP0,
 		ESP1,
 		ESP2,
 		CWX,
@@ -47,17 +48,15 @@ RomInfo rom_info(std::vector<byte> rom, std::vector<byte> flash, bool checksum) 
 			return ri;
 		}
 		if (rom.size() == 0x40000) { // must be cwx
+		    if (dat[0x3ffee] != 'C' || dat[0x3ffef] != 'Y') return ri;
 		cwx_p:
 			memcpy(ri.ver, &dat[0x3ffee], 8);
-			memcpy(ri.cid, &dat[0x3fff8], 8);
-			ri.desired_sum = le_read(dat[0x3fff6]);
-			sum_type = CWX;
+            memcpy(ri.cid, &dat[0x3fff8], 8);
+            ri.desired_sum = le_read(dat[0x3fff6]);
+            sum_type = CWX;
 		}
 		else {
-			memcpy(ri.ver, &dat[0x3ffee], 8);
-			if (ri.ver[0] == 'C' && ri.ver[1] == 'Y') {
-				goto cwx_p;
-			}
+			if (dat[0x3ffee] == 'C' && dat[0x3ffef] == 'Y') goto cwx_p;
 			if (rom.size() < 0x60000) {
 				return ri;
 			}
@@ -123,12 +122,10 @@ RomInfo rom_info(std::vector<byte> rom, std::vector<byte> flash, bool checksum) 
 		return ri;
 	}
 	if (sum_type == ESP1) {
-		if (ri.ver[0] == 'L' || ri.ver[0] == 'G') {
-			sum_type = ESP1;
-		}
-		else if (ri.ver[0] == 'C') {
-			sum_type = ESP2;
-		}
+		if (ri.ver[0] == 'L') sum_type = ESP1;
+		else if (ri.ver[5] == 'X') sum_type = ESP1;
+		else if (ri.ver[0] == 'G') sum_type = ESP0;
+		else if (ri.ver[0] == 'C') sum_type = ESP2;
 		else {
 			return ri;
 		}
@@ -136,6 +133,13 @@ RomInfo rom_info(std::vector<byte> rom, std::vector<byte> flash, bool checksum) 
 
 	// std::cout << sum_type << "\n";
 	switch (sum_type) {
+	case ESP0:
+		if (checksum) {
+			calc2(ri.real_sum, dat, 0x8000);
+			calc2(ri.real_sum, &dat[0x10000], 0xfffc);
+		}
+		ri.type = RomInfo::ESP;
+		break;
 	case ESP1:
 		// calc(real_sum, dat, 0xfc00);
 		if (checksum) {

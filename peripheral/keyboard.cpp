@@ -163,6 +163,7 @@ void keyboard::tick_emu() {
             if (!k.has_value()) break;
             uint8_t ki_bit = k.value() & 0xf;
             uint8_t ko_bit = k.value() >> 4;
+            printf("[ES_STOP_GETKEY] KI: %d, KO: %d\n", ki_bit, ko_bit);
             *this->emu_kb.ES_KIADR = 1 << ki_bit;
             *this->emu_kb.ES_KOADR = 1 << ko_bit;
             this->mcu->standby->stop_mode = false;
@@ -172,15 +173,22 @@ void keyboard::tick_emu() {
     case ES_STOP_ACBREAK:
     case ES_STOP_ACBREAK2:
         if (this->enable_keypress) k = this->get_button();
+        if (!k.has_value()) {
+            *this->emu_kb.ES_STOPTYPEADR = (es_stop_type)false;
+            break;
+        }
         *this->emu_kb.ES_STOPTYPEADR = (es_stop_type)(k.value() == 0x42);
+        if (k.value() == 0x42) printf("[ES_STOP_ACBREAK] AC pressed!\n");
         break;
     case ES_STOP_QRCODE_IN:
     case ES_STOP_QRCODE_IN3:
         strcpy(this->emu_kb.qr_url, this->emu_kb.ES_QR_DATATOP_ADR);
         this->emu_kb.qr_active = true;
+        printf("[ES_STOP_QRCODE_IN] QR code active\n");
         break;
     case ES_STOP_QRCODE_OUT:
         this->emu_kb.qr_active = false;
+        printf("[ES_STOP_QRCODE_IN] QR code exit\n");
         break;
     }
 }
