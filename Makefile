@@ -40,9 +40,9 @@ OBJDIR_RELEASE = obj/release
 DEP_RELEASE = 
 OUT_RELEASE = bin/release/u8-emu-frontend-cpp
 
-OBJ_DEBUG = $(OBJDIR_DEBUG)/u8_emu/src/core/regs.o $(OBJDIR_DEBUG)/u8_emu/src/core/mem.o $(OBJDIR_DEBUG)/u8_emu/src/core/instr_impl.o $(OBJDIR_DEBUG)/u8_emu/src/core/instr.o $(OBJDIR_DEBUG)/u8_emu/src/core/core.o $(OBJDIR_DEBUG)/startupui/startupui.o $(OBJDIR_DEBUG)/startupui/rominfo.o $(OBJDIR_DEBUG)/peripheral/wdt.o $(OBJDIR_DEBUG)/peripheral/timer.o $(OBJDIR_DEBUG)/peripheral/standby.o $(OBJDIR_DEBUG)/peripheral/screen.o $(OBJDIR_DEBUG)/peripheral/ltb.o $(OBJDIR_DEBUG)/peripheral/keyboard.o $(OBJDIR_DEBUG)/peripheral/interrupts.o $(OBJDIR_DEBUG)/peripheral/battery.o $(OBJDIR_DEBUG)/nxu8_disas/src/lib/nxu8_instr.o $(OBJDIR_DEBUG)/nxu8_disas/src/lib/nxu8_decode.o $(OBJDIR_DEBUG)/mcu/mcu.o $(OBJDIR_DEBUG)/mcu/datalabels.o $(OBJDIR_DEBUG)/main.o $(OBJDIR_DEBUG)/labeltool/labeltool.o $(OBJDIR_DEBUG)/imgui/imgui_widgets.o $(OBJDIR_DEBUG)/imgui/imgui_tables.o $(OBJDIR_DEBUG)/imgui/imgui_impl_sdlrenderer2.o $(OBJDIR_DEBUG)/imgui/imgui_impl_sdl2.o $(OBJDIR_DEBUG)/imgui/imgui_draw.o $(OBJDIR_DEBUG)/imgui/imgui.o
+OBJ_DEBUG = $(OBJDIR_DEBUG)/u8_emu/src/core/regs.o $(OBJDIR_DEBUG)/u8_emu/src/core/mem.o $(OBJDIR_DEBUG)/u8_emu/src/core/instr_impl.o $(OBJDIR_DEBUG)/u8_emu/src/core/instr.o $(OBJDIR_DEBUG)/u8_emu/src/core/core.o $(OBJDIR_DEBUG)/startupui/startupui.o $(OBJDIR_DEBUG)/startupui/rominfo.o $(OBJDIR_DEBUG)/peripheral/wdt.o $(OBJDIR_DEBUG)/peripheral/timer.o $(OBJDIR_DEBUG)/peripheral/standby.o $(OBJDIR_DEBUG)/peripheral/screen.o $(OBJDIR_DEBUG)/peripheral/ltb.o $(OBJDIR_DEBUG)/peripheral/keyboard.o $(OBJDIR_DEBUG)/peripheral/interrupts.o $(OBJDIR_DEBUG)/peripheral/battery.o $(OBJDIR_DEBUG)/mcu/mcu.o $(OBJDIR_DEBUG)/mcu/datalabels.o $(OBJDIR_DEBUG)/main.o $(OBJDIR_DEBUG)/labeltool/labeltool.o $(OBJDIR_DEBUG)/imgui/imgui_widgets.o $(OBJDIR_DEBUG)/imgui/imgui_tables.o $(OBJDIR_DEBUG)/imgui/imgui_impl_sdlrenderer2.o $(OBJDIR_DEBUG)/imgui/imgui_impl_sdl2.o $(OBJDIR_DEBUG)/imgui/imgui_draw.o $(OBJDIR_DEBUG)/imgui/imgui.o
 
-OBJ_RELEASE = $(OBJDIR_RELEASE)/u8_emu/src/core/regs.o $(OBJDIR_RELEASE)/u8_emu/src/core/mem.o $(OBJDIR_RELEASE)/u8_emu/src/core/instr_impl.o $(OBJDIR_RELEASE)/u8_emu/src/core/instr.o $(OBJDIR_RELEASE)/u8_emu/src/core/core.o $(OBJDIR_RELEASE)/startupui/startupui.o $(OBJDIR_RELEASE)/startupui/rominfo.o $(OBJDIR_RELEASE)/peripheral/wdt.o $(OBJDIR_RELEASE)/peripheral/timer.o $(OBJDIR_RELEASE)/peripheral/standby.o $(OBJDIR_RELEASE)/peripheral/screen.o $(OBJDIR_RELEASE)/peripheral/ltb.o $(OBJDIR_RELEASE)/peripheral/keyboard.o $(OBJDIR_RELEASE)/peripheral/interrupts.o $(OBJDIR_RELEASE)/peripheral/battery.o $(OBJDIR_RELEASE)/nxu8_disas/src/lib/nxu8_instr.o $(OBJDIR_RELEASE)/nxu8_disas/src/lib/nxu8_decode.o $(OBJDIR_RELEASE)/mcu/mcu.o $(OBJDIR_RELEASE)/mcu/datalabels.o $(OBJDIR_RELEASE)/main.o $(OBJDIR_RELEASE)/labeltool/labeltool.o $(OBJDIR_RELEASE)/imgui/imgui_widgets.o $(OBJDIR_RELEASE)/imgui/imgui_tables.o $(OBJDIR_RELEASE)/imgui/imgui_impl_sdlrenderer2.o $(OBJDIR_RELEASE)/imgui/imgui_impl_sdl2.o $(OBJDIR_RELEASE)/imgui/imgui_draw.o $(OBJDIR_RELEASE)/imgui/imgui.o
+OBJ_RELEASE = $(OBJDIR_RELEASE)/u8_emu/src/core/regs.o $(OBJDIR_RELEASE)/u8_emu/src/core/mem.o $(OBJDIR_RELEASE)/u8_emu/src/core/instr_impl.o $(OBJDIR_RELEASE)/u8_emu/src/core/instr.o $(OBJDIR_RELEASE)/u8_emu/src/core/core.o $(OBJDIR_RELEASE)/startupui/startupui.o $(OBJDIR_RELEASE)/startupui/rominfo.o $(OBJDIR_RELEASE)/peripheral/wdt.o $(OBJDIR_RELEASE)/peripheral/timer.o $(OBJDIR_RELEASE)/peripheral/standby.o $(OBJDIR_RELEASE)/peripheral/screen.o $(OBJDIR_RELEASE)/peripheral/ltb.o $(OBJDIR_RELEASE)/peripheral/keyboard.o $(OBJDIR_RELEASE)/peripheral/interrupts.o $(OBJDIR_RELEASE)/peripheral/battery.o $(OBJDIR_RELEASE)/mcu/mcu.o $(OBJDIR_RELEASE)/mcu/datalabels.o $(OBJDIR_RELEASE)/main.o $(OBJDIR_RELEASE)/labeltool/labeltool.o $(OBJDIR_RELEASE)/imgui/imgui_widgets.o $(OBJDIR_RELEASE)/imgui/imgui_tables.o $(OBJDIR_RELEASE)/imgui/imgui_impl_sdlrenderer2.o $(OBJDIR_RELEASE)/imgui/imgui_impl_sdl2.o $(OBJDIR_RELEASE)/imgui/imgui_draw.o $(OBJDIR_RELEASE)/imgui/imgui.o
 
 all: before_build build_debug build_release after_build
 
@@ -58,7 +58,6 @@ before_debug:
 	test -d $(OBJDIR_DEBUG)/u8_emu/src/core || mkdir -p $(OBJDIR_DEBUG)/u8_emu/src/core
 	test -d $(OBJDIR_DEBUG)/startupui || mkdir -p $(OBJDIR_DEBUG)/startupui
 	test -d $(OBJDIR_DEBUG)/peripheral || mkdir -p $(OBJDIR_DEBUG)/peripheral
-	test -d $(OBJDIR_DEBUG)/nxu8_disas/src/lib || mkdir -p $(OBJDIR_DEBUG)/nxu8_disas/src/lib
 	test -d $(OBJDIR_DEBUG)/mcu || mkdir -p $(OBJDIR_DEBUG)/mcu
 	test -d $(OBJDIR_DEBUG) || mkdir -p $(OBJDIR_DEBUG)
 	test -d $(OBJDIR_DEBUG)/labeltool || mkdir -p $(OBJDIR_DEBUG)/labeltool
@@ -118,12 +117,6 @@ $(OBJDIR_DEBUG)/peripheral/interrupts.o: peripheral/interrupts.cpp
 $(OBJDIR_DEBUG)/peripheral/battery.o: peripheral/battery.cpp
 	$(CXX) $(CFLAGS_DEBUG) $(INC_DEBUG) -c peripheral/battery.cpp -o $(OBJDIR_DEBUG)/peripheral/battery.o
 
-$(OBJDIR_DEBUG)/nxu8_disas/src/lib/nxu8_instr.o: nxu8_disas/src/lib/nxu8_instr.c
-	$(CC) $(CFLAGS_DEBUG) $(INC_DEBUG) -c nxu8_disas/src/lib/nxu8_instr.c -o $(OBJDIR_DEBUG)/nxu8_disas/src/lib/nxu8_instr.o
-
-$(OBJDIR_DEBUG)/nxu8_disas/src/lib/nxu8_decode.o: nxu8_disas/src/lib/nxu8_decode.c
-	$(CC) $(CFLAGS_DEBUG) $(INC_DEBUG) -c nxu8_disas/src/lib/nxu8_decode.c -o $(OBJDIR_DEBUG)/nxu8_disas/src/lib/nxu8_decode.o
-
 $(OBJDIR_DEBUG)/mcu/mcu.o: mcu/mcu.cpp
 	$(CXX) $(CFLAGS_DEBUG) $(INC_DEBUG) -c mcu/mcu.cpp -o $(OBJDIR_DEBUG)/mcu/mcu.o
 
@@ -160,7 +153,6 @@ clean_debug:
 	rm -rf $(OBJDIR_DEBUG)/u8_emu/src/core
 	rm -rf $(OBJDIR_DEBUG)/startupui
 	rm -rf $(OBJDIR_DEBUG)/peripheral
-	rm -rf $(OBJDIR_DEBUG)/nxu8_disas/src/lib
 	rm -rf $(OBJDIR_DEBUG)/mcu
 	rm -rf $(OBJDIR_DEBUG)
 	rm -rf $(OBJDIR_DEBUG)/labeltool
@@ -171,7 +163,6 @@ before_release:
 	test -d $(OBJDIR_RELEASE)/u8_emu/src/core || mkdir -p $(OBJDIR_RELEASE)/u8_emu/src/core
 	test -d $(OBJDIR_RELEASE)/startupui || mkdir -p $(OBJDIR_RELEASE)/startupui
 	test -d $(OBJDIR_RELEASE)/peripheral || mkdir -p $(OBJDIR_RELEASE)/peripheral
-	test -d $(OBJDIR_RELEASE)/nxu8_disas/src/lib || mkdir -p $(OBJDIR_RELEASE)/nxu8_disas/src/lib
 	test -d $(OBJDIR_RELEASE)/mcu || mkdir -p $(OBJDIR_RELEASE)/mcu
 	test -d $(OBJDIR_RELEASE) || mkdir -p $(OBJDIR_RELEASE)
 	test -d $(OBJDIR_RELEASE)/labeltool || mkdir -p $(OBJDIR_RELEASE)/labeltool
@@ -231,12 +222,6 @@ $(OBJDIR_RELEASE)/peripheral/interrupts.o: peripheral/interrupts.cpp
 $(OBJDIR_RELEASE)/peripheral/battery.o: peripheral/battery.cpp
 	$(CXX) $(CFLAGS_RELEASE) $(INC_RELEASE) -c peripheral/battery.cpp -o $(OBJDIR_RELEASE)/peripheral/battery.o
 
-$(OBJDIR_RELEASE)/nxu8_disas/src/lib/nxu8_instr.o: nxu8_disas/src/lib/nxu8_instr.c
-	$(CC) $(CFLAGS_RELEASE) $(INC_RELEASE) -c nxu8_disas/src/lib/nxu8_instr.c -o $(OBJDIR_RELEASE)/nxu8_disas/src/lib/nxu8_instr.o
-
-$(OBJDIR_RELEASE)/nxu8_disas/src/lib/nxu8_decode.o: nxu8_disas/src/lib/nxu8_decode.c
-	$(CC) $(CFLAGS_RELEASE) $(INC_RELEASE) -c nxu8_disas/src/lib/nxu8_decode.c -o $(OBJDIR_RELEASE)/nxu8_disas/src/lib/nxu8_decode.o
-
 $(OBJDIR_RELEASE)/mcu/mcu.o: mcu/mcu.cpp
 	$(CXX) $(CFLAGS_RELEASE) $(INC_RELEASE) -c mcu/mcu.cpp -o $(OBJDIR_RELEASE)/mcu/mcu.o
 
@@ -273,7 +258,6 @@ clean_release:
 	rm -rf $(OBJDIR_RELEASE)/u8_emu/src/core
 	rm -rf $(OBJDIR_RELEASE)/startupui
 	rm -rf $(OBJDIR_RELEASE)/peripheral
-	rm -rf $(OBJDIR_RELEASE)/nxu8_disas/src/lib
 	rm -rf $(OBJDIR_RELEASE)/mcu
 	rm -rf $(OBJDIR_RELEASE)
 	rm -rf $(OBJDIR_RELEASE)/labeltool

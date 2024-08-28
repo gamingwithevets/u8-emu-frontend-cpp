@@ -4,13 +4,16 @@
 #include <fstream>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <cmath>
 #include <thread>
 #include <atomic>
 #include <optional>
 #include <sstream>
+#include <algorithm>
 #include <iomanip>
 #include <ctime>
+#include <unordered_set>
 
 #include "mcu/mcu.hpp"
 #include "mcu/datalabels.hpp"
@@ -18,9 +21,9 @@
 #include "config/binary.hpp"
 #include "startupui/startupui.hpp"
 #include "labeltool/labeltool.hpp"
+#include "disas/disas.hpp"
 extern "C" {
 #include "u8_emu/src/core/core.h"
-#include "nxu8_disas/src/lib/lib_nxu8.h"
 }
 #include "imgui/imgui.h"
 #include "imgui/imgui_impl_sdl2.h"
@@ -59,29 +62,6 @@ void convert_shift(SDL_Event &event) {
     }
 }
 
-std::map<uint32_t, std::string> disassemble(size_t romsize, uint8_t *rom, uint32_t start_addr) {
-    struct nxu8_decoder *decoder = nxu8_init_decoder(romsize, rom);
-    std::map<uint32_t, std::string> disas;
-    uint32_t addr = 0;
-    while (addr < decoder->buf_sz) {
-        char tmp[30];
-        int len;
-        struct nxu8_instr *instr = nxu8_decode_instr(decoder, addr);
-        if (instr != NULL) {
-            sprintf(tmp, "%s", instr->assembly);
-            len = instr->len;
-        } else {
-            uint16_t val = nxu8_read16(decoder, addr);
-            sprintf(tmp, "DW %04XH", val);
-            len = 2;
-        }
-        std::string tmp2(tmp);
-        disas[addr+start_addr] = tmp2;
-        addr += len;
-    }
-    return disas;
-}
-
 // Find the nearest number in a map that is less than or equal to n
 std::optional<uint32_t> nearest_num(const std::map<uint32_t, Label>& labels, uint32_t n) {
     std::optional<uint32_t> result = std::nullopt;
@@ -114,6 +94,93 @@ std::optional<std::string> get_instruction_label(std::map<uint32_t, Label>& labe
     if (offset != 0) result += "+" + offset_str.str();
 
     return result;
+}
+
+// TODO: Move this to another script!
+int max_row = 0;
+int cur_col = 0;
+int first_col = 0;
+bool need_roll = false;
+std::vector<CodeElem> codes;
+std::map<int, uint8_t> break_points;
+uint32_t pc_cache = 0;
+uint32_t selected_addr = -1;
+
+CodeElem LookUp(uint32_t offset, int* idx) {
+	auto it = std::find_if(
+		codes.begin(), codes.end(), [&](const CodeElem& a) {
+			return a.offset == offset && !a.is_label;
+		});
+	if (it == codes.end()) {
+		it = codes.begin();
+	}
+	if (idx)
+		*idx = it - codes.begin();
+	return {.offset = it->offset};
+}
+
+void JumpTo(uint32_t offset) {
+	int idx = 0;
+	// printf("jumpto:seg%d\n",seg);
+	LookUp(offset, &idx);
+	cur_col = idx;
+	need_roll = true;
+}
+
+void drawdisas() {
+	ImGuiListClipper c;
+	c.Begin(max_row, ImGui::GetTextLineHeight());
+	while (c.Step()) {
+		first_col = c.DisplayStart;
+		for (int line_i = c.DisplayStart; line_i < c.DisplayEnd; line_i++) {
+			CodeElem e = codes[line_i];
+			auto it = break_points.find(line_i);
+			auto bb = it == break_points.end();
+			if (!e.is_label) {
+				if (e.offset == pc_cache) {
+					ImGui::TextColored(ImVec4(0.0, 1.0, 0.0, 1.0), " > ");
+				}
+				else {
+					if (bb) {
+						ImGui::Text("   ");
+						if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(0)) {
+							break_points[line_i] = 1;
+						}
+					}
+					else {
+						if (it->second == 1) {
+							ImGui::TextColored(ImVec4(1.0, 0.0, 0.0, 1.0), " x ");
+							if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(0)) {
+								break_points.erase(line_i);
+							}
+						}
+						else {
+							break_points.erase(line_i);
+							ImGui::Text("   ");
+						}
+					}
+				}
+				ImGui::SameLine();
+				ImGui::TextColored(ImVec4(1.0, 1.0, 0.0, 1.0), "%X:%04XH", (e.offset >> 16) & 0xf, e.offset & 0xfffe);
+				ImGui::SameLine();
+			}
+			ImGui::PushID(line_i);
+			if (ImGui::Selectable(e.srcbuf)) {
+				if (e.xref_operand)
+					JumpTo(e.xref_operand);
+			}
+			ImGui::PopID();
+		}
+	}
+	if (need_roll) {
+		float v = (float)cur_col / max_row * ImGui::GetScrollMaxY(); // 谁写的j7代码啊，跳着都吐了
+		auto origv = ImGui::GetScrollY();
+		if (v < origv || (v - origv > (ImGui::GetWindowHeight() - 200))) {
+			ImGui::SetScrollY(v);
+		}
+		need_roll = false;
+		selected_addr = codes[cur_col].offset;
+	}
 }
 
 int main(int argc, char* argv[]) {
@@ -255,7 +322,21 @@ int main(int argc, char* argv[]) {
     rewind(f);
     fread(rom, sizeof(uint8_t), romsize, f);
     fclose(f);
-    auto romdisas = disassemble(romsize, rom, 0);
+
+    std::map<uint32_t, Label> labels;
+    for (const auto &labelfile : config.labels) {
+        if (labelfile.empty()) continue;
+        std::ifstream is(labelfile.c_str());
+        if (!is) {
+            std::cerr << "WARNING: Cannot load label file '" << path << "': " << strerror(errno) << std::endl;
+            continue;
+        }
+        load_labels(is, 0, &labels);
+    }
+    uint16_t start = (rom[3] << 8) | rom[2];
+    uint16_t brk = (rom[5] << 8) | rom[4];
+    if (labels.find(start) == labels.end()) labels[start] = {"start", true};
+    if (labels.find(brk) == labels.end()) labels[brk] = {"brk", true};
 
     uint8_t *flash = NULL;
     std::map<uint32_t, std::string> flashdisas;
@@ -272,7 +353,7 @@ int main(int argc, char* argv[]) {
         rewind(f);
         fread(flash, sizeof(uint8_t), flashsize, f);
         fclose(f);
-        flashdisas = disassemble(0x40000, (uint8_t *)(flash + 0x40000), 0xc0000);
+        //flashdisas = disassemble(0x40000, (uint8_t *)(flash + 0x40000), 0xc0000);
     }
 
     int ramstart, ramsize;
@@ -311,21 +392,6 @@ int main(int argc, char* argv[]) {
         } else std::cerr << "WARNING: cannot load RAM data: " << strerror(errno) << std::endl;
     }
 
-    std::map<uint32_t, Label> labels;
-    for (const auto &labelfile : config.labels) {
-        if (labelfile.empty()) continue;
-        std::ifstream is(labelfile.c_str());
-        if (!is) {
-            std::cerr << "WARNING: Cannot load label file '" << path << "': " << strerror(errno) << std::endl;
-            continue;
-        }
-        load_labels(is, 0, &labels);
-    }
-    uint16_t start = (rom[3] << 8) | rom[2];
-    uint16_t brk = (rom[5] << 8) | rom[4];
-    if (labels.find(start) == labels.end()) labels[start] = {"start", true};
-    if (labels.find(brk) == labels.end()) labels[brk] = {"brk", true};
-
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
@@ -363,6 +429,93 @@ int main(int argc, char* argv[]) {
     unsigned int a, b;
     double fps;
 
+    printf("[CEMSVCDisas] Generating disassembly.\n");
+    printf("[CEMSVCDisas] Disassembling\n");
+
+    uint8_t *beg = rom;
+    uint8_t *before = rom;
+    uint8_t *cur = beg;
+    while ((cur-beg) < romsize) {
+        auto pc = cur - beg;
+        std::stringstream ss{};
+        decode(ss, cur, pc, mcu.interrupts);
+        int siz = cur - before;
+        CodeElem ce{};
+        switch (siz) {
+        case 2:
+            sprintf_s(ce.srcbuf, "%04X          ", (*(uint16_t*)before));
+            break;
+        case 4:
+            sprintf_s(ce.srcbuf, "%04X%04X      ", (*(uint16_t*)before), ((uint16_t*)before)[1]);
+            break;
+        case 6:
+            sprintf_s(ce.srcbuf, "%04X%04X%04X  ", (*(uint16_t*)before), ((uint16_t*)before)[1], ((uint16_t*)before)[2]);
+            break;
+        default:
+            strcpy(ce.srcbuf, "              ");
+            break;
+        }
+        ce.offset = pc;
+        auto s = ss.str();
+        auto a = strchr(s.c_str(), '$');
+        if (a) ce.xref_operand = strtol(a+1, NULL, 16);
+        strcpy(ce.srcbuf + 14, s.c_str());
+        codes.push_back(ce);
+        before = cur;
+    }
+    printf("[CEMSVCDisas] Linking labels\n");
+    std::optional<int> last_label{};
+    std::unordered_set<int> quick_find{};
+    for (auto& ce : codes) {
+        quick_find.emplace(ce.offset);
+    }
+
+    for (auto& lb : p_labels) {
+        CodeElem ce{};
+        auto iter = quick_find.find(lb.first);
+        if (iter == quick_find.end()) // 如果找不到指令那就是错误解码数据了
+            continue;
+        ce.is_label = true;
+        if (lb.second) {
+            auto iter = labels.find(lb.first);
+            char symb[7];
+            if (iter == labels.end()) sprintf(symb, "f_%05X", lb.first);
+            else strcpy_s(symb, iter->second.name.c_str());
+            strcpy_s(ce.srcbuf, symb);
+            ce.offset = 0;
+            labels[lb.first] = {std::string(symb), true};
+            last_label = lb.first;
+        }
+        else {
+            char symb[8];
+            if (last_label.has_value()) sprintf(symb, ".l_%03X", lb.first - last_label.value());
+            else sprintf(symb, ".j_%05X", lb.first);
+            strcpy_s(ce.srcbuf, symb);
+            ce.offset = 0;
+            labels[lb.first] = Label{std::string(symb), false};
+        }
+    }
+    printf("[CEMSVCDisas] Applying labels\n");
+    std::vector<CodeElem> finals;
+    finals.reserve(codes.size() + labels.size());
+    for (auto& ce : codes) {
+        if (labels.find(ce.offset) != labels.end()) {
+            CodeElem ce2{};
+            ce2.is_label = true;
+            strcpy_s(ce2.srcbuf, (labels[ce.offset].name + ":").c_str());
+            ce2.offset = 0;
+            finals.push_back(ce2);
+        }
+        if (ce.xref_operand) {
+            auto a = strchr(ce.srcbuf, '$');
+            if (labels.find(ce.xref_operand) != labels.end()) strcpy(a, labels[ce.xref_operand].name.c_str());
+            else sprintf(a, "%X:%04XH", ce.xref_operand >> 16, ce.xref_operand & 0xfffe);
+        }
+        finals.push_back(ce);
+    }
+    codes = std::move(finals);
+    printf("[CEMSVC] Done!\n");
+    max_row = codes.size();
 
     std::thread cs_thread(core_step_loop, std::ref(stop));
     SDL_Event e;
@@ -566,38 +719,7 @@ int main(int argc, char* argv[]) {
         ImGui::End();
 
         ImGui::Begin("Disassembly", NULL, 0);
-        ImGui::Text("Internal ROM");
-        if (ImGui::BeginTable("romdisas", 2)) {
-            ImGui::TableSetupColumn("Address");
-            ImGui::TableSetupColumn("Instruction");
-            ImGui::TableHeadersRow();
-            for (const auto& [k, v] : romdisas) {
-                ImVec4 color = (k == ((core.regs.csr << 16) | (core.regs.pc))) ? (ImVec4)ImColor(255, 216, 0) : (ImVec4)ImColor(255, 255, 255);
-                ImGui::TableNextRow();
-                ImGui::TableSetColumnIndex(0);
-                ImGui::TextColored(color, "%X:%04XH", k >> 16, k & 0xffff);
-                ImGui::TableNextColumn();
-                ImGui::TextColored(color, v.c_str());
-            }
-            ImGui::EndTable();
-        }
-        if (config.hardware_id == HW_ES && config.is_5800p) {
-            ImGui::Text("Flash ROM");
-            if (ImGui::BeginTable("flashdisas", 2)) {
-                ImGui::TableSetupColumn("Address");
-                ImGui::TableSetupColumn("Instruction");
-                ImGui::TableHeadersRow();
-                for (const auto& [k, v] : flashdisas) {
-                    ImVec4 color = (k == ((core.regs.csr << 16) | (core.regs.pc))) ? (ImVec4)ImColor(255, 216, 0) : (ImVec4)ImColor(255, 255, 255);
-                    ImGui::TableNextRow();
-                    ImGui::TableSetColumnIndex(0);
-                    ImGui::TextColored(color, "%X:%04XH", k >> 16, k & 0xffff);
-                    ImGui::TableNextColumn();
-                    ImGui::TextColored(color, v.c_str());
-                }
-                ImGui::EndTable();
-            }
-        }
+        drawdisas();
         ImGui::End();
 
         ImGui::Begin("Call Stack Display", NULL, 0);

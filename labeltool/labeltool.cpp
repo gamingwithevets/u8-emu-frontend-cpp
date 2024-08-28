@@ -64,7 +64,7 @@ void load_labels(std::ifstream& f, uint32_t start, std::map<uint32_t, Label>* la
                     try {
                         std::size_t idx;
                         uint32_t addr = std::stoi(data[0], &idx, 16) - start;
-                        if (idx < 5) throw std::runtime_error("a");
+                        if (idx < 5) continue;//throw std::runtime_error("a");
                         if (labels->find(addr) != labels->end()) {
                             std::cerr << std::format("Duplicate function label {:05X}, skipping\n", addr);
                         } else {

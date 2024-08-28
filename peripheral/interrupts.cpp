@@ -1,3 +1,5 @@
+#include <optional>
+#include <cstdint>
 #include "../mcu/mcu.hpp"
 #include "../config/config.hpp"
 #include "interrupts.hpp"
@@ -122,7 +124,7 @@ interrupts::interrupts(class mcu *mcu) {
         this->intr_tbl.insert({"L1024SINT",	 {0x16, 0x10, 7, 0x14, 7}});
         this->intr_tbl.insert({"L4096SINT",	 {0x18, 0x11, 0, 0x15, 0}});
         this->intr_tbl.insert({"L16384SINT", {0x1a, 0x11, 1, 0x15, 1}});
-        if (this->config->hardware_id == HW_ES_PLUS && !this->config->old_esp) {
+        if ((this->config->hardware_id == HW_ES_PLUS && !this->config->old_esp) || this->config->hardware_id != HW_ES) {
             this->intr_tbl.insert({"SIO0INT",    {0x1c, 0x11, 2, 0x15, 2}});
             this->intr_tbl.insert({"I2C0INT",    {0x1e, 0x11, 3, 0x15, 3}});
             this->intr_tbl.insert({"I2C1INT",    {0x20, 0x11, 4, 0x15, 4}});
@@ -179,4 +181,11 @@ int_callstack interrupts::tick() {
             }
 
     return interrupt;
+}
+
+std::optional<std::string> interrupts::find_int(uint16_t vector_adrs) {
+    for (const auto& entry : intr_tbl) {
+        if (entry.second.vector_adrs == vector_adrs) return entry.first;
+    }
+    return std::nullopt;
 }

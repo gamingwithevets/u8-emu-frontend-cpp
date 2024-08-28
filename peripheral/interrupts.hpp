@@ -2,6 +2,8 @@
 
 #include <iostream>
 #include <map>
+#include <cstdint>
+#include <optional>
 
 #include "../mcu/mcu.hpp"
 #include "../config/config.hpp"
@@ -27,4 +29,5 @@ public:
     char int_timer;
     interrupts(class mcu *mcu);
     int_callstack tick();
+    std::optional<std::string> find_int(uint16_t vector_adrs);
 };
