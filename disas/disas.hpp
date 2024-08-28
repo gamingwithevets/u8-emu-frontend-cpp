@@ -66,22 +66,21 @@ void decode(std::ostream& out, uint8_t*& buf, uint32_t pc, class interrupts *int
 		"NE", "EQ", "NV", "OV", "PS", "NS", "AL"};
 
 	// Handles vector table
-	if (pc <= 0xFE) {
+	if (pc <= 0x7E) {
         switch (pc) {
         case 0:
             out << "spinit  ";
             break;
         case 2:
-			out << "start $";
+			out << "start   $";
 			LABEL_FUNCTION(*(uint16_t*)buf);
 			break;
         case 4:
-			out << "brk $";
+			out << "brk     $";
 			LABEL_FUNCTION(*(uint16_t*)buf);
             break;
         case 6:
-            out << "NMICE $";
-            break;
+            goto disasstart;
         case 8:{
             auto int_name = ints->find_int(8);
             if (int_name.has_value()) out << int_name.value();
@@ -90,12 +89,12 @@ void decode(std::ostream& out, uint8_t*& buf, uint32_t pc, class interrupts *int
 			LABEL_FUNCTION(*(uint16_t*)buf);
 			break;
         }default:
-            if (pc <= 0x7E) {
-                auto int_name = ints->find_int(pc);
-                if (int_name.has_value()) out << int_name.value() << " $";
-                else goto disasstart;
+            auto int_name = ints->find_int(pc);
+            if (int_name.has_value()) {
+                out << int_name.value() << " $";
+                LABEL_FUNCTION((*(uint16_t*)buf));
             }
-            else out << "SWI #" << ((pc - 0x80) >> 1) << " $";
+            else goto disasstart;
         }
         out << tohex((buf[0] | (buf[1] << 8)) >> 1 << 1, 4) << "\n";
         buf += 2;
@@ -827,7 +826,7 @@ disasstart:
 	}
 	if ((buf[0] & 0b11000000) == 0b00000000 && (buf[1] & 0b11111111) == 0b11100101) {
 		int i = buf[0] >> 0 & 0b111111;
-		out << "SWI " << (i);
+		out << "SWI #" << (i);
 		buf += 2;
 		return;
 	}
@@ -984,6 +983,6 @@ disasstart:
 		buf += 4;
 		return;
 	}
-	out << "DW " << tohex(buf[0] | (buf[1] << 8), 4) << "H\n";
+	out << "DW " << tohex(buf[0] | (buf[1] << 8), 4) << "\n";
 	buf += 2;
 }

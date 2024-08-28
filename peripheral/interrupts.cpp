@@ -19,6 +19,72 @@ interrupts::interrupts(class mcu *mcu) {
         register_sfr(0x10, 1, &default_write<0x3f>);
         register_sfr(0x14, 1, &default_write<0x3f>);
         break;
+    case HW_ES:
+        this->intr_tbl.insert({"WDTINT",     {0x08, 0x00, 0, 0x14, 0}});
+        this->intr_tbl.insert({"XI0INT",     {0x0a, 0x10, 1, 0x14, 1}});
+        this->intr_tbl.insert({"XI1INT",     {0x0c, 0x10, 2, 0x14, 2}});
+        this->intr_tbl.insert({"XI2INT",     {0x0e, 0x10, 3, 0x14, 3}});
+        this->intr_tbl.insert({"XI3INT",     {0x10, 0x10, 4, 0x14, 4}});
+        this->intr_tbl.insert({"TM0INT",     {0x12, 0x10, 5, 0x14, 5}});
+        this->intr_tbl.insert({"L256SINT",   {0x14, 0x10, 6, 0x14, 6}});
+        this->intr_tbl.insert({"L1024SINT",	 {0x16, 0x10, 7, 0x14, 7}});
+        this->intr_tbl.insert({"L4096SINT",	 {0x18, 0x11, 0, 0x15, 0}});
+        this->intr_tbl.insert({"L16384SINT", {0x1a, 0x11, 1, 0x15, 1}});
+        register_sfr(0x10, 1, &default_write<0xff>);
+        register_sfr(0x11, 1, &default_write<3>);
+        register_sfr(0x14, 1, &default_write<0xff>);
+        register_sfr(0x15, 1, &default_write<3>);
+        break;
+    case HW_ES_PLUS:
+        this->intr_tbl.insert({"WDTINT",     {0x08, 0x00, 0, 0x14, 0}});
+        this->intr_tbl.insert({"XI0INT",     {0x0a, 0x10, 1, 0x14, 1}});
+        this->intr_tbl.insert({"XI1INT",     {0x0c, 0x10, 2, 0x14, 2}});
+        this->intr_tbl.insert({"XI2INT",     {0x0e, 0x10, 3, 0x14, 3}});
+        this->intr_tbl.insert({"XI3INT",     {0x10, 0x10, 4, 0x14, 4}});
+        this->intr_tbl.insert({"TM0INT",     {0x12, 0x10, 5, 0x14, 5}});
+        this->intr_tbl.insert({"L256SINT",   {0x14, 0x10, 6, 0x14, 6}});
+        this->intr_tbl.insert({"L1024SINT",	 {0x16, 0x10, 7, 0x14, 7}});
+        this->intr_tbl.insert({"L4096SINT",	 {0x18, 0x11, 0, 0x15, 0}});
+        this->intr_tbl.insert({"L16384SINT", {0x1a, 0x11, 1, 0x15, 1}});
+        if (!this->config->old_esp) {
+            this->intr_tbl.insert({"SIO0INT",    {0x1c, 0x11, 2, 0x15, 2}});
+            this->intr_tbl.insert({"I2C0INT",    {0x1e, 0x11, 3, 0x15, 3}});
+            this->intr_tbl.insert({"I2C1INT",    {0x20, 0x11, 4, 0x15, 4}});
+            register_sfr(0x10, 1, &default_write<0xff>);
+            register_sfr(0x11, 1, &default_write<0x1f>);
+            register_sfr(0x14, 1, &default_write<0xff>);
+            register_sfr(0x15, 1, &default_write<0x1f>);
+        } else {
+            register_sfr(0x10, 1, &default_write<0xff>);
+            register_sfr(0x11, 1, &default_write<3>);
+            register_sfr(0x14, 1, &default_write<0xff>);
+            register_sfr(0x15, 1, &default_write<3>);
+        }
+        break;
+    case HW_CLASSWIZ_EX:
+        this->intr_tbl.insert({"WDTINT",     {0x08, 0x00, 0, 0x14, 0}});
+        this->intr_tbl.insert({"XI0INT",     {0x0a, 0x10, 1, 0x14, 1}});
+        this->intr_tbl.insert({"XI1INT",     {0x0c, 0x10, 2, 0x14, 2}});
+        this->intr_tbl.insert({"XI2INT",     {0x0e, 0x10, 3, 0x14, 3}});
+        this->intr_tbl.insert({"XI3INT",     {0x10, 0x10, 4, 0x14, 4}});
+        this->intr_tbl.insert({"TM0INT",     {0x12, 0x10, 5, 0x14, 5}});
+        this->intr_tbl.insert({"L256SINT",   {0x14, 0x10, 6, 0x14, 6}});
+        this->intr_tbl.insert({"L1024SINT",	 {0x16, 0x10, 7, 0x14, 7}});
+        this->intr_tbl.insert({"L4096SINT",	 {0x18, 0x11, 0, 0x15, 0}});
+        this->intr_tbl.insert({"L16384SINT", {0x1a, 0x11, 1, 0x15, 1}});
+        this->intr_tbl.insert({"SIO0INT",    {0x1c, 0x11, 2, 0x15, 2}});
+        this->intr_tbl.insert({"I2C0INT",    {0x1e, 0x11, 3, 0x15, 3}});
+        this->intr_tbl.insert({"I2C1INT",    {0x20, 0x11, 4, 0x15, 4}});
+        this->intr_tbl.insert({"BENDINT",    {0x22, 0x11, 5, 0x15, 5}});
+        this->intr_tbl.insert({"BLOWINT",    {0x24, 0x11, 6, 0x15, 6}});
+        this->intr_tbl.insert({"RTCINT",     {0x26, 0x11, 7, 0x15, 7}});
+        this->intr_tbl.insert({"AL0INT",     {0x28, 0x12, 0, 0x16, 0}});
+        this->intr_tbl.insert({"AL1INT",     {0x2a, 0x12, 1, 0x16, 1}});
+        register_sfr(0x10, 2, &default_write<0xff>);
+        register_sfr(0x12, 1, &default_write<3>);
+        register_sfr(0x14, 2, &default_write<0xff>);
+        register_sfr(0x16, 1, &default_write<3>);
+        break;
     case HW_CLASSWIZ_CW:
         this->intr_tbl.insert({"WDTINT",     {0x08, 0x00, 0, 0x14, 0}});
         this->intr_tbl.insert({"XI0INT",     {0x0a, 0x10, 1, 0x14, 1}});
@@ -112,37 +178,6 @@ interrupts::interrupts(class mcu *mcu) {
         register_sfr(0x1d, 1, &default_write<0xff>);
         register_sfr(0x1e, 1, &default_write<0xbf>);
         register_sfr(0x1f, 1, &default_write<0xff>);
-        break;
-    default:
-        this->intr_tbl.insert({"WDTINT",     {0x08, 0x00, 0, 0x14, 0}});
-        this->intr_tbl.insert({"XI0INT",     {0x0a, 0x10, 1, 0x14, 1}});
-        this->intr_tbl.insert({"XI1INT",     {0x0c, 0x10, 2, 0x14, 2}});
-        this->intr_tbl.insert({"XI2INT",     {0x0e, 0x10, 3, 0x14, 3}});
-        this->intr_tbl.insert({"XI3INT",     {0x10, 0x10, 4, 0x14, 4}});
-        this->intr_tbl.insert({"TM0INT",     {0x12, 0x10, 5, 0x14, 5}});
-        this->intr_tbl.insert({"L256SINT",   {0x14, 0x10, 6, 0x14, 6}});
-        this->intr_tbl.insert({"L1024SINT",	 {0x16, 0x10, 7, 0x14, 7}});
-        this->intr_tbl.insert({"L4096SINT",	 {0x18, 0x11, 0, 0x15, 0}});
-        this->intr_tbl.insert({"L16384SINT", {0x1a, 0x11, 1, 0x15, 1}});
-        if ((this->config->hardware_id == HW_ES_PLUS && !this->config->old_esp) || this->config->hardware_id != HW_ES) {
-            this->intr_tbl.insert({"SIO0INT",    {0x1c, 0x11, 2, 0x15, 2}});
-            this->intr_tbl.insert({"I2C0INT",    {0x1e, 0x11, 3, 0x15, 3}});
-            this->intr_tbl.insert({"I2C1INT",    {0x20, 0x11, 4, 0x15, 4}});
-            this->intr_tbl.insert({"BENDINT",    {0x22, 0x11, 5, 0x15, 5}});
-            this->intr_tbl.insert({"BLOWINT",    {0x24, 0x11, 6, 0x15, 6}});
-            this->intr_tbl.insert({"RTCINT",     {0x26, 0x11, 7, 0x15, 7}});
-            this->intr_tbl.insert({"AL0INT",     {0x28, 0x12, 0, 0x16, 0}});
-            this->intr_tbl.insert({"AL1INT",     {0x2a, 0x12, 1, 0x16, 1}});
-            register_sfr(0x10, 2, &default_write<0xff>);
-            register_sfr(0x12, 1, &default_write<3>);
-            register_sfr(0x14, 2, &default_write<0xff>);
-            register_sfr(0x16, 1, &default_write<3>);
-        } else {
-            register_sfr(0x10, 1, &default_write<0xff>);
-            register_sfr(0x11, 1, &default_write<3>);
-            register_sfr(0x14, 1, &default_write<0xff>);
-            register_sfr(0x15, 1, &default_write<3>);
-        }
         break;
     }
 }

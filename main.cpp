@@ -435,10 +435,12 @@ int main(int argc, char* argv[]) {
     uint8_t *beg = rom;
     uint8_t *before = rom;
     uint8_t *cur = beg;
+    std::vector<int> swis{};
     while ((cur-beg) < romsize) {
         auto pc = cur - beg;
         std::stringstream ss{};
         decode(ss, cur, pc, mcu.interrupts);
+        if (!ss.str().rfind("SWI #")) swis.push_back(std::stoi(&ss.str()[5], NULL));
         int siz = cur - before;
         CodeElem ce{};
         switch (siz) {
@@ -463,6 +465,19 @@ int main(int argc, char* argv[]) {
         codes.push_back(ce);
         before = cur;
     }
+
+    printf("[CEMSVCDisas] Generating SWI address table\n");
+    for (CodeElem& ce : codes) {
+        if (ce.offset < 0x80 || ce.offset > 0xfe) continue;
+        auto id = (ce.offset - 0x80) >> 1;
+        if (std::find(swis.begin(), swis.end(), id) != swis.end()) {
+            auto addr = (*(uint16_t*)rom+ce.offset);
+            sprintf(ce.srcbuf+14, "SWI #%d $%04XH", id, addr);
+            LABEL_FUNCTION(addr);
+            ce.xref_operand = addr;
+        }
+    }
+
     printf("[CEMSVCDisas] Linking labels\n");
     std::optional<int> last_label{};
     std::unordered_set<int> quick_find{};
@@ -478,7 +493,7 @@ int main(int argc, char* argv[]) {
         ce.is_label = true;
         if (lb.second) {
             auto iter = labels.find(lb.first);
-            char symb[7];
+            char symb[50];
             if (iter == labels.end()) sprintf(symb, "f_%05X", lb.first);
             else strcpy_s(symb, iter->second.name.c_str());
             strcpy_s(ce.srcbuf, symb);
@@ -487,12 +502,12 @@ int main(int argc, char* argv[]) {
             last_label = lb.first;
         }
         else {
-            char symb[8];
+            char symb[50];
             if (last_label.has_value()) sprintf(symb, ".l_%03X", lb.first - last_label.value());
             else sprintf(symb, ".j_%05X", lb.first);
             strcpy_s(ce.srcbuf, symb);
             ce.offset = 0;
-            labels[lb.first] = Label{std::string(symb), false};
+            labels[lb.first] = Label{std::string(symb), false, last_label.has_value() ? last_label.value() : 0};
         }
     }
     printf("[CEMSVCDisas] Applying labels\n");
@@ -719,6 +734,7 @@ int main(int argc, char* argv[]) {
         ImGui::End();
 
         ImGui::Begin("Disassembly", NULL, 0);
+        pc_cache = (mcu.core->regs.csr << 16) | (mcu.core->regs.pc & 0xfffe);
         drawdisas();
         ImGui::End();
 
@@ -762,10 +778,10 @@ int main(int argc, char* argv[]) {
                         ImGui::TextColored(color, b.value().c_str());
                         ImGui::SetItemTooltip("%X:%04XH", v.return_addr >> 16, v.return_addr & 0xffff);
                     } else ImGui::TextColored(color, "%X:%04XH", v.return_addr >> 16, v.return_addr & 0xffff);
+                    ImGui::TableNextColumn();
+                    if (v.return_addr_ptr) ImGui::TextColored(color, "%04XH", v.return_addr_ptr);
+                    else if (!v.interrupt.interrupt_name.empty()) ImGui::TextColored(color, "[%s: %s]", v.interrupt.nmi ? "NMI" : "MI", v.interrupt.interrupt_name.c_str());
                 }
-                ImGui::TableNextColumn();
-                if (v.return_addr_ptr) ImGui::TextColored(color, "%04XH", v.return_addr_ptr);
-                else if (!v.interrupt.interrupt_name.empty()) ImGui::TextColored(color, "[%s: %s]", v.interrupt.nmi ? "NMI" : "MI", v.interrupt.interrupt_name.c_str());
             }
             ImGui::EndTable();
         }
