@@ -116,6 +116,9 @@ interrupts::interrupts(class mcu *mcu) {
         break;
     case HW_TI_MATHPRINT:
         this->intr_tbl.insert({"WDTINT",     {0x08, 0x00, 0, 0x18, 0}});
+        this->intr_tbl.insert({"UNK0a",      {0x0a}});
+        this->intr_tbl.insert({"UNK0c",      {0x0c}});
+        this->intr_tbl.insert({"UNK0e",      {0x0e}});
         this->intr_tbl.insert({"EXI0INT",    {0x10, 0x11, 0, 0x19, 0}});
         this->intr_tbl.insert({"EXI1INT",    {0x12, 0x11, 1, 0x19, 1}});
         this->intr_tbl.insert({"EXI2INT",    {0x14, 0x11, 2, 0x19, 2}});
@@ -126,6 +129,7 @@ interrupts::interrupts(class mcu *mcu) {
         this->intr_tbl.insert({"EXI7INT",    {0x1e, 0x11, 7, 0x19, 7}});
         this->intr_tbl.insert({"SIO0INT",    {0x20, 0x12, 0, 0x1a, 0}});
         this->intr_tbl.insert({"SIOF0INT",   {0x22, 0x12, 1, 0x1a, 1}});
+        this->intr_tbl.insert({"UNK24",      {0x24}});
         this->intr_tbl.insert({"I2C1INT",    {0x26, 0x12, 3, 0x1a, 3}});
         this->intr_tbl.insert({"UA0INT",     {0x28, 0x12, 4, 0x1a, 4}});
         this->intr_tbl.insert({"UA1INT",     {0x2a, 0x12, 5, 0x1a, 5}});
@@ -133,13 +137,20 @@ interrupts::interrupts(class mcu *mcu) {
         this->intr_tbl.insert({"UAF1INT",    {0x2e, 0x12, 7, 0x1a, 7}});
         this->intr_tbl.insert({"I2CF0INT",   {0x30, 0x13, 0, 0x1b, 0}});
         this->intr_tbl.insert({"I2CF1INT",   {0x32, 0x13, 1, 0x1b, 1}});
+        this->intr_tbl.insert({"UNK34",      {0x34}});
+        this->intr_tbl.insert({"UNK36",      {0x36}});
+        this->intr_tbl.insert({"UNK38",      {0x38}});
         this->intr_tbl.insert({"LOSCINT",    {0x3a, 0x13, 5, 0x1b, 5}});
         this->intr_tbl.insert({"VLSINT",     {0x3c, 0x13, 6, 0x1b, 6}});
         this->intr_tbl.insert({"MD0INT",     {0x3e, 0x13, 7, 0x1b, 7}});
         this->intr_tbl.insert({"SADINT",     {0x40, 0x14, 0, 0x1c, 0}});
         this->intr_tbl.insert({"RADINT",     {0x42, 0x14, 1, 0x1c, 1}});
+        this->intr_tbl.insert({"UNK44",      {0x44}});
+        this->intr_tbl.insert({"UNK46",      {0x46}});
         this->intr_tbl.insert({"CMP0INT",    {0x48, 0x14, 4, 0x1c, 4}});
         this->intr_tbl.insert({"CMP1INT",    {0x4a, 0x14, 5, 0x1c, 5}});
+        this->intr_tbl.insert({"UNK4c",      {0x4c}});
+        this->intr_tbl.insert({"UNK4e",      {0x4e}});
         this->intr_tbl.insert({"TM0INT",     {0x50, 0x15, 0, 0x1d, 0}});
         this->intr_tbl.insert({"TM1INT",     {0x52, 0x15, 1, 0x1d, 1}});
         this->intr_tbl.insert({"TM2INT",     {0x54, 0x15, 2, 0x1d, 2}});
@@ -154,6 +165,7 @@ interrupts::interrupts(class mcu *mcu) {
         this->intr_tbl.insert({"FTM3INT",    {0x66, 0x16, 3, 0x1e, 3}});
         this->intr_tbl.insert({"RTC1INT",    {0x68, 0x16, 4, 0x1e, 4}});
         this->intr_tbl.insert({"AL11INT",    {0x6a, 0x16, 5, 0x1e, 5}});
+        this->intr_tbl.insert({"UNK6c",      {0x6c}});
         this->intr_tbl.insert({"TM1KINT",    {0x6e, 0x16, 7, 0x1e, 7}});
         this->intr_tbl.insert({"LTB0INT",    {0x70, 0x17, 0, 0x1f, 0}});
         this->intr_tbl.insert({"LTB1INT",    {0x72, 0x17, 1, 0x1f, 1}});
