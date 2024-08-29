@@ -22,7 +22,7 @@ jobs:
       uses: msys2/setup-msys2@v2
       with:
         msystem: MINGW32
-        install: mingw-w64-i686-toolchain mingw-w64-i686-SDL2 mingw-w64-i686-SDL2_image mingw-w64-i686-stb mingw-w64-i686-ntldd
+        install: mingw-w64-i686-toolchain mingw-w64-i686-SDL2 mingw-w64-i686-SDL2_image mingw-w64-i686-stb mingw-w64-i686-ntldd mingw-w64-i686-libzip
         release: false
     
     - name: Compile
@@ -33,7 +33,7 @@ jobs:
         cd bin/release
         ntldd u8-emu-frontend-cpp.exe | grep "msys" | awk '{print $3}' | sed 's/\\/\//g' > dlls.txt
         xargs -a dlls.txt cp -t .
-        7z a u8-emu-frontend-cpp.zip u8-emu-frontend-cpp.exe *.dll
+        ziptool.exe create u8-emu-frontend-cpp.zip add u8-emu-frontend-cpp.exe add *.dll
     
     - name: Upload to Releases page
       uses: softprops/action-gh-release@v2
