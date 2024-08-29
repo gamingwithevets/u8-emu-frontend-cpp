@@ -33,13 +33,14 @@ jobs:
         cd bin/release
         ntldd u8-emu-frontend-cpp.exe | grep "msys" | awk '{print $3}' | sed 's/\\/\//g' > dlls.txt
         xargs -a dlls.txt cp -t .
-        ziptool u8-emu-frontend-cpp.zip add_dir u8-emu-frontend-cpp add u8-emu-frontend-cpp/u8-emu-frontend-cpp.exe u8-emu-frontend-cpp.exe
+        ziptool -n u8-emu-frontend-cpp.zip add_dir u8-emu-frontend-cpp add u8-emu-frontend-cpp/u8-emu-frontend-cpp.exe u8-emu-frontend-cpp.exe
         for dll in *.dll; do [ -f "$dll" ] && ziptool u8-emu-frontend-cpp.zip add "u8-emu-frontend-cpp/$dll" "$dll"; done
     
     - name: Upload to Releases page
       uses: softprops/action-gh-release@v2
       with:
+        token: {{ secrets.MY_TOKEN }}
         body: "NOTE: This is a continuous release. Binaries are rebuilt automatically when changes are made."
         name: Continuous build
         tag_name: continuous
-        files: u8-emu-frontend-cpp.zip
+        files: bin/release/u8-emu-frontend-cpp.zip
