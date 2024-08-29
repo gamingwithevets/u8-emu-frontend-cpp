@@ -880,7 +880,7 @@ int main(int argc, char* argv[]) {
         if (ImGui::TreeNode("About")) {
             ImGui::Text("u8-emu-frontend-cpp");
 #ifdef GITHUB_RUNID
-            ImGui::Text("(This version built by GH Actions - Run ID: %d)", GITHUB_RUNID);
+            ImGui::Text("(This version built by GH Actions - Run ID: %llu)", GITHUB_RUNID);
 #else
             ImGui::Text("(This version built from source)");
 #endif
