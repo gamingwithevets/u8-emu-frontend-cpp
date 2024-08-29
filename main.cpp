@@ -788,7 +788,7 @@ int main(int argc, char* argv[]) {
         }
         ImGui::End();
 
-        ImGui::Begin("Hex Editor", NULL, 0);
+        ImGui::Begin("Hex Editor", NULL, ImGuiWindowFlags_NoScrollbar);
         const char* preview = memselect[memselect_idx].c_str();
         if (ImGui::BeginCombo("##", preview)) {
             for (int n = 0; n < memselect.size(); n++) {
@@ -879,9 +879,11 @@ int main(int argc, char* argv[]) {
         }
         if (ImGui::TreeNode("About")) {
             ImGui::Text("u8-emu-frontend-cpp");
-            char *runid = getenv("GITHUB_RUNID");
-            if (runid) ImGui::Text("(This version built by GH Actions - Run ID: %s)", runid);
-            else ImGui::Text("(This version built from source)");
+#ifdef GITHUB_RUNID
+            ImGui::Text("(This version built by GH Actions - Run ID: %d)", GITHUB_RUNID);
+#else
+            ImGui::Text("(This version built from source)");
+#endif
             ImGui::Text("(c) 2024 GamingWithEvets Inc.\nLicensed under the GNU GPL-v3 license\n\nGitHub repository:\nhttps://github.com/gamingwithevets/u8-emu-frontend-cpp");
             ImGui::TreePop();
             ImGui::Spacing();
