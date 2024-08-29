@@ -1,0 +1,39 @@
+name: C/C++ CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup MSYS2
+      uses: msys2/setup-msys2@v2
+      with:
+        msystem: MINGW32
+        install: mingw-w64-i686-toolchain
+    
+    - name: Compile
+      run: mingw32-make
+    
+    - name: Add DLLs
+      run: |
+        cp $(ldd dump.exe | grep mingw32 | awk '{print $3}') .
+        7z a dump.zip dump.exe *.dll
+    
+    - name: Upload to Releases page
+      uses: softprops/action-gh-release@v2
+      with:
+        body: "NOTE: This is a continuous release. Binaries are rebuilt automatically when changes are made."
+        name: Continuous build
+        tag_name: continuous
+        files: u8-emu-frontend-cpp.zip

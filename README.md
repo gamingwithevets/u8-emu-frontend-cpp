@@ -10,7 +10,7 @@ The emulator uses the Genshit configuration format (definitely original name). T
 A Python script to convert Python configuration files to the Genshit configuration format is now provided in the u8-emu-frontend repository.
 
 ### Startup UI
-To use the startup UI, all Genshit configuration files must be placed in the `configs` directory of your current working directory.
+To use the startup UI, all Genshit configuration files must be placed in the **root** of the `configs` directory of your current working directory.
 If the directory is not found, you need to specify the path to a configuration file as a command-line argument.
 
 ## Special thanks
