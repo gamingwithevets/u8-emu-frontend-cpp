@@ -26,8 +26,7 @@ jobs:
         release: false
     
     - name: Compile
-      run: |
-        mingw32-make CXXFLAGS+=" -DGITHUB_RUNID=${{ github.run_id }}" all
+      run: mingw32-make CXXFLAGS_EX="-DGITHUB_RUNID=${{ github.run_id }}" all
     
     - name: Add DLLs
       run: |
