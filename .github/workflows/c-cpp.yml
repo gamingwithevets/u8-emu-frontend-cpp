@@ -21,6 +21,7 @@ jobs:
       with:
         msystem: MINGW32
         install: mingw-w64-i686-toolchain mingw-w64-i686-SDL2 mingw-w64-i686-SDL2_image
+        location: C:\msys64
     
     - name: Compile
       run: mingw32-make all
