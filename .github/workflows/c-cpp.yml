@@ -20,7 +20,7 @@ jobs:
       uses: msys2/setup-msys2@v2
       with:
         msystem: MINGW32
-        install: mingw-w64-i686-toolchain
+        install: mingw-w64-i686-toolchain mingw-w64-i686-SDL2 mingw-w64-i686-SDL2_image
     
     - name: Compile
       run: mingw32-make all
