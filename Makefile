@@ -8,7 +8,7 @@ BINDIR := bin/release
 
 TARGET := $(BINDIR)/u8-emu-frontend-cpp.exe
 
-CXXFLAGS := -Wall -O3 -IC:\msys64\mingw32\include\SDL2 -std=gnu++20 -fconcepts-diagnostics-depth=2 -D__LITTLE_ENDIAN__
+CXXFLAGS := -Wall -O3 -IC:\msys64\mingw32\include\SDL2 -std=gnu++20 -fconcepts-diagnostics-depth=2 -v -D__LITTLE_ENDIAN__
 LDFLAGS := -s -lmingw32 -lSDL2main -lSDL2.dll -luser32 -lgdi32 -lwinmm -ldxguid -lSDL2_image
 
 SRCS_CPP := \
