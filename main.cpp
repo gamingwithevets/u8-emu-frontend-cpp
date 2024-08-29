@@ -1,3 +1,4 @@
+#define SDL_MAIN_HANDLED
 #include <SDL.h>
 #include <SDL_image.h>
 #include <iostream>
@@ -529,7 +530,7 @@ int main(int argc, char* argv[]) {
         finals.push_back(ce);
     }
     codes = std::move(finals);
-    printf("[CEMSVC] Done!\n");
+    printf("[CEMSVCDisas] Done!\n");
     max_row = codes.size();
 
     std::thread cs_thread(core_step_loop, std::ref(stop));

@@ -22,7 +22,7 @@ jobs:
       uses: msys2/setup-msys2@v2
       with:
         msystem: MINGW32
-        install: mingw-w64-i686-toolchain mingw-w64-i686-SDL2 mingw-w64-i686-SDL2_image mingw-w64-i686-stb
+        install: mingw-w64-i686-toolchain mingw-w64-i686-SDL2 mingw-w64-i686-SDL2_image mingw-w64-i686-stb mingw-w64-i686-ntldd
         release: false
     
     - name: Compile
@@ -31,7 +31,7 @@ jobs:
     - name: Add DLLs
       run: |
         cd bin/release
-        cp $(ldd u8-emu-frontend-cpp.exe | grep mingw32 | awk '{print $3}') .
+        cp $(ntldd u8-emu-frontend-cpp.exe | grep -v "->" | awk '{print $1}') .
         7z a u8-emu-frontend-cpp.zip u8-emu-frontend-cpp.exe *.dll
     
     - name: Upload to Releases page
