@@ -877,6 +877,15 @@ int main(int argc, char* argv[]) {
             ImGui::TreePop();
             ImGui::Spacing();
         }
+        if (ImGui::TreeNode("About")) {
+            ImGui::Text("u8-emu-frontend-cpp");
+            char *runid = getenv("GITHUB_RUNID");
+            if (runid) ImGui::Text("(This version built by GH Actions - Run ID: %s)", runid);
+            else ImGui::Text("(This version built from source)");
+            ImGui::Text("(c) 2024 GamingWithEvets Inc.\nLicensed under the GNU GPL-v3 license\n\nGitHub repository:\nhttps://github.com/gamingwithevets/u8-emu-frontend-cpp");
+            ImGui::TreePop();
+            ImGui::Spacing();
+        }
         ImGui::End();
 
         ImGui::Render();

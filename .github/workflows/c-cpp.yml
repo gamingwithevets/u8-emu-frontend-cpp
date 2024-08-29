@@ -26,7 +26,9 @@ jobs:
         release: false
     
     - name: Compile
-      run: mingw32-make all
+      run: |
+        GITHUB_RUNID=${{ github.run_id }}
+        mingw32-make all
     
     - name: Add DLLs
       run: |
