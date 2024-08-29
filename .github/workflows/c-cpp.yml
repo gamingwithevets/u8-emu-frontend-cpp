@@ -33,7 +33,8 @@ jobs:
         cd bin/release
         ntldd u8-emu-frontend-cpp.exe | grep "msys" | awk '{print $3}' | sed 's/\\/\//g' > dlls.txt
         xargs -a dlls.txt cp -t .
-        ziptool.exe create u8-emu-frontend-cpp.zip add u8-emu-frontend-cpp.exe add *.dll
+        ziptool u8-emu-frontend-cpp.zip add_dir u8-emu-frontend-cpp add u8-emu-frontend-cpp/u8-emu-frontend-cpp.exe u8-emu-frontend-cpp.exe
+        for dll in *.dll; do [ -f "$dll" ] && ziptool u8-emu-frontend-cpp.zip add "u8-emu-frontend-cpp/$dll" "$dll"; done
     
     - name: Upload to Releases page
       uses: softprops/action-gh-release@v2
