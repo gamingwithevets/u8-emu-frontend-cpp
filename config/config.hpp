@@ -36,6 +36,9 @@ enum hardware_id : int {
 struct config {
     const std::string header = "Genshit configuration file v69";
 
+    // IMPORTANT!!! All file paths are relative to your CURRENT WORKING DIRECTORY,
+    // NOT the config file directory!
+
     // Emulator config
     std::string rom_file;
     std::string flash_rom_file;

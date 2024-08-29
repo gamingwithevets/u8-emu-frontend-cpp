@@ -30,7 +30,7 @@ DEP_DEBUG =
 OUT_DEBUG = bin/dbg/u8-emu-frontend-cpp
 
 INC_RELEASE = $(INC)
-CFLAGS_RELEASE = $(CFLAGS) -O3 -IC:/msys64/mingw32/include/SDL2 -std=gnu++20 -D__LITTLE_ENDIAN__
+CFLAGS_RELEASE = $(CFLAGS) -O3 -IC:/msys64/mingw32/include/SDL2 -std=gnu++20 -fconcepts-diagnostics-depth=2 -D__LITTLE_ENDIAN__
 RESINC_RELEASE = $(RESINC)
 RCFLAGS_RELEASE = $(RCFLAGS)
 LIBDIR_RELEASE = $(LIBDIR)
