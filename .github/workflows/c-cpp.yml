@@ -50,3 +50,5 @@ jobs:
         name: Continuous build
         tag_name: continuous
         files: bin/release/u8-emu-frontend-cpp.zip
+        draft: false
+        make_latest: true
