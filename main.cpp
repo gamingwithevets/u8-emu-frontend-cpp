@@ -329,7 +329,7 @@ int main(int argc, char* argv[]) {
         if (labelfile.empty()) continue;
         std::ifstream is(labelfile.c_str());
         if (!is) {
-            std::cerr << "WARNING: Cannot load label file '" << path << "': " << strerror(errno) << std::endl;
+            std::cerr << "WARNING: Cannot load label file '" << labelfile << "': " << strerror(errno) << std::endl;
             continue;
         }
         load_labels(is, 0, &labels);
