@@ -39,7 +39,7 @@ jobs:
     - name: Upload to Releases page
       uses: softprops/action-gh-release@v2
       with:
-        token: {{ secrets.MY_TOKEN }}
+        token: ${{ secrets.MY_TOKEN }}  # PAT
         body: "NOTE: This is a continuous release. Binaries are rebuilt automatically when changes are made."
         name: Continuous build
         tag_name: continuous
