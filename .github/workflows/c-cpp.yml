@@ -22,7 +22,7 @@ jobs:
       uses: msys2/setup-msys2@v2
       with:
         msystem: MINGW32
-        install: mingw-w64-i686-toolchain mingw-w64-i686-SDL2 mingw-w64-i686-SDL2_image mingw-w64-i686-stb mingw-w64-i686-ntldd mingw-w64-i686-libzip
+        install: mingw-w64-i686-gcc mingw-w64-i686-make mingw-w64-i686-SDL2 mingw-w64-i686-SDL2_image mingw-w64-i686-stb mingw-w64-i686-ntldd mingw-w64-i686-libzip
         release: false
     
     - name: Compile
@@ -36,11 +36,17 @@ jobs:
         ziptool -n u8-emu-frontend-cpp.zip add_dir u8-emu-frontend-cpp add_file u8-emu-frontend-cpp/u8-emu-frontend-cpp.exe u8-emu-frontend-cpp.exe 0 $(stat -c%s "u8-emu-frontend-cpp.exe")
         for dll in *.dll; do [ -f "$dll" ] && ziptool u8-emu-frontend-cpp.zip add_file "u8-emu-frontend-cpp/$dll" "$dll" 0 $(stat -c%s "$dll"); done
     
-    - name: Upload to Releases page
+    - name: Delete old release
+      uses: larryjoelane/delete-release-action@v1.0.24
+      with:
+        release-name: continuous
+        token: ${{ secrets.MY_TOKEN }}  # PAT
+
+    - name: Create new release
       uses: softprops/action-gh-release@v2
       with:
         token: ${{ secrets.MY_TOKEN }}  # PAT
-        body: "NOTE: This is a continuous release. Binaries are rebuilt automatically when changes are made."
+        body: "NOTE: This is a continuous release. Binaries are rebuilt automatically when changes are made.\n\nProvided binary is 32-bit."
         name: Continuous build
         tag_name: continuous
         files: bin/release/u8-emu-frontend-cpp.zip
