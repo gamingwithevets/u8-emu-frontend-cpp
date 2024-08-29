@@ -31,7 +31,8 @@ jobs:
     - name: Add DLLs
       run: |
         cd bin/release
-        cp $(ntldd u8-emu-frontend-cpp.exe | grep -v "->" | awk '{print $1}') .
+        ntldd u8-emu-frontend-cpp.exe | grep -v "=>" | awk '{print $1}' > dlls.txt
+        xargs -a dlls.txt cp -t .
         7z a u8-emu-frontend-cpp.zip u8-emu-frontend-cpp.exe *.dll
     
     - name: Upload to Releases page
