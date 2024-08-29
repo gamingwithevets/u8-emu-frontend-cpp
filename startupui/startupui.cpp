@@ -565,7 +565,7 @@ notfail:
                 }
                 ImGui::EndTable();
             }
-            ImGui::Text("Found %d models", i-199);
+            ImGui::Text("Found %d model%s", i-200, i == 201 ? "" : "s");
         }
         ImGui::End();
     }

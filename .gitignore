@@ -41,6 +41,7 @@
 *.layout
 *.txt
 *.py
+*.zip
 images
 configs/
 roms
