@@ -23,12 +23,13 @@ jobs:
         install: mingw-w64-i686-toolchain
     
     - name: Compile
-      run: mingw32-make
+      run: mingw32-make release
     
     - name: Add DLLs
       run: |
-        cp $(ldd dump.exe | grep mingw32 | awk '{print $3}') .
-        7z a dump.zip dump.exe *.dll
+        cd bin/release
+        cp $(ldd u8-emu-frontend-cpp.exe | grep mingw32 | awk '{print $3}') .
+        7z a u8-emu-frontend-cpp.zip u8-emu-frontend-cpp.exe *.dll
     
     - name: Upload to Releases page
       uses: softprops/action-gh-release@v2
