@@ -31,7 +31,7 @@ jobs:
     - name: Add DLLs
       run: |
         cd bin/release
-        ntldd u8-emu-frontend-cpp.exe | grep -v "=>" | awk '{print $1}' > dlls.txt
+        ntldd u8-emu-frontend-cpp.exe | grep "msys" | awk '{print $3}' > dlls.txt
         xargs -a dlls.txt cp -t .
         7z a u8-emu-frontend-cpp.zip u8-emu-frontend-cpp.exe *.dll
     
