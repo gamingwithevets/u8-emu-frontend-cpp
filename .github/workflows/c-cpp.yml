@@ -23,7 +23,7 @@ jobs:
         install: mingw-w64-i686-toolchain
     
     - name: Compile
-      run: mingw32-make release
+      run: mingw32-make all
     
     - name: Add DLLs
       run: |
