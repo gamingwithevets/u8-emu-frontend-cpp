@@ -6,8 +6,10 @@
 #include <type_traits>
 #include <concepts>
 #include <cstring>
+#if defined(_MSC_VER) || defined(_UCRT)
 #pragma warning(push)
 #pragma warning(disable : 4267)
+#endif
 template <class T>
 concept trivial = std::is_trivial<T>::value;
 template <class T>
@@ -125,4 +127,6 @@ public:
 			__debugbreak();
 	}
 };
+#if defined(_MSC_VER) || defined(_UCRT)
 #pragma warning(pop)
+#endif

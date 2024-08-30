@@ -1,5 +1,7 @@
 #pragma once
 
+#include <map>
+#include <vector>
 #include <cstdint>
 #include <atomic>
 #include "../config/config.hpp"
@@ -38,6 +40,7 @@ public:
     struct config *config;
 
     dlabels *labels;
+    std::map<uint16_t, int> wanted_sfrs;
 
     // Peripherals
     standby *standby;

@@ -25,7 +25,6 @@ extern "C" {
 #include "../imgui/imgui.h"
 
 //#define FLASHDEBUG
-//#define SFRDEBUG
 #define BCD
 
 mcu *mcuptr;
@@ -43,9 +42,9 @@ void write_sfr(struct u8_core *core, uint8_t seg, uint16_t addr, uint8_t val) {
     if (addr > 0xfff) printf("WARNING: Overflown write @ %04XH\nCSR:PC = %X:%04XH (after write)\n", (addr + 0xf000) & 0xffff, core->regs.csr, core->regs.pc);
     else if (mcuptr->sfr_write[addr]) mcuptr->sfr[addr] = mcuptr->sfr_write[addr](mcuptr, addr, val);
     else {
-#ifdef SFRDEBUG
-        printf("Write to unmapped SFR %04XH\nCSR:PC = %X:%04XH (after write)\n", addr + 0xf000, core->regs.csr, core->regs.pc);
-#endif
+        addr += 0xf000;
+        if (mcuptr->wanted_sfrs.find(addr) == mcuptr->wanted_sfrs.end()) mcuptr->wanted_sfrs.insert({addr, 1});
+        else ++mcuptr->wanted_sfrs[addr];
     }
 }
 

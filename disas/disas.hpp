@@ -127,7 +127,7 @@ disasstart:
 	if ((buf[0] & 0b00000000) == 0b00000000 && (buf[1] & 0b11110000) == 0b00010000) {
 		int i = buf[0] >> 0 & 0b11111111, n = buf[1] >> 0 & 0b1111;
 		buf += 2;
-		out << "ADD R" << (n) << ", " << tohex(i, 2);
+		out << "ADD R" << (n) << ", #" << tohex(i, 2);
 		return;
 	}
 	if ((buf[0] & 0b00011111) == 0b00000110 && (buf[1] & 0b11110001) == 0b11110000) {
@@ -138,7 +138,7 @@ disasstart:
 	}
 	if ((buf[0] & 0b10000000) == 0b10000000 && (buf[1] & 0b11110001) == 0b11100000) {
 		int i = buf[0] >> 0 & 0b1111111, n = buf[1] >> 1 & 0b111;
-		out << "ADD ER" << (n * 2) << ", " << (i << 25 >> 25);
+		out << "ADD ER" << (n * 2) << ", #" << (i << 25 >> 25);
 		buf += 2;
 		return;
 	}
@@ -150,7 +150,7 @@ disasstart:
 	}
 	if ((buf[0] & 0b00000000) == 0b00000000 && (buf[1] & 0b11110000) == 0b01100000) {
 		int i = buf[0] >> 0 & 0b11111111, n = buf[1] >> 0 & 0b1111;
-		out << "ADDC R" << (n) << ", " << (i);
+		out << "ADDC R" << (n) << ", #" << (i);
 		buf += 2;
 		return;
 	}
@@ -162,7 +162,7 @@ disasstart:
 	}
 	if ((buf[0] & 0b00000000) == 0b00000000 && (buf[1] & 0b11110000) == 0b00100000) {
 		int i = buf[0] >> 0 & 0b11111111, n = buf[1] >> 0 & 0b1111;
-		out << "AND R" << (n) << ", " << tohex(i, 2);
+		out << "AND R" << (n) << ", #" << tohex(i, 2);
 		buf += 2;
 		return;
 	}
@@ -175,7 +175,7 @@ disasstart:
 	if ((buf[0] & 0b00000000) == 0b00000000 && (buf[1] & 0b11110000) == 0b01110000) {
 		int i = buf[0] >> 0 & 0b11111111, n = buf[1] >> 0 & 0b1111;
 		buf += 2;
-		out << "CMP R" << (n) << ", " << tohex(i, 2);
+		out << "CMP R" << (n) << ", #" << tohex(i, 2);
 		return;
 	}
 	if ((buf[0] & 0b00001111) == 0b00000101 && (buf[1] & 0b11110000) == 0b10000000) {
@@ -186,7 +186,7 @@ disasstart:
 	}
 	if ((buf[0] & 0b00000000) == 0b00000000 && (buf[1] & 0b11110000) == 0b01010000) {
 		int i = buf[0] >> 0 & 0b11111111, n = buf[1] >> 0 & 0b1111;
-		out << "CMPC R" << (n) << ", "<< tohex(i, 2);
+		out << "CMPC R" << (n) << ", #" << tohex(i, 2);
 		buf += 2;
 		return;
 	}
@@ -198,7 +198,7 @@ disasstart:
 	}
 	if ((buf[0] & 0b10000000) == 0b00000000 && (buf[1] & 0b11110001) == 0b11100000) {
 		int i = buf[0] >> 0 & 0b1111111, n = buf[1] >> 1 & 0b111;
-		out << "MOV ER" << (n * 2) << ", "<< tohex(i, 2);
+		out << "MOV ER" << (n * 2) << ", #"<< tohex(i, 2);
 		buf += 2;
 		return;
 	}
@@ -210,7 +210,7 @@ disasstart:
 	}
 	if ((buf[0] & 0b00000000) == 0b00000000 && (buf[1] & 0b11110000) == 0b00000000) {
 		int i = buf[0] >> 0 & 0b11111111, n = buf[1] >> 0 & 0b1111;
-		out << "MOV R" << (n) << ", " << tohex(i, 2);
+		out << "MOV R" << (n) << ", #" << tohex(i, 2);
 		buf += 2;
 		return;
 	}
@@ -222,7 +222,7 @@ disasstart:
 	}
 	if ((buf[0] & 0b00000000) == 0b00000000 && (buf[1] & 0b11110000) == 0b00110000) {
 		int i = buf[0] >> 0 & 0b11111111, n = buf[1] >> 0 & 0b1111;
-		out << "OR R" << (n) << ", " << tohex(i, 2);
+		out << "OR R" << (n) << ", #" << tohex(i, 2);
 		buf += 2;
 		return;
 	}
@@ -234,7 +234,7 @@ disasstart:
 	}
 	if ((buf[0] & 0b00000000) == 0b00000000 && (buf[1] & 0b11110000) == 0b01000000) {
 		int i = buf[0] >> 0 & 0b11111111, n = buf[1] >> 0 & 0b1111;
-		out << "XOR R" << (n) << ", " << tohex(i, 2);
+		out << "XOR R" << (n) << ", #" << tohex(i, 2);
 		buf += 2;
 		return;
 	}
@@ -264,7 +264,7 @@ disasstart:
 	}
 	if ((buf[0] & 0b10001111) == 0b00001010 && (buf[1] & 0b11110000) == 0b10010000) {
 		int n = buf[1] >> 0 & 0b1111, w = buf[0] >> 4 & 0b111;
-		out << "SLL R" << (n) << ", " << (w);
+		out << "SLL R" << (n) << ", #" << (w);
 		buf += 2;
 		return;
 	}
@@ -276,7 +276,7 @@ disasstart:
 	}
 	if ((buf[0] & 0b10001111) == 0b00001011 && (buf[1] & 0b11110000) == 0b10010000) {
 		int n = buf[1] >> 0 & 0b1111, w = buf[0] >> 4 & 0b111;
-		out << "SLLC R" << (n) << ", " << (w);
+		out << "SLLC R" << (n) << ", #" << (w);
 		buf += 2;
 		return;
 	}
@@ -288,7 +288,7 @@ disasstart:
 	}
 	if ((buf[0] & 0b10001111) == 0b00001110 && (buf[1] & 0b11110000) == 0b10010000) {
 		int n = buf[1] >> 0 & 0b1111, w = buf[0] >> 4 & 0b111;
-		out << "SRA R" << (n) << ", " << (w);
+		out << "SRA R" << (n) << ", #" << (w);
 		buf += 2;
 		return;
 	}
@@ -300,7 +300,7 @@ disasstart:
 	}
 	if ((buf[0] & 0b10001111) == 0b00001100 && (buf[1] & 0b11110000) == 0b10010000) {
 		int n = buf[1] >> 0 & 0b1111, w = buf[0] >> 4 & 0b111;
-		out << "SRL R" << (n) << ", " << (w);
+		out << "SRL R" << (n) << ", #" << (w);
 		buf += 2;
 		return;
 	}
@@ -312,7 +312,7 @@ disasstart:
 	}
 	if ((buf[0] & 0b10001111) == 0b00001101 && (buf[1] & 0b11110000) == 0b10010000) {
 		int n = buf[1] >> 0 & 0b1111, w = buf[0] >> 4 & 0b111;
-		out << "SRLC R" << (n) << ", " << (w);
+		out << "SRLC R" << (n) << ", #" << (w);
 		buf += 2;
 		return;
 	}
@@ -336,13 +336,13 @@ disasstart:
 	}
 	if ((buf[0] & 0b11000000) == 0b00000000 && (buf[1] & 0b11110001) == 0b10110000) {
 		int D = buf[0] >> 0 & 0b111111, n = buf[1] >> 1 & 0b111;
-		out << "L ER" << (n * 2) << ", " << dsr_prefix << "ER12[" << (signedtohex(D, 6)) << "]";
+		out << "L ER" << (n * 2) << ", " << dsr_prefix << (signedtohex(D, 6)) << "[BP]";
 		buf += 2;
 		return;
 	}
 	if ((buf[0] & 0b11000000) == 0b01000000 && (buf[1] & 0b11110001) == 0b10110000) {
 		int D = buf[0] >> 0 & 0b111111, n = buf[1] >> 1 & 0b111;
-		out << "L ER" << (n * 2) << ", " << dsr_prefix << "ER14[" << (signedtohex(D, 6)) << "]";
+		out << "L ER" << (n * 2) << ", " << dsr_prefix << (signedtohex(D, 6)) << "[FP]";
 		buf += 2;
 		return;
 	}
@@ -366,13 +366,13 @@ disasstart:
 	}
 	if ((buf[0] & 0b11000000) == 0b00000000 && (buf[1] & 0b11110000) == 0b11010000) {
 		int D = buf[0] >> 0 & 0b111111, n = buf[1] >> 0 & 0b1111;
-		out << "L R" << (n) << ", " << dsr_prefix << "ER12[" << (signedtohex(D, 6)) << "]";
+		out << "L R" << (n) << ", " << dsr_prefix << (signedtohex(D, 6)) << "[BP]";
 		buf += 2;
 		return;
 	}
 	if ((buf[0] & 0b11000000) == 0b01000000 && (buf[1] & 0b11110000) == 0b11010000) {
 		int D = buf[0] >> 0 & 0b111111, n = buf[1] >> 0 & 0b1111;
-		out << "L R" << (n) << ", " << dsr_prefix << "ER14[" << (signedtohex(D, 6)) << "]";
+		out << "L R" << (n) << ", " << dsr_prefix << (signedtohex(D, 6)) << "[FP]";
 		buf += 2;
 		return;
 	}
@@ -420,13 +420,13 @@ disasstart:
 	}
 	if ((buf[0] & 0b11000000) == 0b10000000 && (buf[1] & 0b11110001) == 0b10110000) {
 		int D = buf[0] >> 0 & 0b111111, n = buf[1] >> 1 & 0b111;
-		out << "ST ER" << (n * 2) << ", " << dsr_prefix << "ER12[" << (signedtohex(D, 6)) << "]";
+		out << "ST ER" << (n * 2) << ", " << dsr_prefix << (signedtohex(D, 6)) << "[BP]";
 		buf += 2;
 		return;
 	}
 	if ((buf[0] & 0b11000000) == 0b11000000 && (buf[1] & 0b11110001) == 0b10110000) {
 		int D = buf[0] >> 0 & 0b111111, n = buf[1] >> 1 & 0b111;
-		out << "ST ER" << (n * 2) << ", " << dsr_prefix << "ER14[" << (signedtohex(D, 6)) << "]";
+		out << "ST ER" << (n * 2) << ", " << dsr_prefix << (signedtohex(D, 6)) << "[FP]";
 		buf += 2;
 		return;
 	}
@@ -450,13 +450,13 @@ disasstart:
 	}
 	if ((buf[0] & 0b11000000) == 0b10000000 && (buf[1] & 0b11110000) == 0b11010000) {
 		int D = buf[0] >> 0 & 0b111111, n = buf[1] >> 0 & 0b1111;
-		out << "ST R" << (n) << ", " << dsr_prefix << "ER12[" << (signedtohex(D, 6)) << "]";
+		out << "ST R" << (n) << ", " << dsr_prefix << (signedtohex(D, 6)) << "[BP]";
 		buf += 2;
 		return;
 	}
 	if ((buf[0] & 0b11000000) == 0b11000000 && (buf[1] & 0b11110000) == 0b11010000) {
 		int D = buf[0] >> 0 & 0b111111, n = buf[1] >> 0 & 0b1111;
-		out << "ST R" << (n) << ", " << dsr_prefix << "ER14[" << (signedtohex(D, 6)) << "]";
+		out << "ST R" << (n) << ", " << dsr_prefix << (signedtohex(D, 6)) << "[FP]";
 		buf += 2;
 		return;
 	}
@@ -528,7 +528,7 @@ disasstart:
 	}
 	if ((buf[0] & 0b00000000) == 0b00000000 && (buf[1] & 0b11111111) == 0b11101001) {
 		int i = buf[0] >> 0 & 0b11111111;
-		out << "MOV PSW, " << (i);
+		out << "MOV PSW, #" << (i);
 		buf += 2;
 		return;
 	}
@@ -582,11 +582,12 @@ disasstart:
 	}
 	if ((buf[0] & 0b11111111) == 0b11001110 && (buf[1] & 0b11110000) == 0b11110000) {
 		int l = buf[1] >> 3 & 0b1, e = buf[1] >> 2 & 0b1, p = buf[1] >> 1 & 0b1, a = buf[1] & 0b1;
-		out << "PUSH "
-			<< (l ? "LR " : "")
-			<< (e ? "EPSW " : "")
-			<< (p ? "ELR " : "")
-			<< (a ? "EA " : "");
+		int regcount = 0;
+		out << "PUSH ";
+		if (p) { out << "ELR"; ++regcount; }
+		if (e) { out << (regcount ? ", " : "") << "EPSW"; ++regcount; }
+		if (l) { out << (regcount ? ", " : "") << "LR"; ++regcount; }
+		if (a) { out << (regcount ? ", " : "") << "EA"; ++regcount; }
 		buf += 2;
 		return;
 	}
@@ -616,12 +617,13 @@ disasstart:
 	}
 	if ((buf[0] & 0b11111111) == 0b10001110 && (buf[1] & 0b11110000) == 0b11110000) {
 		int l = buf[1] >> 3 & 0b1, e = buf[1] >> 2 & 0b1, p = buf[1] >> 1 & 0b1, a = buf[1] & 0b1;
-		out << "POP "
-			<< (l ? "LR " : "")
-			<< (e ? "PSW " : "")
-			<< (p ? "PC " : "")
-			<< (a ? "EA " : "");
+		int regcount = 0;
+		out << "POP ";
+		if (a) { out << "EA"; ++regcount; }
+		if (l) { out << (regcount ? ", " : "") << "LR"; ++regcount; }
+		if (e) { out << (regcount ? ", " : "") << "PSW"; ++regcount; }
 		if (p) {
+            out << (regcount ? ", " : "") << "PC"; ++regcount;
 			// in this case, we dont hope the controlflow gets extended, lets just define a funciton at next instruction
 			LABEL_FUNCTION(pc + 2);
 		}
@@ -861,12 +863,12 @@ disasstart:
 		return;
 	}
 	if ((buf[0] & 0b11111111) == 0b00101111 && (buf[1] & 0b11111111) == 0b11111110) {
-		out << "INC [EA]";
+		out << "INC " << dsr_prefix << "[EA]";
 		buf += 2;
 		return;
 	}
 	if ((buf[0] & 0b11111111) == 0b00111111 && (buf[1] & 0b11111111) == 0b11111110) {
-		out << "DEC [EA]";
+		out << "DEC " << dsr_prefix << "[EA]";
 		buf += 2;
 		return;
 	}
@@ -889,7 +891,7 @@ disasstart:
 	}
 	if ((buf[0] & 0b00011111) == 0b00001000 && (buf[1] & 0b11110001) == 0b10100000 && (buf[2] & 0b00000000) == 0b00000000 && (buf[3] & 0b00000000) == 0b00000000) {
 		int D = buf[2] >> 0 & 0b11111111, E = buf[3] >> 0 & 0b11111111, m = buf[0] >> 5 & 0b111, n = buf[1] >> 1 & 0b111;
-		out << "L ER" << (n * 2) << ", " << dsr_prefix << "ER" << (m * 2) << "[" << (signedtohex(E * 256 + D, 16)) << "]";
+		out << "L ER" << (n * 2) << ", " << dsr_prefix << (signedtohex(E * 256 + D, 16)) << "[" << "ER" << (m * 2) << "]";
 		buf += 4;
 		return;
 	}
@@ -901,7 +903,7 @@ disasstart:
 	}
 	if ((buf[0] & 0b00011111) == 0b00001000 && (buf[1] & 0b11110000) == 0b10010000 && (buf[2] & 0b00000000) == 0b00000000 && (buf[3] & 0b00000000) == 0b00000000) {
 		int D = buf[2] >> 0 & 0b11111111, E = buf[3] >> 0 & 0b11111111, m = buf[0] >> 5 & 0b111, n = buf[1] >> 0 & 0b1111;
-		out << "L R" << (n) << ", " << dsr_prefix << "ER" << (m * 2) << "[" << (signedtohex(E * 256 + D, 16)) << "]";
+		out << "L R" << (n) << ", " << dsr_prefix << (signedtohex(E * 256 + D, 16)) << "[" << "ER" << (m * 2) << "]";
 		buf += 4;
 		return;
 	}
@@ -913,7 +915,7 @@ disasstart:
 	}
 	if ((buf[0] & 0b00011111) == 0b00001001 && (buf[1] & 0b11110001) == 0b10100000 && (buf[2] & 0b00000000) == 0b00000000 && (buf[3] & 0b00000000) == 0b00000000) {
 		int D = buf[2] >> 0 & 0b11111111, E = buf[3] >> 0 & 0b11111111, m = buf[0] >> 5 & 0b111, n = buf[1] >> 1 & 0b111;
-		out << "ST ER" << (n * 2) << ", " << dsr_prefix << "ER" << (m * 2) << "[" << (signedtohex(E * 256 + D, 16)) << "]";
+		out << "ST ER" << (n * 2) << ", " << dsr_prefix << (signedtohex(E * 256 + D, 16)) << "[" << "ER" << (m * 2) << "]";
 		buf += 4;
 		return;
 	}
@@ -925,7 +927,7 @@ disasstart:
 	}
 	if ((buf[0] & 0b00011111) == 0b00001001 && (buf[1] & 0b11110000) == 0b10010000 && (buf[2] & 0b00000000) == 0b00000000 && (buf[3] & 0b00000000) == 0b00000000) {
 		int D = buf[2] >> 0 & 0b11111111, E = buf[3] >> 0 & 0b11111111, m = buf[0] >> 5 & 0b111, n = buf[1] >> 0 & 0b1111;
-		out << "ST R" << (n) << ", " << dsr_prefix << "ER" << (m * 2) << "[" << (signedtohex(E * 256 + D, 16)) << "]";
+		out << "ST R" << (n) << ", " << dsr_prefix << (signedtohex(E * 256 + D, 16)) << "[" << "ER" << (m * 2) << "]";
 		buf += 4;
 		return;
 	}
@@ -937,7 +939,7 @@ disasstart:
 	}
 	if ((buf[0] & 0b00011111) == 0b00001011 && (buf[1] & 0b11111111) == 0b11110000 && (buf[2] & 0b00000000) == 0b00000000 && (buf[3] & 0b00000000) == 0b00000000) {
 		int D = buf[2] >> 0 & 0b11111111, E = buf[3] >> 0 & 0b11111111, m = buf[0] >> 5 & 0b111;
-		out << "LEA ER" << (m * 2) << "[" << (signedtohex(E * 256 + D, 16)) << "]";
+		out << "LEA " + (signedtohex(E * 256 + D, 16)) << "[" << "ER" << (m * 2) << "]";
 		buf += 4;
 		return;
 	}

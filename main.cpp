@@ -15,6 +15,7 @@
 #include <iomanip>
 #include <ctime>
 #include <unordered_set>
+#include <format>
 
 #include "mcu/mcu.hpp"
 #include "mcu/datalabels.hpp"
@@ -95,6 +96,13 @@ std::optional<std::string> get_instruction_label(std::map<uint32_t, Label>& labe
     if (offset != 0) result += "+" + offset_str.str();
 
     return result;
+}
+
+std::string get_instruction_label2(std::map<uint32_t, Label>& labels, uint8_t csr, uint16_t pc) {
+    std::string addr_fmt = std::format("{:X}:{:04X}H", csr, pc);
+    auto label = get_instruction_label(labels, (csr << 16) | pc);
+    if (label.has_value()) return label.value() + " (" + addr_fmt + ")";
+    else return addr_fmt;
 }
 
 // TODO: Move this to another script!
@@ -396,7 +404,7 @@ int main(int argc, char* argv[]) {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_DockingEnable;
 
     ImGui::StyleColorsDark();
 
@@ -472,7 +480,7 @@ int main(int argc, char* argv[]) {
         if (ce.offset < 0x80 || ce.offset > 0xfe) continue;
         auto id = (ce.offset - 0x80) >> 1;
         if (std::find(swis.begin(), swis.end(), id) != swis.end()) {
-            auto addr = (*(uint16_t*)rom+ce.offset);
+            auto addr = (*(uint16_t*)(rom+ce.offset));
             sprintf(ce.srcbuf+14, "SWI #%d $%04XH", id, addr);
             LABEL_FUNCTION(addr);
             ce.xref_operand = addr;
@@ -605,9 +613,7 @@ int main(int argc, char* argv[]) {
             ImGui::TableSetColumnIndex(0);
             ImGui::Text("CSR:PC");
             ImGui::TableNextColumn();
-            auto a = get_instruction_label(labels, (core.regs.csr << 16) | core.regs.pc);
-            if (a.has_value()) ImGui::Text("%s (%X:%04XH)", a.value().c_str(), core.regs.csr, core.regs.pc);
-            else ImGui::Text("%X:%04XH", core.regs.csr, core.regs.pc);
+            ImGui::Text(get_instruction_label2(labels, core.regs.csr, core.regs.pc).c_str());
 
             ImGui::TableNextRow();
             ImGui::TableSetColumnIndex(0);
@@ -788,6 +794,23 @@ int main(int argc, char* argv[]) {
         }
         ImGui::End();
 
+        ImGui::Begin("WANTED!", NULL, 0);
+        ImGui::Text("The following SFRs need registering!");
+        if (ImGui::BeginTable("wanted", 2)) {
+            ImGui::TableSetupColumn("SFR address");
+            ImGui::TableSetupColumn("Write count");
+            ImGui::TableHeadersRow();
+            for (const auto &[k, v] : mcu.wanted_sfrs) {
+                ImGui::TableNextRow();
+                ImGui::TableSetColumnIndex(0);
+                ImGui::Text("%04XH", k);
+                ImGui::TableNextColumn();
+                ImGui::Text("%d", v);
+            }
+            ImGui::EndTable();
+        }
+        ImGui::End();
+
         ImGui::Begin("Hex Editor", NULL, ImGuiWindowFlags_NoScrollbar);
         const char* preview = memselect[memselect_idx].c_str();
         if (ImGui::BeginCombo("##", preview)) {
@@ -880,10 +903,23 @@ int main(int argc, char* argv[]) {
         if (ImGui::TreeNode("About")) {
             ImGui::Text("u8-emu-frontend-cpp");
 #ifdef GITHUB_RUNID
-            ImGui::Text("(This version built by GH Actions - Run ID: %llu)", GITHUB_RUNID);
-#else
-            ImGui::Text("(This version built from source)");
+            ImGui::Text("GitHub Actions build - Run ID: %llu", GITHUB_RUNID);
 #endif
+            ImGui::Text("Build time: %s %s", __DATE__, __TIME__);
+            ImGui::Spacing();
+            SDL_version compiled, linked;
+            SDL_VERSION(&compiled);
+            SDL_GetVersion(&linked);
+#ifdef _MSVC_LANG
+            ImGui::Text("C++ standard library version: %ld", _MSVC_LANG);
+#else
+            ImGui::Text("C++ standard library version: %ld", __cplusplus);
+#endif
+            ImGui::Text("SDL2 compiled version: %u.%u.%u", compiled.major, compiled.minor, compiled.patch);
+            ImGui::Text("SDL2 linked version: %u.%u.%u", linked.major, linked.minor, linked.patch);
+            ImGui::Text("Dear ImGui version: %s (%d)", IMGUI_VERSION, IMGUI_VERSION_NUM);
+
+            ImGui::Spacing();
             ImGui::Text("(c) 2024 GamingWithEvets Inc.\nLicensed under the GNU GPL-v3 license\n\nGitHub repository:\nhttps://github.com/gamingwithevets/u8-emu-frontend-cpp");
             ImGui::TreePop();
             ImGui::Spacing();
