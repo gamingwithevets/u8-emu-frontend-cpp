@@ -920,7 +920,14 @@ int main(int argc, char* argv[]) {
             ImGui::Text("Dear ImGui version: %s (%d)", IMGUI_VERSION, IMGUI_VERSION_NUM);
 
             ImGui::Spacing();
-            ImGui::Text("(c) 2024 GamingWithEvets Inc.\nLicensed under the GNU GPL-v3 license\n\nGitHub repository:\nhttps://github.com/gamingwithevets/u8-emu-frontend-cpp");
+            ImGui::Text("Special thanks:\nXyzst\ntelecomadm1145\nDelta / frsr\nThe Casio Calculator Hacking community");
+
+            const char *build_date = __DATE__;
+            int year = atoi(build_date + 7);
+            ImGui::Spacing();
+            char years[10] = "2024";
+            if (year > 2024) sprintf(years+4, "-%d", year);
+            ImGui::Text("(c) %s GamingWithEvets Inc.\nLicensed under the GNU GPL-v3 license\n\nGitHub repository:\nhttps://github.com/gamingwithevets/u8-emu-frontend-cpp");
             ImGui::TreePop();
             ImGui::Spacing();
         }
