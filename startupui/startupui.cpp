@@ -315,7 +315,7 @@ inline char* stristr(const char* str1, const char* str2) {
 
 	return *p2 == 0 ? (char*)r : 0;
 }
-inline std::string tohex(int n, int len) {
+inline std::string _tohex(int n, int len) {
 	std::string retval = "";
 	for (int x = 0; x < len; x++) {
 		retval = "0123456789ABCDEF"[n & 0xF] + retval;
@@ -323,7 +323,7 @@ inline std::string tohex(int n, int len) {
 	}
 	return retval;
 }
-inline std::string tohex(unsigned long long n, int len) {
+inline std::string _tohex(unsigned long long n, int len) {
 	std::string retval = "";
 	for (int x = 0; x < len; x++) {
 		retval = "0123456789ABCDEF"[n & 0xF] + retval;
@@ -494,10 +494,10 @@ notfail:
                 mod.version = ri.ver;
                 mod.pd_value = mi.pd_value;
                 if (ri.ok) {
-                    mod.checksum = tohex(ri.real_sum, 4);
-                    mod.checksum2 = tohex(ri.desired_sum, 4);
+                    mod.checksum = _tohex(ri.real_sum, 4);
+                    mod.checksum2 = _tohex(ri.desired_sum, 4);
                     mod.sum_good = ri.real_sum == ri.desired_sum ? "OK" : "NG";
-                    mod.id = tohex(*(unsigned long long*)ri.cid, 8);
+                    mod.id = _tohex(*(unsigned long long*)ri.cid, 8);
                 }
                 else {
                     mod.show_sum = false;

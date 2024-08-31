@@ -51,7 +51,7 @@ inline std::string tobin(int n, int len) {
 		retval = "01"[n & 1] + retval;
 		n >>= 1;
 	}
-	return retval;
+	return retval + "B";
 }
 
 inline void LABEL_FUNCTION(auto x) {
