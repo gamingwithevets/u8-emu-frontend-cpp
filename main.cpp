@@ -405,6 +405,7 @@ int main(int argc, char* argv[]) {
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_DockingEnable;
+    io.ConfigDockingWithShift = false;
 
     ImGui::StyleColorsDark();
 
@@ -613,7 +614,8 @@ int main(int argc, char* argv[]) {
             ImGui::TableSetColumnIndex(0);
             ImGui::Text("CSR:PC");
             ImGui::TableNextColumn();
-            ImGui::Text(get_instruction_label2(labels, core.regs.csr, core.regs.pc).c_str());
+            if (ImGui::Selectable(get_instruction_label2(labels, core.regs.csr, core.regs.pc).c_str()))
+                JumpTo((mcu.core->regs.csr << 16) | mcu.core->regs.pc);
 
             ImGui::TableNextRow();
             ImGui::TableSetColumnIndex(0);
@@ -878,7 +880,8 @@ int main(int argc, char* argv[]) {
             }
             ImGui::Checkbox("Pause/Single-step", &single_step);
             if (single_step) {
-                if (ImGui::Button("Step")) mcu.core_step();
+                ImGui::Button("Step");
+                if (ImGui::IsItemActive()) mcu.core_step();
             }
             ImGui::TreePop();
             ImGui::Spacing();

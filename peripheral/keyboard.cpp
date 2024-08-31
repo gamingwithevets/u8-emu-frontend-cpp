@@ -108,6 +108,8 @@ void keyboard::process_event(const SDL_Event *e) {
     for (int i = 0; i < SDL_NUM_SCANCODES; ++i) {
         if (keystates[i] != 0) return;
     }
+    if (SDL_GetGlobalMouseState(NULL, NULL) & SDL_BUTTON_LMASK) return;
+
     this->held_buttons.clear();
     this->enable_keypress = true;
 

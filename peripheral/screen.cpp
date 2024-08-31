@@ -77,16 +77,53 @@ uint8_t draw_screen_cw(mcu *mcu, uint16_t addr, uint8_t val) {
 }
 
 uint8_t draw_screen_solarii(mcu *mcu, uint16_t addr, uint8_t val) {
-    int y = (int)((addr - 0x800) / 8);
-    int x = ((addr - 0x800) % 8) * 8;
-    SDL_Rect rect;
-    int j;
+    int col = (addr - 0x800) / 8;
 
-    for (int i = 7; i >= 0; i--) {
-        j = ~i & 7;
-        rect = {(x+j) * mcu->config->pix_w, y * mcu->config->pix_h, mcu->config->pix_w, mcu->config->pix_h};
-        SDL_FillRect(mcu->screen->display, &rect, (val & (1 << i)) ? BLACK_COLOR : NO_COLOR);
+    const int offset = 0;
+    const int offset_h = 5;
+    const int small_offset = 0;
+    const auto n = [](class mcu *mcu, int i, int j) {
+        return i < 11 ? mcu->config->pix_w*(5*i+offset+j) : mcu->config->pix_w*(11*5+offset) + mcu->config->pix_h*(small_offset+5*(i-11)+j);
+    };
+
+    int i = (addr & 7)*2;
+    if (i > 1) --i;
+    if (i == 11) ++i;
+
+    int pix;
+    SDL_Rect rect;
+    for (int a = 6; a >= 0; a--) {
+        if (a == 3) {
+            if (i) ++i;
+            continue;
+        }
+        pix = i < 11 ? mcu->config->pix_w : mcu->config->pix_h;
+
+        rect = {0, 0, 0, 0};
+        if (i == 0 && col == 1 && a == 1)       rect = {n(mcu,i,1)  , offset_h + pix*5, pix*2, pix};
+        else if (i == 12 && col == 2 && a == 6) rect = {n(mcu,i-1,1), offset_h + pix*5, pix*2, pix};
+        else if (i != 0) switch(a) {
+        case 6:
+        case 2:
+            if (col == 0)      rect = {n(mcu,i,0), offset_h + pix   , pix, pix*4};
+            else if (col == 1) rect = {n(mcu,i,0), offset_h + pix*6 , pix, pix*4};
+            break;
+        case 5:
+        case 1:
+            if (col == 0)      rect = {n(mcu,i,1), offset_h         , pix*2, pix};
+            else if (col == 1) rect = {n(mcu,i,1), offset_h + pix*5 , pix*2, pix};
+            else if (col == 2) rect = {n(mcu,i,1), offset_h + pix*10, pix*2, pix};
+            break;
+        case 4:
+        case 0:
+            if (col == 0)                rect = {n(mcu,i,3), offset_h + pix   , pix, pix*4};
+            else if (col == 1)           rect = {n(mcu,i,3), offset_h + pix*6 , pix, pix*4};
+            else if (col == 2 && i < 11) rect = {n(mcu,i,4), offset_h + pix*11, pix, pix};
+            break;
+        }
+        SDL_FillRect(mcu->screen->display, &rect, (val & (1 << a)) ? BLACK_COLOR : NO_COLOR);
     }
+
     return val & 0x77;
 }
 
@@ -175,8 +212,8 @@ screen::screen(class mcu *mcu) {
         this->height = 64;
         break;
     case HW_SOLAR_II:
-        this->width = 64;
-        this->height = 13;
+        this->width = 65;
+        this->height = 20;
 
         this->status_bar_bits.push_back({0x11, 6}); // SHIFT
         this->status_bar_bits.push_back({0x11, 2}); // MODE
@@ -272,8 +309,7 @@ SDL_Surface *screen::get_surface(uint32_t background) {
         if (!this->mcu->ti_screen_addr) return tmp;
         if (this->mcu->ti_screen_changed) {
             SDL_FillRect(this->display, NULL, NO_COLOR);
-            for (int y = 0; y < 192; y++) {
-                int yinv = ~y & 191;
+            for (int y = 0; y < 192; y++)
                 for (int x = 0; x < 8; x++) {
                     SDL_Rect k;
                     for (int i = 7; i >= 0; i--) {
@@ -281,7 +317,6 @@ SDL_Surface *screen::get_surface(uint32_t background) {
                         if (this->mcu->ram[this->mcu->ti_screen_addr+y*8+x] & (1 << i)) SDL_FillRect(this->display, &k, BLACK_COLOR);
                     }
                 }
-            }
             this->mcu->ti_screen_changed = false;
         }
 
@@ -291,7 +326,7 @@ SDL_Surface *screen::get_surface(uint32_t background) {
 
         return tmp;
     } else {
-        SDL_Surface *tmp = SDL_CreateRGBSurface(0, this->width*this->config->pix_w, this->height*this->config->pix_h+this->sbar_hi, 32, 0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000);
+        SDL_Surface *tmp = SDL_CreateRGBSurface(0, this->status_bar ? this->status_bar->w : this->display->w, this->height*this->config->pix_h+this->sbar_hi, 32, 0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000);
         SDL_FillRect(tmp, NULL, background);
         SDL_Rect dispsrc, dispdest;
         int src = this->config->hardware_id == HW_SOLAR_II ? 0 : this->config->pix_h;
@@ -308,8 +343,8 @@ SDL_Surface *screen::get_surface(uint32_t background) {
             dispdest = {0, 0, this->config->pix_w, this->config->pix_h};
             SDL_BlitSurface(this->display, &dispsrc, tmp, &dispdest);
         }
-        dispsrc = {0, src, this->width*this->config->pix_w, hi*this->config->pix_h};
-        dispdest = {0, this->sbar_hi, this->width*this->config->pix_w, hi*this->config->pix_h};
+        dispsrc = {0, src, this->display->w, hi*this->config->pix_h};
+        dispdest = {0, this->sbar_hi, this->display->w, hi*this->config->pix_h};
 
         if ((this->mcu->sfr[0x31] & 0xf) == 5) SDL_BlitSurface(this->display, &dispsrc, tmp, &dispdest);
 
@@ -321,14 +356,12 @@ void screen::render(SDL_Renderer *renderer) {
     SDL_Surface* tmp = this->get_surface();
 
     SDL_Texture* tmp2 = SDL_CreateTextureFromSurface(renderer, tmp);
-    SDL_FreeSurface(tmp);
 
-    SDL_Rect dest;
-    if (this->config->hardware_id == HW_TI_MATHPRINT) dest = {this->config->screen_tl_w, this->config->screen_tl_h, 192*this->config->pix_w, 64*this->config->pix_h+this->sbar_hi};
-    else dest = {this->config->screen_tl_w, this->config->screen_tl_h, this->width*this->config->pix_w, this->height*this->config->pix_h+this->sbar_hi};
+    SDL_Rect dest {this->config->screen_tl_w, this->config->screen_tl_h, tmp->w, tmp->h};
     SDL_RenderCopy(renderer, tmp2, NULL, &dest);
 
     SDL_DestroyTexture(tmp2);
+    SDL_FreeSurface(tmp);
 }
 
 void screen::save(const char *fname) {
