@@ -1,5 +1,5 @@
-Planned future replacement to [u8-emu-frontend](https://github.com/gamingwithevets/u8-emu-frontend) written in Python.
-This new, fresh emulator built fully from scratch and written in C++ will be faster than the previous Python-C hybrid version.
+Replacement to [u8-emu-frontend](https://github.com/gamingwithevets/u8-emu-frontend) written in Python.
+This new, fresh emulator built fully from scratch and written in C++ is faster than the previous Python-C hybrid version.
 
 This emulator uses the [`docking` branch of Dear ImGui](https://github.com/ocornut/imgui/tree/docking).
 
