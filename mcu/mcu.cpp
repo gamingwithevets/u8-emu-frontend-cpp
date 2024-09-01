@@ -43,8 +43,8 @@ void write_sfr(struct u8_core *core, uint8_t seg, uint16_t addr, uint8_t val) {
     else if (mcuptr->sfr_write[addr]) mcuptr->sfr[addr] = mcuptr->sfr_write[addr](mcuptr, addr, val);
     else {
         addr += 0xf000;
-        if (mcuptr->wanted_sfrs.find(addr) == mcuptr->wanted_sfrs.end()) mcuptr->wanted_sfrs.insert({addr, 1});
-        else ++mcuptr->wanted_sfrs[addr];
+        if (mcuptr->wanted_sfrs.find(addr) == mcuptr->wanted_sfrs.end()) mcuptr->wanted_sfrs.insert({addr, {0, 0}});
+        ++mcuptr->wanted_sfrs[addr].write;
     }
 }
 
@@ -378,10 +378,15 @@ mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *fla
             break;
     }
 
+    this->labels = new class dlabels(this);
+
     memset((void *)this->sfr_write, 0, sizeof(this->sfr_write));
     register_sfr(0, 1, &default_write<0xff>);
+    this->labels->set_sfr_name({0, 1, "Data segment register (DSR)",
+        "DSR is a special function register (SFR) used to retain a data segment.\n"
+        "For details of DSR, see \"nX-U8(U16)/100 Core Instruction Manual\"."
+        });
 
-    this->labels = new class dlabels(this);
     this->standby = new class standby;
     this->wdt = new class wdt(this);
     this->interrupts = new class interrupts(this);
@@ -441,6 +446,15 @@ void mcu::core_step() {
         }
 
         u8_step(this->core);
+        if (this->core->last_read_size && !this->core->last_read_success) {
+            if (wanted_sfrs.find(this->core->last_read) == wanted_sfrs.end()) wanted_sfrs.insert({this->core->last_read, {0, 0}});
+            ++wanted_sfrs[this->core->last_read].read;
+        }
+        if (this->core->last_write_size && !this->core->last_write_success) {
+            printf("Write: %05X, %X:%04XH\n", this->core->last_write, this->core->regs.csr, this->core->regs.pc);
+            if (wanted_sfrs.find(this->core->last_write) == wanted_sfrs.end()) wanted_sfrs.insert({this->core->last_write, {0, 0}});
+            ++wanted_sfrs[this->core->last_write].write;
+        }
 
         if (this->ips_ctr++ % 1000 == 0) {
             double cur = get_time();
@@ -532,6 +546,7 @@ void mcu::reset() {
         memset(&this->sfr[0x10], 0, 0x3f);
     } else this->screen->reset();
     this->call_stack.clear();
+    this->wanted_sfrs.clear();
     this->ips_start = get_time();
     this->ips = 0;
     this->ips_ctr = 0;

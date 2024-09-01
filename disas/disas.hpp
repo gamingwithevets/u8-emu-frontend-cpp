@@ -150,7 +150,7 @@ disasstart:
 	}
 	if ((buf[0] & 0b00000000) == 0b00000000 && (buf[1] & 0b11110000) == 0b01100000) {
 		int i = buf[0] >> 0 & 0b11111111, n = buf[1] >> 0 & 0b1111;
-		out << "ADDC R" << (n) << ", #" << (i);
+		out << "ADDC R" << (n) << ", #" << tohex(i, 2);
 		buf += 2;
 		return;
 	}

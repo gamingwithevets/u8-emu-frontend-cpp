@@ -35,12 +35,17 @@ struct call_stack_data {
     int_callstack interrupt;
 };
 
+struct wanted_sfrs_data {
+    int read;
+    int write;
+};
+
 class mcu {
 public:
     struct config *config;
 
     dlabels *labels;
-    std::map<uint16_t, int> wanted_sfrs;
+    std::map<uint32_t, wanted_sfrs_data> wanted_sfrs;
 
     // Peripherals
     standby *standby;

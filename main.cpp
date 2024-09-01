@@ -419,9 +419,9 @@ int main(int argc, char* argv[]) {
     bool quit = false;
     bool single_step = false;
     std::atomic<bool> stop = false;
-    static MemoryEditor ramedit;
-    static MemoryEditor ram2edit;
-    static MemoryEditor sfredit;
+    static MemoryEditor ramedit{};
+    static MemoryEditor ram2edit{};
+    static MemoryEditor sfredit{};
     sfredit.ReadFn = &read_sfr_im;
     sfredit.WriteFn = &write_sfr_im;
 
@@ -797,17 +797,19 @@ int main(int argc, char* argv[]) {
         ImGui::End();
 
         ImGui::Begin("WANTED!", NULL, 0);
-        ImGui::Text("The following SFRs need registering!");
-        if (ImGui::BeginTable("wanted", 2)) {
-            ImGui::TableSetupColumn("SFR address");
+        if (ImGui::BeginTable("wanted", 3)) {
+            ImGui::TableSetupColumn("Address");
+            ImGui::TableSetupColumn("Read count");
             ImGui::TableSetupColumn("Write count");
             ImGui::TableHeadersRow();
             for (const auto &[k, v] : mcu.wanted_sfrs) {
                 ImGui::TableNextRow();
                 ImGui::TableSetColumnIndex(0);
-                ImGui::Text("%04XH", k);
+                ImGui::Text("%02X:%04XH", k >> 16, k & 0xffff);
                 ImGui::TableNextColumn();
-                ImGui::Text("%d", v);
+                ImGui::Text("%d", v.read);
+                ImGui::TableNextColumn();
+                ImGui::Text("%d", v.write);
             }
             ImGui::EndTable();
         }
@@ -880,8 +882,12 @@ int main(int argc, char* argv[]) {
             }
             ImGui::Checkbox("Pause/Single-step", &single_step);
             if (single_step) {
-                ImGui::Button("Step");
-                if (ImGui::IsItemActive()) mcu.core_step();
+                if (ImGui::Button("Step")) mcu.core_step();
+                if (ImGui::Button("Wipe RAM and reset")) {
+                    srand(time(NULL));
+                    for (size_t i = 0; i < ramsize; i++) ram[i] = rand();
+                    mcu.reset();
+                }
             }
             ImGui::TreePop();
             ImGui::Spacing();
@@ -930,7 +936,7 @@ int main(int argc, char* argv[]) {
             ImGui::Spacing();
             char years[10] = "2024";
             if (year > 2024) sprintf(years+4, "-%d", year);
-            ImGui::Text("(c) %s GamingWithEvets Inc.\nLicensed under the GNU GPL-v3 license\n\nGitHub repository:\nhttps://github.com/gamingwithevets/u8-emu-frontend-cpp");
+            ImGui::Text("(c) %s GamingWithEvets Inc.\nLicensed under the GNU GPL-v3 license\n\nGitHub repository:\nhttps://github.com/gamingwithevets/u8-emu-frontend-cpp", years);
             ImGui::TreePop();
             ImGui::Spacing();
         }

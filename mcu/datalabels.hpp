@@ -17,4 +17,5 @@ class dlabels {
 public:
     dlabels(class mcu *mcu);
     void get_name(int type, uint16_t addr, struct dldata *data);
+    void set_sfr_name(struct dldata data);
 };
