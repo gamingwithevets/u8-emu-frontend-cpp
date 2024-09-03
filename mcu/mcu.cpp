@@ -170,7 +170,7 @@ mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *fla
     this->flash = flash;
 
     mcuptr = this;
-    this->cycles_per_second = 1024 * 1024 * 8;
+    this->cycles_per_second = 0;
 
     // ROM
     this->core->codemem.num_regions = (this->config->hardware_id == 2 && this->config->is_5800p) ? 2 : 1;
@@ -506,22 +506,24 @@ void mcu::core_step() {
 void core_step_loop(std::atomic<bool>& stop) {
     stop = false;
 
-    struct timespec last_ins_time;
-    struct timespec current_time;
-    double delta_time;
+    if (mcuptr->cycles_per_second) {
+        struct timespec last_ins_time;
+        struct timespec current_time;
+        double delta_time;
 
-    double interval = 1.0 / mcuptr->cycles_per_second;
-    clock_gettime(CLOCK_MONOTONIC, &last_ins_time);
+        double interval = 1.0 / mcuptr->cycles_per_second;
+        clock_gettime(CLOCK_MONOTONIC, &last_ins_time);
 
-    while (!stop.load()) {
-        clock_gettime(CLOCK_MONOTONIC, &current_time);
-        delta_time = (current_time.tv_sec - last_ins_time.tv_sec) + (current_time.tv_nsec - last_ins_time.tv_nsec) / 1e9;
-        if (delta_time >= interval) {
-            mcuptr->core_step();
-            //if (mcuptr->core->regs.pc == 0x4e9a) stop = true;
-            last_ins_time = current_time;
+        while (!stop.load()) {
+            clock_gettime(CLOCK_MONOTONIC, &current_time);
+            delta_time = (current_time.tv_sec - last_ins_time.tv_sec) + (current_time.tv_nsec - last_ins_time.tv_nsec) / 1e9;
+            if (delta_time >= interval) {
+                mcuptr->core_step();
+                //if (mcuptr->core->regs.pc == 0x4e9a) stop = true;
+                last_ins_time = current_time;
+            }
         }
-    }
+    } else while (!stop.load()) mcuptr->core_step();
 }
 
 void mcu::reset() {

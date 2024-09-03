@@ -105,10 +105,9 @@ interrupts::interrupts(class mcu *mcu) {
         this->intr_tbl.insert({"AL0INT",     {0x28, 0x12, 0, 0x16, 0}});
         this->intr_tbl.insert({"AL1INT",     {0x2a, 0x12, 1, 0x16, 1}});
         this->intr_tbl.insert({"UA0INT",     {0x2c, 0x12, 2, 0x16, 2}});
-        // Unknown interrupts
-        this->intr_tbl.insert({"UNK2e",      {0x2e, 0x12, 3, 0x16, 3}});
-        this->intr_tbl.insert({"UNK30",      {0x30, 0x12, 4, 0x16, 4}});
-        this->intr_tbl.insert({"UNK32",      {0x32, 0x12, 5, 0x16, 5}});
+        this->intr_tbl.insert({"TM1INT",     {0x2e, 0x12, 3, 0x16, 3}});
+        this->intr_tbl.insert({"TM2INT",     {0x30, 0x12, 4, 0x16, 4}});
+        this->intr_tbl.insert({"MCSINT",     {0x32, 0x12, 5, 0x16, 5}});
         register_sfr(0x10, 2, &default_write<0xff>);
         register_sfr(0x12, 1, &default_write<0x3f>);
         register_sfr(0x14, 2, &default_write<0xff>);
