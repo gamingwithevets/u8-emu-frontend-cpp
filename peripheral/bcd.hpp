@@ -4,7 +4,7 @@
 #include "../mcu/mcu.hpp"
 #include "../config/config.hpp"
 
-#define BCDDEBUG
+//#define BCDDEBUG
 
 using byte = unsigned char;
 using uint = unsigned int;
