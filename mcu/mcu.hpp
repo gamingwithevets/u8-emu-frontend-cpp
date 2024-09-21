@@ -70,6 +70,7 @@ public:
     double ips, ips_start;
     unsigned int ips_ctr;
     unsigned int cycles_per_second;
+    bool paused;
 
     uint16_t ti_screen_addr;
     uint16_t ti_status_bar_addr;

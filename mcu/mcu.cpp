@@ -417,7 +417,7 @@ void mcu::core_step() {
     this->sfr[0] = this->core->regs.dsr;
     this->core->regs.csr &= (this->config->real_hardware && this->config->hardware_id == 3) ? 1 : 0xf;
 
-    if (!this->standby->stop_mode) {
+    if (!this->paused) {
         uint16_t data = read_mem_code(this->core, this->core->regs.csr, this->core->regs.pc, 2);
         // BL Cadr
         if ((data & 0xf0ff) == 0xf001) {
@@ -474,7 +474,9 @@ void mcu::core_step() {
         uint8_t elevel = this->core->regs.psw & 3;
         call_stack.push_back({this->core->regs.pc, 0, 0, (this->core->regs.ecsr[elevel-1] << 16) | (this->core->regs.elr[elevel-1]), 0, interrupt});
     }
-
+#ifdef BCD
+    this->bcd->tick();
+#endif
     if (this->config->hardware_id == HW_TI_MATHPRINT) {
         if (this->config->real_hardware) {
             // TODO
@@ -529,8 +531,9 @@ void core_step_loop(std::atomic<bool>& stop) {
 void mcu::reset() {
     u8_reset(this->core);
     this->standby->stop_mode = false;
+    this->paused = false;
 #ifdef BCD
-    this->bcd->perApi_Reset();
+    this->bcd->reset();
 #endif
     if (this->config->hardware_id == HW_TI_MATHPRINT) {
         this->ti_screen_changed = false;

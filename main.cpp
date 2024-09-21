@@ -735,7 +735,7 @@ int main(int argc, char* argv[]) {
             ImGui::Text("Instructions per second");
             ImGui::TableNextColumn();
             if (single_step) ImGui::Text("[Single-step enabled.]");
-            else if (mcu.standby->stop_mode) ImGui::Text("[In STOP mode.]");
+            else if (mcu.paused) ImGui::Text("[Execution paused.]");
             else ImGui::Text("%.1f IPS", mcu.ips);
 
             ImGui::EndTable();

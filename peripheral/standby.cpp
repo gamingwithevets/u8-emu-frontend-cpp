@@ -15,6 +15,7 @@ uint8_t sbycon(mcu *mcu, uint16_t addr, uint8_t val) {
     if (val & (1 << 1)) {
         if (mcu->standby->stop_accept[0] && mcu->standby->stop_accept[1]) {
             mcu->standby->stop_mode = true;
+            mcu->paused = true;
             mcu->standby->stop_accept[0] = false;
             mcu->standby->stop_accept[1] = false;
             mcu->sfr[0x22] = 0;

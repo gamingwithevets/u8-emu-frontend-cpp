@@ -23,6 +23,7 @@ SRCS_CPP := \
     mcu/datalabels.cpp \
     mcu/mcu.cpp \
     peripheral/battery.cpp \
+    peripheral/bcd.cpp \
     peripheral/interrupts.cpp \
     peripheral/keyboard.cpp \
     peripheral/ltb.cpp \

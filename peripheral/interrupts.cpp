@@ -210,6 +210,7 @@ int_callstack interrupts::tick() {
                 } else elevel = 1;
                 if ((this->mcu->sfr[v.ie_adrs] & (1 << v.ie_bit)) && (this->mcu->core->regs.psw & 3) < elevel) {
                     this->mcu->standby->stop_mode = false;
+                    mcu->paused = false;
                     interrupt.interrupt_name = k;
 
                     this->mcu->core->regs.elr[elevel-1] = this->mcu->core->regs.pc;
