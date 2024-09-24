@@ -210,7 +210,7 @@ void bcd::run_command(uint8_t cmd) {
 			carry = false;
 			zero = true;
 		}
-		bool carry = op == 2 ? !carry : carry;
+		bool _carry = op == 2 ? !carry : carry;
 		uint16_t res = 0, op_src = bcdreg[src][calc_ptr << 1] | uint16_t(bcdreg[src][(calc_ptr << 1) + 1] << 8),
 			op_dst = bcdreg[dst][calc_ptr << 1] | uint16_t(bcdreg[dst][(calc_ptr << 1) + 1] << 8);
 		for (int i = 0; i < 4; i++) {
@@ -218,21 +218,21 @@ void bcd::run_command(uint8_t cmd) {
 			op_src >>= 4;
 			op_dst >>= 4;
 			if (op == 2) op1 = (9 - op1) & 0x0F;
-			op2 += op1 + (carry ? 1 : 0);
-			if ((carry = op2 >= 10)) op2 -= 10;
+			op2 += op1 + (_carry ? 1 : 0);
+			if ((_carry = op2 >= 10)) op2 -= 10;
 			res |= op2 << (i * 4);
 		}
-		if (op == 2) carry = !carry;
+		if (op == 2) _carry = !_carry;
 		if (res) zero = false;
 		if (arithmetic_mode) {
 			bcdreg[dst][calc_ptr << 1] = res & 0xFF;
 			bcdreg[dst][(calc_ptr << 1) + 1] = res >> 8;
-			carry = carry;
+			carry = _carry;
 			calc_ptr++;
 			if (op < 7 && calc_ptr >= mcu->sfr[0x402]) break;
 		}
 		else {
-			if (calc_ptr < mcu->sfr[0x402]) carry = carry;
+			if (calc_ptr < mcu->sfr[0x402]) carry = _carry;
 			if (calc_ptr++) break;
 		}
 	}
