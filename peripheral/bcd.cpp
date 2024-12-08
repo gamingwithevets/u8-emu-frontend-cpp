@@ -135,21 +135,17 @@ void bcd::reset() {
     pgm_counter = 0;
 }
 
-char* fmtreg(uint8_t array[12]) {
-    static char hex_str[25];
-    hex_str[24] = '\0';
+void fmtreg(uint8_t array[12], char *hex_str) {
     int j = 0;
     bool k = false;
 
     for (int i = 0; i < 12; i++) {
         if (!k) {
-            if (!array[11-i]) continue;
+            if (!array[11-i] && i != 11) continue;
             j += sprintf(hex_str + j, "%X", array[11-i]);
             k = true;
         } else j += sprintf(hex_str + j, "%02X", array[11-i]);
     }
-
-    return hex_str;
 }
 
 void bcd::run_command(uint8_t cmd) {
@@ -161,6 +157,8 @@ void bcd::run_command(uint8_t cmd) {
     printf("[BCD] Ran command: ");
     char _dst[8]; sprintf(_dst, "BCDREG%c", 0x41+dst);
     char _src[8]; sprintf(_src, "BCDREG%c", 0x41+src);
+    char __dst[25]{}; fmtreg(bcdreg[dst], __dst);
+    char __src[25]{}; fmtreg(bcdreg[src], __src);
     bool nop = false;
     switch (op) {
     case 0:
@@ -168,31 +166,31 @@ void bcd::run_command(uint8_t cmd) {
         nop = true;
         break;
     case 1:
-        printf("ADD %s, %s (%s = %s, %s = %s)", _dst, _src, _dst, fmtreg(bcdreg[dst]), _src, fmtreg(bcdreg[src]));
+        printf("ADD %s, %s (%s = %s, %s = %s)", _dst, _src, _dst, __dst, _src, __src);
         break;
     case 2:
-        printf("SUB %s, %s (%s = %s, %s = %s)", _dst, _src, _dst, fmtreg(bcdreg[dst]), _src, fmtreg(bcdreg[src]));
+        printf("SUB %s, %s (%s = %s, %s = %s)", _dst, _src, _dst, __dst, _src, __src);
         break;
     case 7:
-        printf("ADDC %s, %s (%s = %s, %s = %s) [!]", _dst, _src, _dst, fmtreg(bcdreg[dst]), _src, fmtreg(bcdreg[src]));
+        printf("ADDC %s, %s (%s = %s, %s = %s) [!]", _dst, _src, _dst, __dst, _src, __src);
         break;
     case 8:
-        printf("SLL %s, #%d (%s = %s)", _dst, 1<<src, _dst, fmtreg(bcdreg[dst]));
+        printf("SLL %s, #%d (%s = %s)", _dst, 1<<src, _dst, __dst);
         break;
     case 9:
-        printf("SRL %s, #%d (%s = %s)", _dst, 1<<src, _dst, fmtreg(bcdreg[dst]));
+        printf("SRL %s, #%d (%s = %s)", _dst, 1<<src, _dst, __dst);
         break;
     case 0xa:
         printf("MOV %s, #%d", _dst, src == 3 ? 5 : src);
         break;
     case 0xb:
-        printf("MOV %s, %s (%s)", _dst, _src, fmtreg(bcdreg[src]));
+        printf("MOV %s, %s (%s)", _dst, _src, __src);
         break;
     case 0xc:
-        printf("SLX %s, #%d (%s = %s)", _dst, 1<<src, _dst, fmtreg(bcdreg[dst]));
+        printf("SLX %s, #%d (%s = %s)", _dst, 1<<src, _dst, __dst);
         break;
     case 0xd:
-        printf("SXX %s, #%d (%s = %s)", _dst, 1<<src, _dst, fmtreg(bcdreg[dst]));
+        printf("SRX %s, #%d (%s = %s)", _dst, 1<<src, _dst, __dst);
         break;
     case 0xf:
         printf("MOV %s, #0 [!]", _dst);
@@ -284,7 +282,8 @@ void bcd::run_command(uint8_t cmd) {
 	}
 
 #ifdef BCDDEBUG
-    if (!nop) printf("Result: %s = %s\n", _dst, fmtreg(bcdreg[dst]));
+    char result[25]; fmtreg(bcdreg[dst], result);
+    if (!nop) printf("Result: %s = %s\n", _dst, result);
 #endif // BCDDEBUG
 }
 

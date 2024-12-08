@@ -261,7 +261,7 @@ int main(int argc, char* argv[]) {
         return -1;
     }
 
-    SDL_Window* window2 = SDL_CreateWindow("Debugger", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 1920, 1080, SDL_WINDOW_SHOWN);
+    SDL_Window* window2 = SDL_CreateWindow("Debugger", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 1920, 1080, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
     if (!window2) {
         std::cerr << "Failed to create debugger window. SDL_Error: " << SDL_GetError() << std::endl;
         IMG_Quit();
@@ -289,7 +289,7 @@ int main(int argc, char* argv[]) {
         h = config.height;
     }
 
-    SDL_Window* window = SDL_CreateWindow(!config.w_name.empty() ? config.w_name.c_str() : "u8-emu-frontend-cpp", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, w, h, SDL_WINDOW_SHOWN);
+    SDL_Window* window = SDL_CreateWindow(!config.w_name.empty() ? config.w_name.c_str() : "u8-emu-frontend-cpp", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, w, h, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
     if (!window) {
         std::cerr << "Failed to create window. SDL_Error: " << SDL_GetError() << std::endl;
         SDL_DestroyWindow(window2);
@@ -310,6 +310,7 @@ int main(int argc, char* argv[]) {
         return -1;
     }
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+    SDL_RenderSetLogicalSize(renderer, w, h);
 
     SDL_Texture* interface = nullptr;
     if (interface_sf != nullptr) {
