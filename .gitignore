@@ -49,3 +49,4 @@ roms
 labels
 .vs/
 configs_old
+*.cscope_file_list

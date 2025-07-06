@@ -4,7 +4,7 @@
 #include <fstream>
 #include <vector>
 #include <map>
-#include <SDL.h>
+#include <SDL2/SDL.h>
 #include "binary.hpp"
 
 struct keydata {

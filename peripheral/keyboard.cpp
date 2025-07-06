@@ -1,4 +1,4 @@
-#include <SDL.h>
+#include <SDL3/SDL.h>
 #include <cstdio>
 #include <algorithm>
 #include <map>
@@ -64,11 +64,11 @@ keyboard::keyboard(class mcu *mcu, int w, int h) {
     }
 }
 
-void keyboard::process_event(const SDL_Event *e) {
+void keyboard::process_event(SDL_Renderer *renderer, const SDL_Event *e) {
     SDL_Keycode key;
     switch (e->type) {
-    case SDL_KEYDOWN:
-        key = e->key.keysym.sym;
+    case SDL_EVENT_KEY_DOWN:
+        key = e->key.key;
         for (const auto &[k, v] : this->config->keymap) {
             if (std::find(v.keys.begin(), v.keys.end(), key) != v.keys.end()) {
                 this->held_buttons.push_back(k);
@@ -76,8 +76,8 @@ void keyboard::process_event(const SDL_Event *e) {
             }
         }
         break;
-    case SDL_KEYUP:
-        key = e->key.keysym.sym;
+    case SDL_EVENT_KEY_UP:
+        key = e->key.key;
         for (const auto &[k, v] : this->config->keymap) {
             if (std::find(v.keys.begin(), v.keys.end(), key) != v.keys.end()) {
                 std::vector<uint8_t>::iterator pos = std::find(this->held_buttons.begin(), this->held_buttons.end(), k);
@@ -88,24 +88,25 @@ void keyboard::process_event(const SDL_Event *e) {
             }
         }
         break;
-    case SDL_MOUSEBUTTONDOWN:
-        SDL_Point mousepos;
-        mousepos.x = e->motion.x;
-        mousepos.y = e->motion.y;
+    case SDL_EVENT_MOUSE_BUTTON_DOWN:
+        SDL_FPoint mousepos;
+        SDL_RenderCoordinatesFromWindow(renderer, e->button.x, e->button.y, &mousepos.x, &mousepos.y);
         for (const auto &[k, v] : this->config->keymap) {
-            if (SDL_PointInRect(&mousepos, &v.rect)) {
+            SDL_FRect frect;
+            SDL_RectToFRect(&v.rect, &frect);
+            if (SDL_PointInRectFloat(&mousepos, &frect)) {
                 this->mouse_held = true;
                 this->held_button_mouse = k;
             }
         }
         break;
-    case SDL_MOUSEBUTTONUP:
+    case SDL_EVENT_MOUSE_BUTTON_UP:
         this->mouse_held = false;
         break;
     }
 
-    const uint8_t* keystates = SDL_GetKeyboardState(NULL);
-    for (int i = 0; i < SDL_NUM_SCANCODES; ++i) {
+    const bool* keystates = SDL_GetKeyboardState(NULL);
+    for (int i = 0; i < SDL_SCANCODE_COUNT; ++i) {
         if (keystates[i] != 0) return;
     }
     if (SDL_GetGlobalMouseState(NULL, NULL) & SDL_BUTTON_LMASK) return;
@@ -116,15 +117,15 @@ void keyboard::process_event(const SDL_Event *e) {
 }
 
 void keyboard::render(SDL_Renderer *renderer) {
-    SDL_Surface *tmp = SDL_CreateRGBSurface(0, this->w, this->h, 32, 0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000);
-    for (const auto &k : this->held_buttons) SDL_FillRect(tmp, &this->config->keymap[k].rect, 0xAA000000);
-    if (this->mouse_held) SDL_FillRect(tmp, &this->config->keymap[this->held_button_mouse].rect, 0xAA000000);
+    SDL_Surface *tmp = SDL_CreateSurface(this->w, this->h, SDL_GetPixelFormatForMasks(32, 0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000));
+    for (const auto &k : this->held_buttons) SDL_FillSurfaceRect(tmp, &this->config->keymap[k].rect, 0xAA000000);
+    if (this->mouse_held) SDL_FillSurfaceRect(tmp, &this->config->keymap[this->held_button_mouse].rect, 0xAA000000);
 
     SDL_Texture* tmp2 = SDL_CreateTextureFromSurface(renderer, tmp);
-    SDL_FreeSurface(tmp);
+    SDL_DestroySurface(tmp);
 
-    SDL_Rect dest {0, 0, this->w, this->h};
-    SDL_RenderCopy(renderer, tmp2, NULL, &dest);
+    SDL_FRect dest {0, 0, this->w, this->h};
+    SDL_RenderTexture(renderer, tmp2, NULL, &dest);
 
     SDL_DestroyTexture(tmp2);
 }
@@ -169,6 +170,7 @@ void keyboard::tick_emu() {
             *this->emu_kb.ES_KIADR = 1 << ki_bit;
             *this->emu_kb.ES_KOADR = 1 << ko_bit;
             this->mcu->standby->stop_mode = false;
+            this->mcu->paused = false;
             this->enable_keypress = false;
         }
         break;
@@ -184,13 +186,17 @@ void keyboard::tick_emu() {
         break;
     case ES_STOP_QRCODE_IN:
     case ES_STOP_QRCODE_IN3:
-        strcpy(this->emu_kb.qr_url, this->emu_kb.ES_QR_DATATOP_ADR);
-        this->emu_kb.qr_active = true;
-        printf("[ES_STOP_QRCODE_IN] QR code active\n");
+        if (!this->emu_kb.qr_active) {
+            strcpy(this->emu_kb.qr_url, this->emu_kb.ES_QR_DATATOP_ADR);
+            this->emu_kb.qr_active = true;
+            printf("[ES_STOP_QRCODE_IN] QR code active - URL: %s\n", this->emu_kb.qr_url);
+        }
         break;
     case ES_STOP_QRCODE_OUT:
-        this->emu_kb.qr_active = false;
-        printf("[ES_STOP_QRCODE_IN] QR code exit\n");
+        if (this->emu_kb.qr_active) {
+            this->emu_kb.qr_active = false;
+            printf("[ES_STOP_QRCODE_OUT] QR code exit\n");
+        }
         break;
     }
 }

@@ -382,11 +382,6 @@ mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *fla
 
     memset((void *)this->sfr_write, 0, sizeof(this->sfr_write));
     register_sfr(0, 1, &default_write<0xff>);
-    this->labels->set_sfr_name({0, 1, "Data segment register (DSR)",
-        "DSR is a special function register (SFR) used to retain a data segment.\n"
-        "For details of DSR, see \"nX-U8(U16)/100 Core Instruction Manual\"."
-        });
-
     this->standby = new class standby;
     this->wdt = new class wdt(this);
     this->interrupts = new class interrupts(this);
@@ -418,6 +413,7 @@ void mcu::core_step() {
     this->core->regs.csr &= (this->config->real_hardware && this->config->hardware_id == 3) ? 1 : 0xf;
 
     if (!this->paused) {
+        std::lock_guard<std::mutex> lock(call_stack_mutex);
         uint16_t data = read_mem_code(this->core, this->core->regs.csr, this->core->regs.pc, 2);
         // BL Cadr
         if ((data & 0xf0ff) == 0xf001) {
@@ -563,9 +559,9 @@ void register_sfr(uint16_t addr, uint16_t len, uint8_t (*callback)(mcu*, uint16_
 }
 
 // for ImGui SFR editor
-ImU8 read_sfr_im(const ImU8*, size_t addr) {
+ImU8 read_sfr_im(const ImU8*, size_t addr, void *) {
     return read_sfr(mcuptr->core, 0, addr);
 }
-void write_sfr_im(ImU8*, size_t addr, ImU8 val) {
+void write_sfr_im(ImU8*, size_t addr, ImU8 val, void *) {
     write_sfr(mcuptr->core, 0, addr, val);
 }

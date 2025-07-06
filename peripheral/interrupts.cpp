@@ -202,6 +202,7 @@ int_callstack interrupts::tick() {
             if (this->mcu->sfr[v.irq_adrs] & (1 << v.irq_bit)) {
                 if (this->config->hardware_id == HW_ES || (this->config->hardware_id == HW_ES_PLUS && this->config->old_esp)) {
                    this->mcu->standby->stop_mode = false;
+                   this->mcu->paused = false;
                    break;
                 }
                 if (v.vector_adrs == 8) {
@@ -212,7 +213,6 @@ int_callstack interrupts::tick() {
                     this->mcu->standby->stop_mode = false;
                     mcu->paused = false;
                     interrupt.interrupt_name = k;
-
                     this->mcu->core->regs.elr[elevel-1] = this->mcu->core->regs.pc;
                     this->mcu->core->regs.ecsr[elevel-1] = this->mcu->core->regs.csr;
                     this->mcu->core->regs.epsw[elevel-1] = this->mcu->core->regs.psw;

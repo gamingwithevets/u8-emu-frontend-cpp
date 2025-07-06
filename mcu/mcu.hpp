@@ -4,6 +4,7 @@
 #include <vector>
 #include <cstdint>
 #include <atomic>
+#include <mutex>
 #include "../config/config.hpp"
 #include "datalabels.hpp"
 #include "../peripheral/standby.hpp"
@@ -26,19 +27,19 @@ static uint8_t default_write(mcu *mcu, uint16_t addr, uint8_t val) {
 
 double get_time();
 
-struct call_stack_data {
+typedef struct {
     uint32_t func_addr;
     uint16_t er0;
     uint16_t er2;
     uint32_t return_addr;
     uint16_t return_addr_ptr;
     int_callstack interrupt;
-};
+} call_stack_data;
 
-struct wanted_sfrs_data {
+typedef struct {
     int read;
     int write;
-};
+} wanted_sfrs_data;
 
 class mcu {
 public:
@@ -67,6 +68,7 @@ public:
     uint8_t *ram2;
 	uint8_t (*sfr_write[0x1000])(mcu*, uint16_t, uint8_t);
 	std::vector<call_stack_data> call_stack;
+	std::mutex call_stack_mutex;
     double ips, ips_start;
     unsigned int ips_ctr;
     unsigned int cycles_per_second;
@@ -85,5 +87,5 @@ public:
 
 void core_step_loop(std::atomic<bool>& stop);
 void register_sfr(uint16_t addr, uint16_t len, uint8_t (*callback)(mcu*, uint16_t, uint8_t));
-ImU8 read_sfr_im(const ImU8*, size_t addr);
-void write_sfr_im(ImU8*, size_t addr, ImU8 val);
+ImU8 read_sfr_im(const ImU8*, size_t addr, void *);
+void write_sfr_im(ImU8*, size_t addr, ImU8 val, void *);

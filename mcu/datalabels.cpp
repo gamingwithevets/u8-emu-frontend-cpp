@@ -4,9 +4,21 @@
 #include "datalabels.hpp"
 
 dlabels::dlabels(class mcu *mcu) {
+    sfrlabels.push_back({0, 8, 0,
+        "DSR",
+        "",
+        "",
+        "Data segment register",
+        "DSR is a special function register (SFR) used to retain a data segment."
+    });
+
     int offset;
     switch (mcu->config->hardware_id) {
     case HW_ES:
+        if (mcu->config->is_5800p) {
+            // TODO
+            break;
+        }
     case HW_ES_PLUS:
         ramlabels.push_back({0xdd, 1, "Disable cursor flashing", "If non-zero, the cursor will stop flashing on the next call to getscancode."});
         ramlabels.push_back({0xf2, 2, "Scancode of last key pressed", "Contains the KI and KO bits of the last key pressed."});
@@ -60,7 +72,7 @@ dlabels::dlabels(class mcu *mcu) {
         ramlabels.push_back({offset+20, 100, "Input area", "Contains the tokens inputted onto the screen."});
         ramlabels.push_back({offset+120, 100, "Cache area", "The input area is copied to this area when a calculation happens.\nAlso used by the input recall feature by pressing [<-] or [->] when the input is\nempty."});
         ramlabels.push_back({offset+220, 8, "Random seed", "Used by the calculator's random number generator."});
-        ramlabels.push_back({offset+228, 2, "Timer", "Counts up by 1 on every tick (i.e. every time the cursor turns on or off).\nAlso known as the \"unstable characters\"."});
+        ramlabels.push_back({offset+228, 2, "Timer", "Part of the random seed.\nCounts up by 1 on every tick (i.e. every time the cursor turns on or off).\nAlso known as the \"unstable characters\"."});
         ramlabels.push_back({offset+230, 10, "Variable: M"});
         ramlabels.push_back({offset+230 + 10, 10, "Variable: Ans"});
         ramlabels.push_back({offset+230 + 10 * 2, 10, "Variable: A"});
@@ -89,6 +101,11 @@ dlabels::dlabels(class mcu *mcu) {
         ramlabels.push_back({offset+1218, 0x10, "Memory integrity check", "Also known as the \"magic string\". Should always contain the bytes 0F 0E ... 01 00.\nIf on startup this area is found to be corrupted, the calculator will automatically\nreset all settings."});
         ramlabels.push_back({mcu->config->hardware_id == HW_ES ? 0x600 : 0x7d0, 12*32, "Screen buffer"});
         ramlabels.push_back({0xa18, 1000, "Stack data", "Allocated for the stack."});
+        if (!mcu->config->real_hardware) {
+            ramlabels.push_back({0xe00, 1, "Emulator: STOP type", "Emulator flags. Used for keyboard and AC key handling."});
+            ramlabels.push_back({0xe01, 2, "Emulator: Key scancode", "Scancode of last key pressed. Written to by the emulator."});
+            ramlabels.push_back({0x1838, 23, "Emulator: Error buffer", "Contains the last triggered error as a string."});
+        }
         break;
     case HW_CLASSWIZ_EX:
         ramlabels.push_back({0xf5, 1, "Disable cursor flashing", "If non-zero, the cursor will stop flashing on the next call to getscancode."});
@@ -137,15 +154,126 @@ dlabels::dlabels(class mcu *mcu) {
         ramlabels.push_back({0x140, 1, "Scroll size", "Always 0E (Normal Font size) in MathI.\nIn LineI it is equal to font_size * num_lines + 1"});
         ramlabels.push_back({0x144, 2, "Formula pointer", "Contains a pointer to the current formula displayed on the screen."});
         ramlabels.push_back({0x19d4, 1580, "Stack data", "Allocated for the stack."});
+        if (!mcu->config->real_hardware) {
+            ram2labels.push_back({0x8e00, 1, "Emulator: STOP type", "Emulator flags. Used for keyboard, AC key handling, and QR code display."});
+            ram2labels.push_back({0x8e01, 2, "Emulator: Key scancode", "Scancode of last key pressed. Written to by the emulator."});
+        }
+        break;
+    case HW_CLASSWIZ_CW:
+        if (!mcu->config->real_hardware) {
+            ram2labels.push_back({0x8e00, 1, "Emulator: STOP type", "Emulator flags. Used for keyboard, AC key handling, and QR code display."});
+            ram2labels.push_back({0x8e01, 2, "Emulator: Key scancode", "Scancode of last key pressed. Written to by the emulator."});
+        }
+        break;
+    case HW_TI_MATHPRINT:
+        sfrlabels.push_back({2, 8, 16,
+            "FCON0",
+            "FCON1",
+            "FCON01",
+            "Frequency control register 01",
+            "FCON01 is a special function register (SFR) used to control the high-speed clock generation circuit and to select system clock."
+        });
+        sfrlabels.push_back({4, 8, 16,
+            "FCON2",
+            "FCON3",
+            "FCON23",
+            "Frequency control register 23",
+            "FCON23 is a special function register (SFR) used to select the clock for the low-speed clock generation circuit."
+        });
+        sfrlabels.push_back({8, 8, 0,
+            "STPACP",
+            "",
+            "",
+            "Stop code acceptor",
+            "STPACP is a write-only special function register (SFR) that is used for setting a STOP mode."
+        });
+        sfrlabels.push_back({9, 8, 0,
+            "SBYCON",
+            "",
+            "",
+            "Standby control register",
+            "SBYCON is a special function register (SFR) to control the operation mode of MCU."
+        });
+        sfrlabels.push_back({0xa, 8, 0,
+            "FSTAT",
+            "",
+            "",
+            "Frequency status register",
+        });
+        sfrlabels.push_back({0xc, 8, 0,
+            "RSTAT",
+            "",
+            "",
+            "Reset status register",
+        });
+        sfrlabels.push_back({0xe, 8, 0,
+            "WDTCON",
+            "",
+            "",
+            "Watchdog timer control register",
+        });
+        sfrlabels.push_back({0xf, 8, 0,
+            "WDTMOD",
+            "",
+            "",
+            "Watchdog timer mode register",
+        });
+        sfrlabels.push_back({0x10, 8, 16,
+            "IE0",
+            "IE1",
+            "IE01",
+            "Interrupt enable register 01",
+        });
+        sfrlabels.push_back({0x12, 8, 16,
+            "IE2",
+            "IE3",
+            "IE23",
+            "Interrupt enable register 23",
+        });
+        sfrlabels.push_back({0x14, 8, 16,
+            "IE4",
+            "IE5",
+            "IE45",
+            "Interrupt enable register 45",
+        });
+        sfrlabels.push_back({0x16, 8, 16,
+            "IE6",
+            "IE7",
+            "IE67",
+            "Interrupt enable register 67",
+        });
+        sfrlabels.push_back({0x18, 8, 16,
+            "IRQ0",
+            "IRQ1",
+            "IRQ01",
+            "Interrupt request register 01",
+        });
+        sfrlabels.push_back({0x1a, 8, 16,
+            "IRQ2",
+            "IRQ3",
+            "IRQ23",
+            "Interrupt request register 23",
+        });
+        sfrlabels.push_back({0x1c, 8, 16,
+            "IRQ4",
+            "IRQ5",
+            "IRQ45",
+            "Interrupt request register 45",
+        });
+        sfrlabels.push_back({0x1e, 8, 16,
+            "IRQ6",
+            "IRQ7",
+            "IRQ67",
+            "Interrupt request register 67",
+        });
         break;
     }
 }
 
-void dlabels::get_name(int type, uint16_t addr, struct dldata *data) {
+void dlabels::get_name(int type, uint16_t addr, dldata *data) {
     std::vector<dldata> labels;
     switch (type) {
     case 0: labels = ramlabels; break;
-    case 1: labels = sfrlabels; break;
     case 2: labels = ram2labels; break;
     default: return;
     }
@@ -157,6 +285,12 @@ void dlabels::get_name(int type, uint16_t addr, struct dldata *data) {
     }
 }
 
-void dlabels::set_sfr_name(struct dldata data) {
-    sfrlabels.push_back(data);
+void dlabels::get_sfr_name(uint16_t addr, sfrdata *data) {
+    for (const sfrdata &d : sfrlabels) {
+        uint16_t len = (d.wbits > 0 ? d.wbits : d.bbits) / 8;
+        if (addr >= d.addr && addr < d.addr + len) {
+            *data = d;
+            return;
+        }
+    }
 }

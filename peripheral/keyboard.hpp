@@ -2,7 +2,7 @@
 
 #include <cstdint>
 #include <optional>
-#include <SDL.h>
+#include <SDL3/SDL.h>
 #include <vector>
 #include "../mcu/mcu.hpp"
 #include "../config/config.hpp"
@@ -24,7 +24,7 @@ struct es_stop_info {
     uint8_t *ES_KOADR;
     char *ES_QR_DATATOP_ADR;
     bool qr_active;
-    char *qr_url;
+    char qr_url[200];
 };
 
 class keyboard {
@@ -35,7 +35,7 @@ public:
     struct es_stop_info emu_kb;
     bool enable_keypress;
     keyboard(class mcu *mcu, int w, int h);
-    void process_event(const SDL_Event *e);
+    void process_event(SDL_Renderer *renderer, const SDL_Event *e);
     void render(SDL_Renderer *renderer);
     void tick();
     void tick_emu();

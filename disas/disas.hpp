@@ -72,11 +72,11 @@ void decode(std::ostream& out, uint8_t*& buf, uint32_t pc, class interrupts *int
             out << "spinit  ";
             break;
         case 2:
-			out << "start   $";
+			out << "start   /";
 			LABEL_FUNCTION(*(uint16_t*)buf);
 			break;
         case 4:
-			out << "brk     $";
+			out << "brk     /";
 			LABEL_FUNCTION(*(uint16_t*)buf);
             break;
         case 6:
@@ -85,13 +85,13 @@ void decode(std::ostream& out, uint8_t*& buf, uint32_t pc, class interrupts *int
             auto int_name = ints->find_int(8);
             if (int_name.has_value()) out << int_name.value();
             else out << "NMI";
-			out << " $";
+			out << " /";
 			LABEL_FUNCTION(*(uint16_t*)buf);
 			break;
         }default:
             auto int_name = ints->find_int(pc);
             if (int_name.has_value()) {
-                out << int_name.value() << " $";
+                out << int_name.value() << " /";
                 LABEL_FUNCTION((*(uint16_t*)buf));
             }
             else goto disasstart;
@@ -814,7 +814,7 @@ disasstart:
                 // in this case, we dont hope the controlflow gets extended, lets just define a funciton at next instruction
                 LABEL_FUNCTION(pc + 2);
             }
-            out << "B" << (cond[c]) << " $" << (tohex(addr, 5));
+            out << "B" << (cond[c]) << " /" << (tohex(addr, 5));
             buf += 2;
             return;
         }
@@ -834,7 +834,6 @@ disasstart:
 	}
 	if ((buf[0] & 0b11111111) == 0b11111111 && (buf[1] & 0b11111111) == 0b11111111) {
 		out << "BRK";
-		LABEL_FUNCTION(pc + 2);
 		buf += 2;
 		return;
 	}
@@ -971,7 +970,7 @@ disasstart:
 		int C = buf[2] >> 0 & 0b11111111, D = buf[3] >> 0 & 0b11111111, g = buf[1] >> 0 & 0b1111;
 		auto addr = (g << 16) | (D << 8) | (C);
 		LABEL_FUNCTION(addr);
-		out << "B $" << (tohex(addr, 5));
+		out << "B /" << (tohex(addr, 5));
 		// in this case, we dont hope the controlflow gets extended, lets just define a funciton at next instruction
 		LABEL_FUNCTION(pc + 4);
 		buf += 4;
@@ -981,7 +980,7 @@ disasstart:
 		int C = buf[2] >> 0 & 0b11111111, D = buf[3] >> 0 & 0b11111111, g = buf[1] >> 0 & 0b1111;
 		auto addr = (g << 16) | (D << 8) | (C);
 		LABEL_FUNCTION(addr);
-		out << "BL $" << (tohex(addr, 5));
+		out << "BL /" << (tohex(addr, 5));
 		buf += 4;
 		return;
 	}
