@@ -7,11 +7,13 @@ on:
     branches: [ "main" ]
 
 jobs:
-  build:
+  build-win64:
     runs-on: windows-latest
     defaults:
       run:
         shell: msys2 {0}
+    outputs:
+      artifact-name: u8-emu-frontend-cpp-win64
 
     steps:
     - uses: actions/checkout@v4
@@ -29,24 +31,50 @@ jobs:
     - name: Compile
       run: mingw32-make CXXFLAGS_EX="-DGITHUB_RUNID=${{ github.run_id }}" all
     
-    - name: Create ZIP package
+    - name: Prepare build artifact
       run: |
+        mkdir -p dist/u8-emu-frontend-cpp
         cd bin/release
+        cp u8-emu-frontend-cpp.exe ../../dist/u8-emu-frontend-cpp/
+        cp ../../LICENSE ../../dist/u8-emu-frontend-cpp/LICENSE
         ntldd -R u8-emu-frontend-cpp.exe | grep "msys" | awk '{print $3}' | sed 's/\\/\//g' > dlls.txt
-        xargs -a dlls.txt cp -t .
-        cp /mingw64/bin/zlib1.dll . || true
-        cp /mingw64/bin/libpng*.dll . || true
-        cp /mingw64/bin/libjpeg*.dll . || true
-        cp /mingw64/bin/libturbojpeg*.dll . || true
-        cp /mingw64/bin/libwebp*.dll . || true
-        cp /mingw64/bin/libtiff*.dll . || true
-        cp /mingw64/bin/libjxl*.dll . || true
-        cp /mingw64/bin/libavif*.dll . || true
-        cp /mingw64/bin/libaom*.dll . || true
-        cp /mingw64/bin/libdav1d*.dll . || true
-        ziptool -n u8-emu-frontend-cpp-win64.zip add_dir u8-emu-frontend-cpp add_file u8-emu-frontend-cpp/LICENSE ../../LICENSE add_file u8-emu-frontend-cpp/u8-emu-frontend-cpp.exe u8-emu-frontend-cpp.exe 0 $(stat -c%s "u8-emu-frontend-cpp.exe")
-        for dll in *.dll; do [ -f "$dll" ] && ziptool u8-emu-frontend-cpp-win64.zip add_file "u8-emu-frontend-cpp/$dll" "$dll" 0 $(stat -c%s "$dll"); done
+        xargs -a dlls.txt cp -t ../../dist/u8-emu-frontend-cpp/
+        cp /mingw64/bin/zlib1.dll ../../dist/u8-emu-frontend-cpp/ || true
+        cp /mingw64/bin/libpng*.dll ../../dist/u8-emu-frontend-cpp/ || true
+        cp /mingw64/bin/libjpeg*.dll ../../dist/u8-emu-frontend-cpp/ || true
+        cp /mingw64/bin/libturbojpeg*.dll ../../dist/u8-emu-frontend-cpp/ || true
+        cp /mingw64/bin/libwebp*.dll ../../dist/u8-emu-frontend-cpp/ || true
+        cp /mingw64/bin/libtiff*.dll ../../dist/u8-emu-frontend-cpp/ || true
+        cp /mingw64/bin/libjxl*.dll ../../dist/u8-emu-frontend-cpp/ || true
+        cp /mingw64/bin/libavif*.dll ../../dist/u8-emu-frontend-cpp/ || true
+        cp /mingw64/bin/libaom*.dll ../../dist/u8-emu-frontend-cpp/ || true
+        cp /mingw64/bin/libdav1d*.dll ../../dist/u8-emu-frontend-cpp/ || true
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: u8-emu-frontend-cpp-win64
+        path: dist/u8-emu-frontend-cpp
     
+    - name: Delete old release
+      uses: larryjoelane/delete-release-action@v1.0.24
+      with:
+        release-name: continuous
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+  release:
+    runs-on: ubuntu-latest
+    needs: build-win64
+    steps:
+    - name: Download artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: u8-emu-frontend-cpp-win64
+        path: u8-emu-frontend-cpp
+
+    - name: Create ZIP
+      run: zip -r u8-emu-frontend-cpp-win64.zip u8-emu-frontend-cpp
+
     - name: Delete old release
       uses: larryjoelane/delete-release-action@v1.0.24
       with:
@@ -56,10 +84,10 @@ jobs:
     - name: Create new release
       uses: softprops/action-gh-release@v2
       with:
-        token: ${{ secrets.MY_TOKEN }}
-        body: "NOTE: This is a continuous release. Binaries are rebuilt automatically when changes are made."
+        token: ${{ secrets.GITHUB_TOKEN }}
         name: Continuous build
         tag_name: continuous
-        files: bin/release/u8-emu-frontend-cpp-win64.zip
+        body: "NOTE: This is a continuous release. Binaries are rebuilt automatically when changes are made."
+        files: u8-emu-frontend-cpp-win64.zip
         draft: false
         make_latest: true
