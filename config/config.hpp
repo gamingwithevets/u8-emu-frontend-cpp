@@ -21,7 +21,7 @@
 #include <fstream>
 #include <vector>
 #include <map>
-#include <SDL2/SDL.h>
+#include <SDL3/SDL.h>
 #include "binary.hpp"
 
 struct keydata {
