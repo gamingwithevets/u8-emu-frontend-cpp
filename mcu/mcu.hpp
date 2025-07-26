@@ -2,6 +2,7 @@
 
 #include <map>
 #include <vector>
+#include <array>
 #include <cstdint>
 #include <atomic>
 #include <mutex>
@@ -47,6 +48,7 @@ public:
 
     dlabels *labels;
     std::map<uint32_t, wanted_sfrs_data> wanted_sfrs;
+    std::mutex wanted_sfrs_mutex;
 
     // Peripherals
     standby *standby;
@@ -64,6 +66,7 @@ public:
     uint8_t *rom;
     uint8_t *flash;
     uint8_t *ram;
+    uint16_t ramstart;
     uint8_t *sfr;
     uint8_t *ram2;
 	uint8_t (*sfr_write[0x1000])(mcu*, uint16_t, uint8_t);
@@ -71,7 +74,7 @@ public:
 	std::mutex call_stack_mutex;
     double ips, ips_start;
     unsigned int ips_ctr;
-    unsigned int cycles_per_second;
+    std::atomic<int> cps_multiplier;
     bool paused;
 
     uint16_t ti_screen_addr;

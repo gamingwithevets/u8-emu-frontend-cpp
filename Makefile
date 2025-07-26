@@ -8,14 +8,17 @@ BINDIR := bin/release
 
 TARGET := $(BINDIR)/u8-emu-frontend-cpp.exe
 
-CXXFLAGS := -Wall -IC:\msys64\mingw32\include\SDL2 -std=gnu++20 -fconcepts-diagnostics-depth=2 $(CXXFLAGS_EX) -O3
-LDFLAGS := -s -lmingw32 -lSDL2main -lSDL2.dll -luser32 -lgdi32 -lwinmm -ldxguid -lSDL2_image
+CXXFLAGS := -Wall -std=c++23 -fconcepts-diagnostics-depth=2 $(CXXFLAGS_EX) -O3
+LDFLAGS := -static-libstdc++ -s -lmingw32 -lSDL3 -luser32 -lgdi32 -lwinmm -ldxguid -lSDL3_image -ldbghelp -lSDL3.dll -lSDL3_image.dll
 
 SRCS_CPP := \
+    config/settings.cpp \
+    gui/rominfo.cpp \
+    gui/startupui.cpp \
     imgui/imgui.cpp \
     imgui/imgui_draw.cpp \
-    imgui/imgui_impl_sdl2.cpp \
-    imgui/imgui_impl_sdlrenderer2.cpp \
+    imgui/imgui_impl_sdl3.cpp \
+    imgui/imgui_impl_sdlrenderer3.cpp \
     imgui/imgui_tables.cpp \
     imgui/imgui_widgets.cpp \
     labeltool/labeltool.cpp \
@@ -31,8 +34,6 @@ SRCS_CPP := \
     peripheral/standby.cpp \
     peripheral/timer.cpp \
     peripheral/wdt.cpp \
-    startupui/rominfo.cpp \
-    startupui/startupui.cpp \
 
 SRCS_C := \
     u8_emu/src/core/core.c \

@@ -168,9 +168,10 @@ mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *fla
     this->config = config;
     this->rom = rom;
     this->flash = flash;
+    this->ramstart = ramstart;
 
     mcuptr = this;
-    this->cycles_per_second = 0;
+    this->cps_multiplier = -1;
 
     // ROM
     this->core->codemem.num_regions = (this->config->hardware_id == 2 && this->config->is_5800p) ? 2 : 1;
@@ -253,7 +254,7 @@ mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *fla
                 };
 
                 this->core->u16_mode = true;
-                this->cycles_per_second = (this->config->hardware_id == 5 ? 2048 : 1024) * 1024 * 2;
+                this->cps_multiplier = (this->config->hardware_id == 5 ? 4096 : 2048);
             } else {
                 // Segment 4/8 [emulator]
                 this->ram2 = (uint8_t *)malloc(0x10000);
@@ -274,7 +275,7 @@ mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *fla
         // TI MathPrint - LAPIS ML620418A
         case HW_TI_MATHPRINT:
             this->core->u16_mode = true;
-            this->cycles_per_second = 1024 * 1024 * 2;
+            if (this->config->real_hardware) this->cps_multiplier = 2048;
 
             // Code segment 1+ mirror
             this->core->mem.regions[3] = (struct u8_mem_reg){
@@ -301,13 +302,13 @@ mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *fla
 
         // SOLAR II
         case HW_SOLAR_II:
-            this->cycles_per_second = 1024 * 1024 * 2;
+            if (this->config->real_hardware) this->cps_multiplier = 2048;
             this->core->small_mm = true;
             break;
 
         // ES, ES PLUS
         default:
-            if (this->config->real_hardware) this->cycles_per_second = 128 * 1024 * 2;
+            if (this->config->real_hardware) this->cps_multiplier = 256;
             // Code segment 1 mirror
             this->core->mem.regions[3] = (struct u8_mem_reg){
                 .type = U8_REGION_DATA,
@@ -442,15 +443,24 @@ void mcu::core_step() {
         }
 
         u8_step(this->core);
-        if (this->core->last_read_size && !this->core->last_read_success) {
-            if (wanted_sfrs.find(this->core->last_read) == wanted_sfrs.end()) wanted_sfrs.insert({this->core->last_read, {0, 0}});
-            ++wanted_sfrs[this->core->last_read].read;
+        {
+            std::lock_guard<std::mutex> lock(wanted_sfrs_mutex);
+            if (this->core->last_read_size)
+                for (int i = 0; i < this->core->last_read_size; i++) {
+                    if (this->core->last_read+i >= ramstart && this->core->last_read+i <= 0xffff) continue;
+                    if (wanted_sfrs.find(this->core->last_read+i) == wanted_sfrs.end()) wanted_sfrs.insert({this->core->last_read, {0, 0}});
+                    ++wanted_sfrs[this->core->last_read+i].read;
+                }
+
+            if (this->core->last_write_size)
+                for (int i = 0; i < this->core->last_write_size; i++) {
+                    if (this->core->last_write+i >= ramstart && this->core->last_write+i <= 0xffff) continue;
+                    //printf("Write: %05X, %X:%04XH\n", this->core->last_write, this->core->regs.csr, this->core->regs.pc);
+                    if (wanted_sfrs.find(this->core->last_write+i) == wanted_sfrs.end()) wanted_sfrs.insert({this->core->last_write, {0, 0}});
+                    ++wanted_sfrs[this->core->last_write+i].write;
+                }
         }
-        if (this->core->last_write_size && !this->core->last_write_success) {
-            printf("Write: %05X, %X:%04XH\n", this->core->last_write, this->core->regs.csr, this->core->regs.pc);
-            if (wanted_sfrs.find(this->core->last_write) == wanted_sfrs.end()) wanted_sfrs.insert({this->core->last_write, {0, 0}});
-            ++wanted_sfrs[this->core->last_write].write;
-        }
+
 
         if (this->ips_ctr++ % 1000 == 0) {
             double cur = get_time();
@@ -503,25 +513,22 @@ void mcu::core_step() {
 
 void core_step_loop(std::atomic<bool>& stop) {
     stop = false;
+    struct timespec last_ins_time;
+    struct timespec current_time;
+    double delta_time;
 
-    if (mcuptr->cycles_per_second) {
-        struct timespec last_ins_time;
-        struct timespec current_time;
-        double delta_time;
+    clock_gettime(CLOCK_MONOTONIC, &last_ins_time);
 
-        double interval = 1.0 / mcuptr->cycles_per_second;
-        clock_gettime(CLOCK_MONOTONIC, &last_ins_time);
-
-        while (!stop.load()) {
-            clock_gettime(CLOCK_MONOTONIC, &current_time);
-            delta_time = (current_time.tv_sec - last_ins_time.tv_sec) + (current_time.tv_nsec - last_ins_time.tv_nsec) / 1e9;
-            if (delta_time >= interval) {
-                mcuptr->core_step();
-                //if (mcuptr->core->regs.pc == 0x4e9a) stop = true;
-                last_ins_time = current_time;
-            }
+    while (!stop.load()) {
+        double interval = 1.0 / (1024 * mcuptr->cps_multiplier);
+        clock_gettime(CLOCK_MONOTONIC, &current_time);
+        delta_time = (current_time.tv_sec - last_ins_time.tv_sec) + (current_time.tv_nsec - last_ins_time.tv_nsec) / 1e9;
+        if (delta_time >= interval) {
+            mcuptr->core_step();
+            //if (mcuptr->core->regs.pc == 0x4e9a) stop = true;
+            last_ins_time = current_time;
         }
-    } else while (!stop.load()) mcuptr->core_step();
+    }
 }
 
 void mcu::reset() {
@@ -546,8 +553,14 @@ void mcu::reset() {
         this->sfr[0x64] = 0x30;
         memset(&this->sfr[0x10], 0, 0x3f);
     } else this->screen->reset();
-    this->call_stack.clear();
-    this->wanted_sfrs.clear();
+    {
+        std::lock_guard<std::mutex> lock(call_stack_mutex);
+        this->call_stack.clear();
+    }
+    {
+        std::lock_guard<std::mutex> lock(wanted_sfrs_mutex);
+        this->wanted_sfrs.clear();
+    }
     this->ips_start = get_time();
     this->ips = 0;
     this->ips_ctr = 0;

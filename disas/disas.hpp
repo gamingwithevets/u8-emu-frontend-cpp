@@ -34,7 +34,7 @@ inline std::string signedtohex(int n, int binlen) {
 		n >>= 4;
 	}
 	if (retval[0] > '@') retval = "0" + retval;
-	return ispositive ? retval : ("-" + retval);
+	return (ispositive ? retval : ("-" + retval)) + "H";
 }
 inline std::string tohex(int n, int len) {
 	std::string retval = "";
@@ -45,9 +45,9 @@ inline std::string tohex(int n, int len) {
 	if (retval[0] > '@') retval = "0" + retval;
 	return retval + "H";
 }
-inline std::string tobin(int n, int len) {
+inline std::string tobin(int n) {
 	std::string retval = "";
-	for (int x = 0; x < len; x++) {
+	for (int x = 0; x < 8; x++) {
 		retval = "01"[n & 1] + retval;
 		n >>= 1;
 	}
@@ -138,7 +138,7 @@ disasstart:
 	}
 	if ((buf[0] & 0b10000000) == 0b10000000 && (buf[1] & 0b11110001) == 0b11100000) {
 		int i = buf[0] >> 0 & 0b1111111, n = buf[1] >> 1 & 0b111;
-		out << "ADD ER" << (n * 2) << ", #" << (i << 25 >> 25);
+		out << "ADD ER" << (n * 2) << ", #" << tohex(i, 2);
 		buf += 2;
 		return;
 	}
@@ -162,7 +162,7 @@ disasstart:
 	}
 	if ((buf[0] & 0b00000000) == 0b00000000 && (buf[1] & 0b11110000) == 0b00100000) {
 		int i = buf[0] >> 0 & 0b11111111, n = buf[1] >> 0 & 0b1111;
-		out << "AND R" << (n) << ", #" << tohex(i, 2);
+		out << "AND R" << (n) << ", #" << tobin(i);
 		buf += 2;
 		return;
 	}
@@ -222,7 +222,7 @@ disasstart:
 	}
 	if ((buf[0] & 0b00000000) == 0b00000000 && (buf[1] & 0b11110000) == 0b00110000) {
 		int i = buf[0] >> 0 & 0b11111111, n = buf[1] >> 0 & 0b1111;
-		out << "OR R" << (n) << ", #" << tohex(i, 2);
+		out << "OR R" << (n) << ", #" << tobin(i);
 		buf += 2;
 		return;
 	}
@@ -234,7 +234,7 @@ disasstart:
 	}
 	if ((buf[0] & 0b00000000) == 0b00000000 && (buf[1] & 0b11110000) == 0b01000000) {
 		int i = buf[0] >> 0 & 0b11111111, n = buf[1] >> 0 & 0b1111;
-		out << "XOR R" << (n) << ", #" << tohex(i, 2);
+		out << "XOR R" << (n) << ", #" << tobin(i);
 		buf += 2;
 		return;
 	}
@@ -810,10 +810,6 @@ disasstart:
 		auto addr = (pc & 0x0f0000) | (uint16_t)(pc + 2 + ((int)(signed char)r << 1));
         LABEL_LABEL(addr);
         if (c != 15) {
-            if (c == 14) { // BAL
-                // in this case, we dont hope the controlflow gets extended, lets just define a funciton at next instruction
-                LABEL_FUNCTION(pc + 2);
-            }
             out << "B" << (cond[c]) << " /" << (tohex(addr, 5));
             buf += 2;
             return;
@@ -969,10 +965,8 @@ disasstart:
 	if ((buf[0] & 0b11111111) == 0b00000000 && (buf[1] & 0b11110000) == 0b11110000 && (buf[2] & 0b00000000) == 0b00000000 && (buf[3] & 0b00000000) == 0b00000000) {
 		int C = buf[2] >> 0 & 0b11111111, D = buf[3] >> 0 & 0b11111111, g = buf[1] >> 0 & 0b1111;
 		auto addr = (g << 16) | (D << 8) | (C);
-		LABEL_FUNCTION(addr);
+		LABEL_LABEL(addr);
 		out << "B /" << (tohex(addr, 5));
-		// in this case, we dont hope the controlflow gets extended, lets just define a funciton at next instruction
-		LABEL_FUNCTION(pc + 4);
 		buf += 4;
 		return;
 	}

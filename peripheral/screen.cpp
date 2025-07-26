@@ -355,7 +355,7 @@ void screen::render(SDL_Renderer *renderer) {
     SDL_Surface* tmp = this->get_surface();
 
     SDL_Texture* tmp2 = SDL_CreateTextureFromSurface(renderer, tmp);
-    SDL_SetTextureScaleMode(tmp2, SDL_SCALEMODE_NEAREST);
+    //SDL_SetTextureScaleMode(tmp2, SDL_SCALEMODE_NEAREST);
 
     SDL_FRect dest {this->config->screen_tl_w, this->config->screen_tl_h, tmp->w, tmp->h};
     SDL_RenderTexture(renderer, tmp2, NULL, &dest);

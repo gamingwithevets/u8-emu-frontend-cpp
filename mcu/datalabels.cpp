@@ -12,7 +12,8 @@ dlabels::dlabels(class mcu *mcu) {
         "DSR is a special function register (SFR) used to retain a data segment."
     });
 
-    int offset;
+    unsigned int offset;
+    bool is_ly = false;
     switch (mcu->config->hardware_id) {
     case HW_ES:
         if (mcu->config->is_5800p) {
@@ -20,6 +21,8 @@ dlabels::dlabels(class mcu *mcu) {
             break;
         }
     case HW_ES_PLUS:
+        is_ly = (mcu->rom[0x1fff4] == 'L' || mcu->rom[0x1fff4] == 'C') && mcu->rom[0x1fff5] == 'Y';
+
         ramlabels.push_back({0xdd, 1, "Disable cursor flashing", "If non-zero, the cursor will stop flashing on the next call to getscancode."});
         ramlabels.push_back({0xf2, 2, "Scancode of last key pressed", "Contains the KI and KO bits of the last key pressed."});
         ramlabels.push_back({0xf5, 1, "Keycode of last function pressed", "Contains the keycode of the last function pressed."});
@@ -29,11 +32,24 @@ dlabels::dlabels(class mcu *mcu) {
             "45 EQN   06 MATRIX  88 TABLE  07 VECTOR"});
         else ramlabels.push_back({0xf9, 1, "Current mode ID", "Used IDs: (name will vary by model)\n"
             "C1 COMP  02 BASE-N  03 STAT   C4 CMPLX\n"
-            "45 EQN   06 MATRIX  88 TABLE  07 VECTOR\n"
-            "4B INEQ  4A RATIO   89 VERIF  0C DIST"});
+            "45 EQN   06 MATRIX  07 VECTOR 88 TABLE\n"
+            "89 VERIF 4A RATIO   4B INEQ   0C DIST"});
         ramlabels.push_back({0xfa, 1, "Current submode ID", "Used by some modes to specify the mode's submode. Each mode has a different submode map."});
         ramlabels.push_back({0xfb, 1, "Screen state", "0: Normal - 1: MODE - 2: SETUP - 3: All other menus"});
+        ramlabels.push_back({0xfc, 1, "Table mode", "Used for drawing tables.\n"
+            "01 None  06 Table range prompt  12 STAT/function table  13 Matrix\n"
+            "14 Vector  15 Equations  17 Ratio  18 Inequality\n"
+            "A0 CALC prompt  C0 SOLVE prompt"});
 
+        ramlabels.push_back({0xff, 1, "Result area template", "Template style for displaying the result.\n"
+            "11 Rec(r,θ)  12 Pol(x,y)  13 SOLVE  14 ÷R  15 →Simp"});
+
+        ramlabels.push_back({0x100, 1, "Result format", "High nibble: Result display format.\nLow nibble: Variable store format.\n"
+            "0 None  1 Degs Mins Secs\n"
+            "2 [ENG]×4  3 [ENG]×3  4 [ENG]×2  5 [ENG]×1\n"
+            "6 [SHIFT][ENG]×1  7 [SHIFT][ENG]×2  8 [SHIFT][ENG]×3  9 [SHIFT][ENG]×4\n"
+            "A Decimal  B Improper Fraction  C Mixed Fraction  D Standard\n"
+            "E Recurring Decimal  F Prime Factor"});
         ramlabels.push_back({0x102, 1, "Setup: Number Format", "8: Fix - 9: Sci - 0: Norm1 - 1: Norm2"});
         ramlabels.push_back({0x103, 1, "Setup: FixN/SciN"});
         ramlabels.push_back({0x104, 1, "Setup: Decimal Mark", "0: Comma - 1: Dot"});
@@ -48,6 +64,7 @@ dlabels::dlabels(class mcu *mcu) {
         ramlabels.push_back({0x10e, 1, "Setup: Contrast"});
 
         ramlabels.push_back({0x110, 1, "Cursor position"});
+        ramlabels.push_back({0x111, 1, "Formula width", "Will never exceed 96 (0x60)."});
         ramlabels.push_back({0x112, 1, "Formula X coordinate"});
         ramlabels.push_back({0x113, 1, "Formula Y coordinate"});
         ramlabels.push_back({0x114, 1, "Cursor X coordinate"});
@@ -60,13 +77,16 @@ dlabels::dlabels(class mcu *mcu) {
             ramlabels.push_back({0x119, 1, "Table highlighted row", "Relative to the current viewport."});
             ramlabels.push_back({0x11a, 1, "Table highlighted column", "Relative to the current viewport."});
             ramlabels.push_back({0x11b, 1, "Font size"});
-            ramlabels.push_back({0x123, 1, "Use output character set", "If non-zero, some characters in the input will be displayed as a font character."});
-            ramlabels.push_back({0x128, 2, "Formula pointer", "Contains a pointer to the current formula displayed on the screen."});
             offset += 4;
         }
         ramlabels.push_back({offset, 1, "Draw mode", "0: White background\n4: White background (sanitize, only draw inside background)\n1: Transparent background\n2: AND with screen\n3 (otherwise): XOR with screen"});
         ramlabels.push_back({offset+1, 1, "Buffer toggle", "Switches between the real screen and the RAM screen buffer."});
-        offset += mcu->config->hardware_id == HW_ES ? 12 : 36;
+        if (is_ly) offset += 4;
+        ramlabels.push_back({offset+7, 1, "Use output character set", "MathI only. If non-zero, some characters in the input will be displayed as a font character."});
+        ramlabels.push_back({offset+9, 1, "Arrow state", "Holds the state of the arrow indicators. Not used in menus.\nBit 0: Up   Bit 1: Down"});
+        if (mcu->config->hardware_id == HW_ES_PLUS) offset += 1;
+        ramlabels.push_back({offset+11, 2, "Formula pointer", "Contains a pointer to the current formula displayed on the screen."});
+        offset += mcu->config->hardware_id == HW_ES ? 20 : 35;
         ramlabels.push_back({offset, 10, "Displayed result (part 1)"});
         ramlabels.push_back({offset+10, 10, "Displayed result (part 2)"});
         ramlabels.push_back({offset+20, 100, "Input area", "Contains the tokens inputted onto the screen."});
@@ -83,28 +103,19 @@ dlabels::dlabels(class mcu *mcu) {
         ramlabels.push_back({offset+230 + 10 * 7, 10, "Variable: F"});
         ramlabels.push_back({offset+230 + 10 * 8, 10, "Variable: X"});
         ramlabels.push_back({offset+230 + 10 * 9, 10, "Variable: Y"});
-        ramlabels.push_back({offset+230 + 10 * (mcu->config->hardware_id == HW_ES ? 10 : 12), 250, "Calculation history",
-                            "Can store up to 16 entries. Each entry's input data ends with a colon token.\nEach entry is not a fixed address, therefore if there's more input data then there\nis less space for new entries."});
-        ramlabels.push_back({offset+588, 100, mcu->config->hardware_id == HW_ES ? "Result area" : "Undo buffer / Result area"});
-        if (mcu->config->hardware_id == HW_ES_PLUS) offset += 12;
-        ramlabels.push_back({offset+700, 10, "Variable: M im"});
-        ramlabels.push_back({offset+700 + 10, 10, "Variable: Ans im"});
-        ramlabels.push_back({offset+700 + 10 * 2, 10, "Variable: A im"});
-        ramlabels.push_back({offset+700 + 10 * 3, 10, "Variable: B im"});
-        ramlabels.push_back({offset+700 + 10 * 4, 10, "Variable: C im"});
-        ramlabels.push_back({offset+700 + 10 * 5, 10, "Variable: D im"});
-        ramlabels.push_back({offset+700 + 10 * 6, 10, "Variable: E im"});
-        ramlabels.push_back({offset+700 + 10 * 7, 10, "Variable: F im"});
-        ramlabels.push_back({offset+700 + 10 * 8, 10, "Variable: X im"});
-        ramlabels.push_back({offset+700 + 10 * 9, 10, "Variable: Y im"});
-        ramlabels.push_back({offset+1018, 100, "f(x)"});
-        ramlabels.push_back({offset+1218, 0x10, "Memory integrity check", "Also known as the \"magic string\". Should always contain the bytes 0F 0E ... 01 00.\nIf on startup this area is found to be corrupted, the calculator will automatically\nreset all settings."});
-        ramlabels.push_back({mcu->config->hardware_id == HW_ES ? 0x600 : 0x7d0, 12*32, "Screen buffer"});
-        ramlabels.push_back({0xa18, 1000, "Stack data", "Allocated for the stack."});
+        offset += 230 + 10 * (mcu->config->hardware_id == HW_ES ? 10 : 12);
+        ramlabels.push_back({offset, 880, "Mode RAM", "RAM reserved for modes. Cleared when switching modes.\nContains things such as calculation history, imaginary variables, table values, functions, etc."});
+        ramlabels.push_back({offset+880, 0x10, "Memory integrity check", "Also known as the \"magic string\". Should always contain the bytes 0F 0E ... 01 00.\nIf on startup this area is found to be corrupted, the calculator will automatically perform a Reset All."});
+        if (mcu->config->hardware_id == HW_ES_PLUS) {
+            ramlabels.push_back({offset+930, 400, "MathI bounding boxes?", "Stores bounding boxes(?) used to draw MathI graphics. Not used by square roots."});
+            offset += 424;
+        }
+        ramlabels.push_back({offset+906, 12*32, "Screen buffer"});
+        ramlabels.push_back({0xa18, 1000, "Stack data", "Allocated for the stack. The first 900 bytes are always filled with 0x5A on a reset."});
         if (!mcu->config->real_hardware) {
             ramlabels.push_back({0xe00, 1, "Emulator: STOP type", "Emulator flags. Used for keyboard and AC key handling."});
             ramlabels.push_back({0xe01, 2, "Emulator: Key scancode", "Scancode of last key pressed. Written to by the emulator."});
-            ramlabels.push_back({0x1838, 23, "Emulator: Error buffer", "Contains the last triggered error as a string."});
+            ramlabels.push_back({0x1838, 23, "Emulator: Error buffer", "Contains the last triggered error as a string.\nIn LineI, also contains the last displayed result."});
         }
         break;
     case HW_CLASSWIZ_EX:

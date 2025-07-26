@@ -404,10 +404,8 @@ int main(int argc, char* argv[]) {
     bool single_step = false;
     std::atomic<bool> stop = false;
     static MemoryEditor ramedit{};
-    static MemoryEditor ram2edit{};
     static MemoryEditor sfredit{};
     ramedit.OptShowOptions = false;
-    ram2edit.OptShowOptions = false;
     sfredit.OptShowOptions = false;
     sfredit.ReadFn = &read_sfr_im;
     sfredit.WriteFn = &write_sfr_im;
@@ -426,7 +424,6 @@ int main(int argc, char* argv[]) {
     unsigned int a, b;
     double fps;
 
-    printf("[CEMSVCDisas] Generating disassembly.\n");
     printf("[CEMSVCDisas] Disassembling\n");
 
     uint8_t *beg = rom;
@@ -798,13 +795,19 @@ int main(int argc, char* argv[]) {
         }
         ImGui::End();
 
-        ImGui::Begin("Unknown Addresses", NULL, 0);
+        ImGui::Begin("Addresses", NULL, 0);
+        std::map<uint32_t, wanted_sfrs_data> wanted;
+        {
+            std::lock_guard<std::mutex> lock(mcu.wanted_sfrs_mutex);
+            if (ImGui::Button("Clear")) mcu.wanted_sfrs.clear();
+            wanted = mcu.wanted_sfrs;
+        }
         if (ImGui::BeginTable("wanted", 3)) {
             ImGui::TableSetupColumn("Address");
             ImGui::TableSetupColumn("Read count");
             ImGui::TableSetupColumn("Write count");
             ImGui::TableHeadersRow();
-            for (const auto &[k, v] : mcu.wanted_sfrs) {
+            for (const auto &[k, v] : wanted) {
                 ImGui::TableNextRow();
                 ImGui::TableSetColumnIndex(0);
                 ImGui::Text("%02X:%04XH", k >> 16, k & 0xffff);
@@ -853,36 +856,62 @@ int main(int argc, char* argv[]) {
                 data_length = data.len;
             } else labeltext[0] = '\0';
         }
-        ImVec2 footer_size = ImGui::CalcTextSize(labeltext, NULL, false, ImGui::GetWindowWidth());
 
-        float hex_editor_height = ImGui::GetContentRegionAvail().y - footer_size.y;
-        ImGui::BeginChild("hexed", ImVec2(0, hex_editor_height), true);
-        if (memselect_idx == 0) {
-            addrbase = ramstart;
-            ramedit.DrawContents((void *)mcu.ram, ramsize, addrbase);
-            addr = ramedit.DataEditingAddr;
-            if (data_length) {
-                ramedit.HighlightMin = data_addr;
-                ramedit.HighlightMax = data_addr + data_length;
-            } else ramedit.HighlightMin = ramedit.HighlightMax = -1;
-        } else if (memselect_idx == 1) {
-            addrbase = 0xf000;
-            sfredit.DrawContents((void *)mcu.sfr, 0x1000, addrbase);
-            addr = sfredit.DataEditingAddr;
-        } else if (memselect_idx == 2) {
-            addrbase = config.hardware_id == HW_CLASSWIZ_CW ? 0x80000 : 0x40000;
-            ram2edit.DrawContents((void *)mcu.ram2, config.hardware_id == HW_ES && config.is_5800p ? 0x8000 : 0x10000, addrbase);
-            addr = ram2edit.DataEditingAddr;
+        ImGui::BeginChild("hexed");
+        ImVec2 footer_size = ImGui::CalcTextSize(labeltext, NULL, false, ImGui::GetWindowWidth());
+        if (labeltext[0]) {
+            footer_size.x -= 10;
+            footer_size.y += 13;
         }
-        ImGui::EndChild();
+        switch (memselect_idx) {
+            case 1:
+                addrbase = 0xf000;
+                sfredit.DrawContents((void *)mcu.sfr, 0x1000, addrbase);
+                sfredit.OptFooterExtraHeight = footer_size.y;
+                addr = sfredit.DataEditingAddr;
+                break;
+            default:
+                uint8_t *data;
+                uint16_t contsize;
+                if (memselect_idx == 2) {
+                    data = mcu.ram2;
+                    addrbase = config.hardware_id == HW_CLASSWIZ_CW ? 0x80000 : 0x40000;
+                    contsize = config.hardware_id == HW_ES && config.is_5800p ? 0x8000 : 0x10000;
+                } else {
+                    data = mcu.ram;
+                    addrbase = ramstart;
+                    contsize = ramsize;
+                }
+                ramedit.DrawContents((void *)data, contsize, addrbase);
+                ramedit.OptFooterExtraHeight = footer_size.y;
+                addr = ramedit.DataEditingAddr;
+                if (data_length) {
+                    ramedit.HighlightMin = data_addr;
+                    ramedit.HighlightMax = data_addr + data_length;
+                } else ramedit.HighlightMin = ramedit.HighlightMax = -1;
+                break;
+        }
         ImGui::TextWrapped(labeltext);
+        ImGui::EndChild();
         ImGui::End();
 
         char label[200];
         sprintf(label, "%s###Options", get_strloc(s_options));
         ImGui::Begin(label, NULL, 0);
-        if (ImGui::TreeNode(get_strloc(s_options_mcu))) {
+        sprintf(label, "%s###MCU Control", get_strloc(s_options_mcu));
+        if (ImGui::TreeNode(label)) {
             if (ImGui::Button(get_strloc(s_options_mcu_reset))) mcu.reset();
+            ImGui::Text(get_strloc(s_options_mcu_cps));
+            int cps_multiplier = mcu.cps_multiplier.load();
+            const int cps_multiplier_max = 32768;
+            ImGui::SliderInt("##cpsslider", &cps_multiplier, -1, cps_multiplier_max, "");
+            ImGui::SameLine();
+            char buf[32];
+            snprintf(buf, sizeof(buf), " %d", cps_multiplier_max);
+            ImGui::SetNextItemWidth(ImGui::CalcTextSize(buf).x);
+            ImGui::InputInt("##cpsinput", &cps_multiplier, -1, -1, ImGuiInputTextFlags_CharsDecimal);
+            cps_multiplier = std::clamp(cps_multiplier, -1, cps_multiplier_max);
+            mcu.cps_multiplier.store(cps_multiplier);
             if (config.hardware_id == HW_ES) {
                 ImGui::Text(get_strloc(s_options_mcu_pmode));
                 ImGui::Spacing();
@@ -915,7 +944,8 @@ int main(int argc, char* argv[]) {
             ImGui::TreePop();
             ImGui::Spacing();
         }
-        if (ImGui::TreeNode(get_strloc(s_options_interface))) {
+        sprintf(label, "%s###Interface", get_strloc(s_options_interface));
+        if (ImGui::TreeNode(label)) {
             ImGui::Text(get_strloc(s_language));
             ImGui::SameLine();
             if (ImGui::BeginCombo("##langselect", get_langname(g_settings.lang))) {
@@ -929,7 +959,8 @@ int main(int argc, char* argv[]) {
             ImGui::TreePop();
             ImGui::Spacing();
         }
-        if (ImGui::TreeNode(get_strloc(s_options_other))) {
+        sprintf(label, "%s###Other", get_strloc(s_options_other));
+        if (ImGui::TreeNode(label)) {
 #if defined(_WIN32) || defined(__CYGWIN__)
             if (ImGui::Button(get_strloc(s_options_other_copyclip))) {
                 ImGui::OpenPopup(mcu.screen->render_clipboard() ? "copyclip_success" : "copyclip_fail");
@@ -946,7 +977,8 @@ int main(int argc, char* argv[]) {
             ImGui::TreePop();
             ImGui::Spacing();
         }
-        if (ImGui::TreeNode(get_strloc(s_options_about))) {
+        sprintf(label, "%s###About", get_strloc(s_options_about));
+        if (ImGui::TreeNode(label)) {
             ImGui::Text("u8-emu-frontend-cpp");
 #ifdef GITHUB_RUNID
             ImGui::Text("GitHub Actions build - Run ID: %llu", GITHUB_RUNID);
@@ -971,7 +1003,7 @@ int main(int argc, char* argv[]) {
             ImGui::Text("Dear ImGui version: %s (%d)", IMGUI_VERSION, IMGUI_VERSION_NUM);
 
             ImGui::Spacing();
-            ImGui::TextWrapped("Special thanks:\nXyzst\ntelecomadm1145\nDelta / frsr\nand other members of the Casio Calculator Hacking community\n\nCode from Xyzst/CasioEmuX and telecomadm1145/CasioEmuMsvc used under GPL-v3.");
+            ImGui::TextWrapped("Special thanks to the members of the Casio Calculator Hacking community for making this project possible.\n\nCode from Xyzst/CasioEmuX and telecomadm1145/CasioEmuMsvc used under GPL-v3.");
 
             const char *build_date = __DATE__;
             int year = atoi(build_date + 7);
