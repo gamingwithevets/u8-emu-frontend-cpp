@@ -1,3 +1,20 @@
+/*
+    u8-emu-frontend-cpp
+    Copyright (C) 2024-2025  GamingWithEvets Inc.
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
 #define SDL_MAIN_HANDLED
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_revision.h>
@@ -922,7 +939,7 @@ int main(int argc, char* argv[]) {
                 }
                 ImGui::SameLine();
                 ImGui::Text("P%c", get_pmode(pd_value));
-                ImGui::Text("  7   6   5   4   3   2  1   0");
+                ImGui::Text("  7   6   5  4   3   2   1  0");
             } else if (config.hardware_id == HW_SOLAR_II) {
                 ImGui::Text(get_strloc(s_options_mcu_pmode));
                 ImGui::Spacing();

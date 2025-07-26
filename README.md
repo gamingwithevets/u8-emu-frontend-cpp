@@ -16,7 +16,20 @@ To use the startup UI, all configuration files must be placed in the **root** of
 If the directory is not found, you need to specify the path to a configuration file as a command-line argument.
 
 ## Special thanks
-- [Xyzst](https://github.com/Xyzstk), for writing some of the code used
-- [telecomadm1145](https://github.com/telecomadm1145), for making the startup UI, wrote some of the code used
-- [Fraser Price / Delta / frsr](https://github.com/Fraserbc), for making the original U8 core library
-- [The Casio Calculator Hacking community](http://discord.gg/QjGpH6rSQQ) for all documentation, research, and help
+- [Xyzst](https://github.com/Xyzstk) - Wrote some of the code used
+- [telecomadm1145](https://github.com/telecomadm1145) - Startup UI, wrote some of the code used
+- [Fraser Price / Delta / frsr](https://github.com/Fraserbc) - U8 core library
+- [Other members of the Casio Calculator Hacking community](http://discord.gg/QjGpH6rSQQ) - Documentation, research, and help
+
+## License
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+For more information, see the [full license document](LICENSE). 
