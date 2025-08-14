@@ -43,6 +43,7 @@
 *.py
 *.pyc
 *.zip
+bin/
 images
 configs/
 roms

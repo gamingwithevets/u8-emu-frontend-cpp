@@ -15,6 +15,9 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
+
+#pragma once
+
 #include <iostream>
 
 // https://stackoverflow.com/a/2072890
@@ -64,4 +67,23 @@ inline std::string _tohex(int n, int len) {
 		n >>= 4;
 	}
 	return retval;
+}
+
+// ChatGPT
+inline char *strprintf(const char *fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+
+    // figure out required length
+    va_list args_copy;
+    va_copy(args_copy, args);
+    int len = vsnprintf(NULL, 0, fmt, args_copy);
+    va_end(args_copy);
+
+    char* buf = (char *)malloc(len + 1);
+    if (!buf) return NULL;
+
+    vsnprintf(buf, len + 1, fmt, args);
+    va_end(args);
+    return buf;  // caller must free
 }

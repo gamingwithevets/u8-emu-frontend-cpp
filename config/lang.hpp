@@ -59,6 +59,7 @@ enum StringID {
     s_options_other_copyclip_fail,
     s_options_about,
     s_options_mcu_cps,
+    s_startupui_recent_clear,
 };
 
 const std::map<Language, std::vector<std::string>> loc = {
@@ -95,6 +96,7 @@ const std::map<Language, std::vector<std::string>> loc = {
             "Oops! An error occurred.",
             "About",
             "Cycles per second (KiHz, set to -1 for no speed cap)",
+            "Clear",
         }
     },
     {
@@ -130,6 +132,7 @@ const std::map<Language, std::vector<std::string>> loc = {
             "Đã xảy ra lỗi khi sao chép",
             "Về giả lập (tiếng Anh)",
             "Chu kỳ trên giây (KiHz, kéo xuống -1 để tắt giới hạn tốc độ)",
+            "Xóa",
         }
     },
 };

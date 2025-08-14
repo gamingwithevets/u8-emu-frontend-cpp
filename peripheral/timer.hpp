@@ -20,7 +20,7 @@
 #include "../mcu/mcu.hpp"
 #include "standby.hpp"
 
-class timer {
+class Timer {
 private:
     double tps;
     uint64_t last_time;
@@ -28,16 +28,15 @@ public:
     int ticks;
     double time_scale;
     double passed_time;
-    timer(double tps);
+    Timer(double tps);
     void tick();
 };
 
-class sfrtimer {
+class SFRTimer {
 private:
-    class mcu *mcu;
-    standby *standby;
-    class timer *timer;
+    class MCU *mcu;
+    class Timer *timer;
 public:
-    sfrtimer(class mcu *mcu);
+    SFRTimer(class MCU *mcu);
     void tick();
 };

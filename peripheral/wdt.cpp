@@ -22,7 +22,7 @@
 #include "../mcu/mcu.hpp"
 #include "wdt.hpp"
 
-uint8_t wdtc(mcu *mcu, uint16_t addr, uint8_t val) {
+uint8_t wdtc(MCU *mcu, uint16_t addr, uint8_t val) {
     if (mcu->wdt->wdp && mcu->wdt->wdtcon == 0x5a && val == 0xa5) {
         mcu->wdt->wdt_count = 0;
         mcu->wdt->overflow_count = false;
@@ -32,7 +32,7 @@ uint8_t wdtc(mcu *mcu, uint16_t addr, uint8_t val) {
     return mcu->wdt->wdp;
 }
 
-wdt::wdt(class mcu *mcu) {
+WDT::WDT(class MCU *mcu) {
     this->mcu = mcu;
 
     this->reset();
@@ -42,7 +42,7 @@ wdt::wdt(class mcu *mcu) {
     else if (this->mcu->config->hardware_id == HW_TI_MATHPRINT) register_sfr(0xf, 1, &default_write<0x82>);
 }
 
-void wdt::reset() {
+void WDT::reset() {
     if (this->mcu->config->hardware_id != HW_CLASSWIZ_CW && this->mcu->config->hardware_id != HW_TI_MATHPRINT) return;
     this->mcu->sfr[0xe] = 0;
     this->mcu->sfr[0xf] = this->mcu->config->hardware_id == HW_TI_MATHPRINT ? 0x82 : 2;
@@ -51,7 +51,7 @@ void wdt::reset() {
     this->wdt_count = 0;
 }
 
-void wdt::tick() {
+void WDT::tick() {
     // TODO: add clock generator
 /*
     // Accept 256Hz output

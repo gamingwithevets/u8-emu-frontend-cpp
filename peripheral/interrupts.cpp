@@ -21,7 +21,7 @@
 #include "../config/config.hpp"
 #include "interrupts.hpp"
 
-interrupts::interrupts(class mcu *mcu) {
+Interrupts::Interrupts(class MCU *mcu) {
     this->mcu = mcu;
     this->config = mcu->config;
 
@@ -210,7 +210,7 @@ interrupts::interrupts(class mcu *mcu) {
     }
 }
 
-int_callstack interrupts::tick() {
+int_callstack Interrupts::tick() {
     int_callstack interrupt{};
     uint8_t elevel;
 
@@ -247,7 +247,7 @@ int_callstack interrupts::tick() {
     return interrupt;
 }
 
-std::optional<std::string> interrupts::find_int(uint16_t vector_adrs) {
+std::optional<std::string> Interrupts::find_int(uint16_t vector_adrs) {
     for (const auto& entry : intr_tbl) {
         if (entry.second.vector_adrs == vector_adrs) return entry.first;
     }

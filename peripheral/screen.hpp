@@ -28,11 +28,11 @@ struct statusbit {
     uint8_t bit;
 };
 
-class screen {
+class Screen {
 private:
-    mcu *mcu;
+    MCU *mcu;
 public:
-    struct config *config;
+    struct Config *config;
     SDL_Surface *display;
     int width;
     int height;
@@ -41,8 +41,8 @@ public:
     bool cw_2bpp;
     bool cw_2bpp_toggle;
     uint8_t cw_screen_data[192*64]{};
-    screen(class mcu *mcu);
-    ~screen();
+    Screen(class MCU *mcu);
+    ~Screen();
     SDL_Surface *get_surface(uint32_t background = 0);
     void render(SDL_Renderer *renderer);
     void save(const char *fname);
@@ -57,4 +57,4 @@ private:
     std::vector<statusbit> status_bar_bits;
 };
 
-uint8_t draw_screen_cw(mcu *mcu, uint16_t addr, uint8_t val);
+uint8_t draw_screen_cw(MCU *mcu, uint16_t addr, uint8_t val);

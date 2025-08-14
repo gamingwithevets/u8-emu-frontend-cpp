@@ -43,7 +43,7 @@
 inline SDL_Window* window;
 inline SDL_Renderer* renderer;
 
-std::map<hardware_id, std::string> hwid_names = {
+std::map<HardwareID, std::string> hwid_names = {
     {HW_SOLAR_II, "SOLAR II"},
     {HW_ES, "ES"},
     {HW_ES_PLUS, "ES PLUS"},
@@ -117,21 +117,21 @@ notfail:
         this->ok = true;
         for (auto& dir : std::filesystem::directory_iterator("configs")) {
             if (dir.is_regular_file() && ends_with(dir.path().string(), std::string(".bin"))) {
-                auto config = dir.path().string();
-                std::ifstream ifs(config, std::ios::in | std::ios::binary);
+                auto config_file = dir.path().string();
+                std::ifstream ifs(config_file, std::ios::in | std::ios::binary);
                 if (!ifs) {
-                    std::cout << dir.path().string() << ": Could not open config file." << std::endl;
+                    std::cout << config_file << ": Could not open config file." << std::endl;
                     continue;
                 }
-                struct config mi{};
-                Binary::Read(ifs, mi);
+                Config config{};
+                Binary::Read(ifs, config);
                 ifs.close();
                 Model mod{};
                 mod.path = dir;
-                mod.name = mi.w_name;
-                mod.realhw = mi.real_hardware;
-                mod.type = hwid_names.find(mi.hardware_id) == hwid_names.end() ? "Unknown" : hwid_names[mi.hardware_id];
-                std::ifstream ifs2(mi.rom_file, std::ios::in | std::ios::binary);
+                mod.name = config.w_name;
+                mod.realhw = config.real_hardware;
+                mod.type = hwid_names.find(config.hardware_id) == hwid_names.end() ? "Unknown" : hwid_names[config.hardware_id];
+                std::ifstream ifs2(config.rom_file, std::ios::in | std::ios::binary);
                 if (!ifs2) {
                     std::cout << dir.path().string() << ": Could not open ROM." << std::endl;
                     continue;
@@ -139,39 +139,39 @@ notfail:
                 std::vector<byte> rom{std::istreambuf_iterator<char>{ifs2.rdbuf()}, std::istreambuf_iterator<char>{}};
                 ifs2.close();
                 std::vector<byte> flash;
-                if (!mi.flash_rom_file.empty()) {
-                    std::ifstream ifs3(mi.flash_rom_file, std::ios::in | std::ios::binary);
+                if (!config.flash_rom_file.empty()) {
+                    std::ifstream ifs3(config.flash_rom_file, std::ios::in | std::ios::binary);
                     if (ifs3) flash = {std::istreambuf_iterator<char>{ifs3.rdbuf()}, std::istreambuf_iterator<char>{}};
                     ifs3.close();
                 }
-                auto ri = rom_info(rom, flash, mi.real_hardware);
+                auto ri = rom_info(rom, flash, config.real_hardware);
                 if (ri.type != 0) {
                     switch (ri.type) {
-                    case RomInfo::ES:
+                    case ROMInfo::ES:
                         mod.type = hwid_names[HW_ES];
                         break;
-                    case RomInfo::ESP:
+                    case ROMInfo::ES_PLUS:
                         mod.type = hwid_names[HW_ES_PLUS];
                         break;
-                    case RomInfo::ESP2nd:
+                    case ROMInfo::ES_PLUS_2:
                         mod.type = esp2_str;
                         break;
-                    case RomInfo::CWX:
+                    case ROMInfo::CLASSWIZ_EX:
                         mod.type = hwid_names[HW_CLASSWIZ_EX];
                         break;
-                    case RomInfo::CWII:
+                    case ROMInfo::CLASSWIZ_CW:
                         mod.type = hwid_names[HW_CLASSWIZ_CW];
                         break;
-                    case RomInfo::Fx5800p:
+                    case ROMInfo::ES_5800P:
                         mod.type = fx5800p_str;
                         break;
-                    case RomInfo::TI:
+                    case ROMInfo::TI_MATHPRINT:
                         mod.type = hwid_names[HW_TI_MATHPRINT];
                         break;
                     }
                 }
                 mod.version = ri.ver;
-                mod.pd_value = mi.pd_value;
+                mod.pd_value = config.pd_value;
                 if (ri.ok) {
                     mod.checksum = _tohex(ri.real_sum, 4);
                     mod.checksum2 = _tohex(ri.desired_sum, 4);
@@ -181,8 +181,6 @@ notfail:
                 else {
                     mod.show_sum = false;
                 }
-                // SDL_Surface* loaded_surface = IMG_Load((dir.path() / mi.interface_path).string().c_str());
-                // mod.thumbnail_t = scale_texture_region_uniform(renderer2, loaded_surface, &mi.sprites["rsd_interface"].src, 100, 200);
                 models.push_back(mod);
             }
         }
@@ -192,9 +190,7 @@ notfail:
         auto io = ImGui::GetIO();
         ImGui::SetNextWindowSize({io.DisplaySize.x, io.DisplaySize.y});
         ImGui::SetNextWindowPos({});
-        char label[200];
-        sprintf(label, "%s###Model Select", get_strloc(s_startupui_modelselect));
-        ImGui::Begin(label, 0, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize);
+        ImGui::Begin(strprintf("%s###Model Select", get_strloc(s_startupui_modelselect)), 0, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize);
         ImGui::Text(get_strloc(s_startupui_desc));
         ImGui::SameLine(ImGui::GetWindowWidth() - 300);
         ImGui::Text(get_strloc(s_language));
@@ -211,6 +207,8 @@ notfail:
         ImGui::PopItemWidth();
         ImGui::Separator();
         ImGui::Text(get_strloc(s_startupui_recent));
+        ImGui::SameLine(ImGui::GetWindowWidth() - ImGui::CalcTextSize(get_strloc(s_startupui_recent_clear)).x - 30);
+        if (ImGui::Button(get_strloc(s_startupui_recent_clear))) recently_used.clear();
         if (ImGui::BeginTable("Recent", 5, pretty_table)) {
             RenderHeaders();
             auto i = 114;
@@ -225,9 +223,7 @@ notfail:
             }
             ImGui::EndTable();
         }
-        char all_label[50];
-        sprintf(all_label, "%s###All", get_strloc(s_startupui_all));
-        if (ImGui::CollapsingHeader(all_label)) {
+        if (ImGui::CollapsingHeader(strprintf("%s###All", get_strloc(s_startupui_all)))) {
             ImGui::SetNextItemWidth(200);
             ImGui::InputText("##search", search_txt, 200);
             ImGui::SameLine();
@@ -301,9 +297,10 @@ notfail:
             else ImGui::Text("%s %s%s", model.version.substr(0, 6).c_str(), !strcmp(model.type.c_str(),  hwid_names[HW_CLASSWIZ_CW].c_str()) ? "V." : "Ver", model.version.substr(6, 7).c_str());
         } else ImGui::Text("-");
         ImGui::TableNextColumn();
-        if (model.realhw && model.show_sum)
+        if (model.realhw && model.show_sum) {
             if (model.checksum == model.checksum2) ImGui::Text("%s %s", model.checksum.c_str(), model.sum_ok.c_str());
             else ImGui::Text("%s (%s) %s", model.checksum.c_str(), model.checksum2.c_str(), model.sum_ok.c_str());
+        }
         ImGui::TableNextColumn();
         ImGui::Text("%s%s", model.type.c_str(), model.realhw ? "" : get_strloc(s_startupui_emu_tag));
         ImGui::PopID();
@@ -320,11 +317,12 @@ std::string sui_loop() {
 	}
 	window = SDL_CreateWindow("u8-emu-frontend-cpp", 1280, 720, SDL_WINDOW_RESIZABLE);
 	renderer = SDL_CreateRenderer(window, NULL);
-	SDL_SetHint(SDL_HINT_RENDER_VSYNC, "1");
 	if (renderer == nullptr) {
-		SDL_Log("Error creating SDL_Renderer!");
+        std::cerr << "Failed to create debugger window. SDL_Error: " << SDL_GetError() << std::endl;
+        SDL_Quit();
 		return "";
 	}
+	SDL_SetHint(SDL_HINT_RENDER_VSYNC, "1");
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
 	ImGuiIO& io = ImGui::GetIO();

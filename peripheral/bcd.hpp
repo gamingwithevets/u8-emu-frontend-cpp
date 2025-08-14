@@ -22,9 +22,9 @@
 #include "../mcu/mcu.hpp"
 #include "../config/config.hpp"
 
-class bcd {
-    class mcu *mcu;
-    struct config *config;
+class BCD {
+    class MCU *mcu;
+    struct Config *config;
 
     uint8_t *bcdreg[4];
 
@@ -52,7 +52,7 @@ private:
     const uint8_t pgm_entry[16] = { 0x00, 0x00, 0x00, 0x05, 0x16, 0x1C, 0x16, 0x1C, 0x00, 0x04, 0x08, 0x0C, 0x10, 0x14, 0x18, 0x1C };
 
 public:
-    bcd(class mcu *);
+    BCD(class MCU *);
     void reset();
     void tick();
 

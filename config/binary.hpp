@@ -30,6 +30,15 @@
 #pragma warning(push)
 #pragma warning(disable : 4267)
 #endif
+
+#if defined(_WIN32) || defined(_WIN64)
+#include <intrin.h>
+#define DEBUG_BREAK() __debugbreak()
+#else
+#include <signal.h>
+#define DEBUG_BREAK() raise(SIGTRAP)
+#endif
+
 template <class T>
 concept trivial = std::is_trivial<T>::value;
 template <class T>
@@ -97,7 +106,7 @@ public:
 		unsigned long long size = 0;
 		Read(stm, size);
 		if (size > 1ULL << 48) {
-			__debugbreak();
+			DEBUG_BREAK();
 		}
 		vec.reserve(size);
 		for (size_t i = 0; i < size; i++) {
@@ -116,14 +125,14 @@ public:
 			sz--;
 		}
 		if (sz != 0)
-			__debugbreak();
+			DEBUG_BREAK();
 	}
 	static void Read(std::istream& stm, BinaryMap auto& map) {
 		using ContainerChild = ::ContainerChild<decltype(map)>;
 		unsigned long long size = 0;
 		Read(stm, size);
 		if (size > 1ULL << 48) {
-			__debugbreak();
+			DEBUG_BREAK();
 		}
 		for (size_t i = 0; i < size; i++) {
 			if (stm.eof())
@@ -144,7 +153,7 @@ public:
 			sz--;
 		}
 		if (sz != 0)
-			__debugbreak();
+			DEBUG_BREAK();
 	}
 };
 #if defined(_MSC_VER) || defined(_UCRT)

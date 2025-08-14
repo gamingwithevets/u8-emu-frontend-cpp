@@ -44,14 +44,14 @@ struct es_stop_info {
     char qr_url[200];
 };
 
-class keyboard {
+class Keyboard {
 private:
-    mcu *mcu;
-    struct config *config;
+    MCU *mcu;
+    struct Config *config;
 public:
     struct es_stop_info emu_kb;
     bool enable_keypress;
-    keyboard(class mcu *mcu, int w, int h);
+    Keyboard(class MCU *mcu, int w, int h);
     void process_event(SDL_Renderer *renderer, const SDL_Event *e);
     void render(SDL_Renderer *renderer);
     void tick();

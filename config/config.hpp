@@ -41,7 +41,7 @@ struct color_info {
     uint8_t r, g, b;
 };
 
-enum hardware_id : int {
+enum HardwareID : int {
     HW_SOLAR_II = 0,
     HW_ES = 2,
     HW_ES_PLUS = 3,
@@ -50,7 +50,7 @@ enum hardware_id : int {
     HW_TI_MATHPRINT = 6
 };
 
-struct config {
+struct Config {
     const std::string header = "U8EFCPP1";
 
     // IMPORTANT!!! All file paths are relative to your CURRENT WORKING DIRECTORY,
@@ -59,7 +59,7 @@ struct config {
     // Emulator config
     std::string rom_file;
     std::string flash_rom_file;
-    hardware_id hardware_id{};
+    HardwareID hardware_id{};
     bool real_hardware{};
     bool sample{};
     bool is_5800p{};

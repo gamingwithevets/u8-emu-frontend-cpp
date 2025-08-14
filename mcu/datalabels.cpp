@@ -20,7 +20,7 @@
 #include "mcu.hpp"
 #include "datalabels.hpp"
 
-dlabels::dlabels(class mcu *mcu) {
+dlabels::dlabels(class MCU *mcu) {
     sfrlabels.push_back({0, 8, 0,
         "DSR",
         "",
@@ -101,7 +101,7 @@ dlabels::dlabels(class mcu *mcu) {
         if (is_ly) offset += 4;
         ramlabels.push_back({offset+7, 1, "Use output character set", "MathI only. If non-zero, some characters in the input will be displayed as a font character."});
         ramlabels.push_back({offset+9, 1, "Arrow state", "Holds the state of the arrow indicators. Not used in menus.\nBit 0: Up   Bit 1: Down"});
-        if (mcu->config->hardware_id == HW_ES_PLUS) offset += 1;
+        offset += 1;
         ramlabels.push_back({offset+11, 2, "Formula pointer", "Contains a pointer to the current formula displayed on the screen."});
         offset += mcu->config->hardware_id == HW_ES ? 20 : 35;
         ramlabels.push_back({offset, 10, "Displayed result (part 1)"});

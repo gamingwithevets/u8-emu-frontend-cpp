@@ -32,7 +32,7 @@ jobs:
         release: false
     
     - name: Compile
-      run: mingw32-make CXXFLAGS_EX="-DGITHUB_RUNID=${{ github.run_id }}" all
+      run: mingw32-make CXXFLAGS_EX="-DGITHUB_RUNID=${{ github.run_id }}" TARGET_Release
     
     - name: Prepare build artifact
       run: |
@@ -59,18 +59,60 @@ jobs:
         name: u8-emu-frontend-cpp-win64
         path: dist/u8-emu-frontend-cpp
 
+  build-linux:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    outputs:
+      artifact-name: u8-emu-frontend-cpp-linux
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.MY_TOKEN }}
+        submodules: recursive
+    
+    - name: Install build dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential libsdl3-dev libsdl3-image-dev libpng-dev libjpeg-dev libtiff-dev libwebp-dev zlib1g-dev libzip-dev
+
+    - name: Compile
+      run: make CXXFLAGS_EX="-DGITHUB_RUNID=${{ github.run_id }}" TARGET_Release_Linux
+
+    - name: Prepare build artifact
+      run: |
+        mkdir -p dist/u8-emu-frontend-cpp
+        cp u8-emu-frontend-cpp dist/u8-emu-frontend-cpp/
+        cp LICENSE dist/u8-emu-frontend-cpp/
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: u8-emu-frontend-cpp-linux
+        path: dist/u8-emu-frontend-cpp
+
   release:
     runs-on: ubuntu-latest
-    needs: build-win64
+    needs: [build-win64, build-linux]
     steps:
-    - name: Download artifact
+    - name: Download Windows artifact
       uses: actions/download-artifact@v4
       with:
         name: u8-emu-frontend-cpp-win64
-        path: u8-emu-frontend-cpp
+        path: u8-emu-frontend-cpp-win64
 
-    - name: Create ZIP
-      run: zip -r u8-emu-frontend-cpp-win64.zip u8-emu-frontend-cpp
+    - name: Download Linux artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: u8-emu-frontend-cpp-linux
+        path: u8-emu-frontend-cpp-linux
+
+    - name: Create ZIPs
+      run: |
+        zip -r u8-emu-frontend-cpp-win64.zip u8-emu-frontend-cpp-win64
+        zip -r u8-emu-frontend-cpp-linux.zip u8-emu-frontend-cpp-linux
 
     - name: Delete old release
       uses: larryjoelane/delete-release-action@v1.0.24
@@ -85,6 +127,8 @@ jobs:
         name: Continuous build
         tag_name: continuous
         body: "NOTE: This is a continuous release. Binaries are rebuilt automatically when changes are made."
-        files: u8-emu-frontend-cpp-win64.zip
+        files: |
+          u8-emu-frontend-cpp-win64.zip
+          u8-emu-frontend-cpp-linux.zip
         draft: false
         make_latest: true

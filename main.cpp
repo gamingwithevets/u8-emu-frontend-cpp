@@ -181,7 +181,11 @@ void print_stacktrace() {
 }
 
 void crash_handler(int sig) {
+#ifdef __linux__
+    raise(SIGTRAP);
+#elif defined(_WIN32) || defined(__CYGWIN__)
     __debugbreak();
+#endif // __linux__
     std::cerr << "Got signal " << sig << ".\n";
     print_stacktrace();
     std::signal(sig, SIG_DFL);
@@ -215,7 +219,7 @@ int main(int argc, char* argv[]) {
         std::cerr << "Error loading config file '" << path << "': " << strerror(errno) << std::endl;
         return -1;
     }
-    config config{};
+    Config config{};
     try {
         Binary::Read(is, config);
     } catch (const std::exception& e) {
@@ -415,7 +419,7 @@ int main(int argc, char* argv[]) {
 
     uint8_t pd_value;
     if (config.hardware_id != HW_TI_MATHPRINT) pd_value = config.pd_value;
-    mcu mcu(&core, &config, rom, flash, ram, ramstart, ramsize, w, h);
+    MCU mcu(&core, &config, rom, flash, ram, ramstart, ramsize, w, h);
 
     bool quit = false;
     bool single_step = false;
@@ -456,13 +460,13 @@ int main(int argc, char* argv[]) {
         CodeElem ce{};
         switch (siz) {
         case 2:
-            sprintf_s(ce.srcbuf, "%04X          ", (*(uint16_t*)before));
+            sprintf(ce.srcbuf, "%04X          ", (*(uint16_t*)before));
             break;
         case 4:
-            sprintf_s(ce.srcbuf, "%04X%04X      ", (*(uint16_t*)before), ((uint16_t*)before)[1]);
+            sprintf(ce.srcbuf, "%04X%04X      ", (*(uint16_t*)before), ((uint16_t*)before)[1]);
             break;
         case 6:
-            sprintf_s(ce.srcbuf, "%04X%04X%04X  ", (*(uint16_t*)before), ((uint16_t*)before)[1], ((uint16_t*)before)[2]);
+            sprintf(ce.srcbuf, "%04X%04X%04X  ", (*(uint16_t*)before), ((uint16_t*)before)[1], ((uint16_t*)before)[2]);
             break;
         default:
             strcpy(ce.srcbuf, "              ");
@@ -507,13 +511,13 @@ int main(int argc, char* argv[]) {
             if (iter == labels.end()) sprintf(symb, "_f_%05X", lb.first);
             else {
                 auto name = iter->second.name;
-                if (ends_with(name, "u8") || name[0] == '_' || name[0] == '$') strcpy_s(symb, name.c_str());
+                if (ends_with(name, "u8") || name[0] == '_' || name[0] == '$') strcpy(symb, name.c_str());
                 else {
                     symb[0] = '_';
-                    strcpy_s(&symb[1], 49, name.c_str());
+                    strncpy(&symb[1], name.c_str(), 48);
                 }
             }
-            strcpy_s(ce.srcbuf, symb);
+            strcpy(ce.srcbuf, symb);
             ce.offset = 0;
             labels[lb.first] = {std::string(symb), true};
             last_label = lb.first;
@@ -521,7 +525,7 @@ int main(int argc, char* argv[]) {
         else {
             char symb[50];
             sprintf(symb, "_$j_%05x", lb.first);
-            strcpy_s(ce.srcbuf, symb);
+            strcpy(ce.srcbuf, symb);
             ce.offset = 0;
             labels[lb.first] = Label{std::string(symb), false, last_label.has_value() ? last_label.value() : 0};
         }
@@ -533,7 +537,7 @@ int main(int argc, char* argv[]) {
         if (labels.find(ce.offset) != labels.end()) {
             CodeElem ce2{};
             ce2.is_label = true;
-            strcpy_s(ce2.srcbuf, (labels[ce.offset].name + ":").c_str());
+            strcpy(ce2.srcbuf, (labels[ce.offset].name + ":").c_str());
             ce2.offset = 0;
             finals.push_back(ce2);
         }
@@ -912,11 +916,8 @@ int main(int argc, char* argv[]) {
         ImGui::EndChild();
         ImGui::End();
 
-        char label[200];
-        sprintf(label, "%s###Options", get_strloc(s_options));
-        ImGui::Begin(label, NULL, 0);
-        sprintf(label, "%s###MCU Control", get_strloc(s_options_mcu));
-        if (ImGui::TreeNode(label)) {
+        ImGui::Begin(strprintf("%s###Options", get_strloc(s_options)), NULL, 0);
+        if (ImGui::TreeNode(strprintf("%s###MCU Control", get_strloc(s_options_mcu)))) {
             if (ImGui::Button(get_strloc(s_options_mcu_reset))) mcu.reset();
             ImGui::Text(get_strloc(s_options_mcu_cps));
             int cps_multiplier = mcu.cps_multiplier.load();
@@ -961,8 +962,7 @@ int main(int argc, char* argv[]) {
             ImGui::TreePop();
             ImGui::Spacing();
         }
-        sprintf(label, "%s###Interface", get_strloc(s_options_interface));
-        if (ImGui::TreeNode(label)) {
+        if (ImGui::TreeNode(strprintf("%s###Interface", get_strloc(s_options_interface)))) {
             ImGui::Text(get_strloc(s_language));
             ImGui::SameLine();
             if (ImGui::BeginCombo("##langselect", get_langname(g_settings.lang))) {
@@ -976,8 +976,7 @@ int main(int argc, char* argv[]) {
             ImGui::TreePop();
             ImGui::Spacing();
         }
-        sprintf(label, "%s###Other", get_strloc(s_options_other));
-        if (ImGui::TreeNode(label)) {
+        if (ImGui::TreeNode(strprintf("%s###Other", get_strloc(s_options_other)))) {
 #if defined(_WIN32) || defined(__CYGWIN__)
             if (ImGui::Button(get_strloc(s_options_other_copyclip))) {
                 ImGui::OpenPopup(mcu.screen->render_clipboard() ? "copyclip_success" : "copyclip_fail");
@@ -994,8 +993,7 @@ int main(int argc, char* argv[]) {
             ImGui::TreePop();
             ImGui::Spacing();
         }
-        sprintf(label, "%s###About", get_strloc(s_options_about));
-        if (ImGui::TreeNode(label)) {
+        if (ImGui::TreeNode(strprintf("%s###About", get_strloc(s_options_about)))) {
             ImGui::Text("u8-emu-frontend-cpp");
 #ifdef GITHUB_RUNID
             ImGui::Text("GitHub Actions build - Run ID: %llu", GITHUB_RUNID);
@@ -1017,7 +1015,7 @@ int main(int argc, char* argv[]) {
             ImGui::Text("  Compiled: %u.%u.%u", SDL_IMAGE_MAJOR_VERSION, SDL_IMAGE_MINOR_VERSION, SDL_IMAGE_MICRO_VERSION);
             ImGui::Text("  Linked: %u.%u.%u", SDL_VERSIONNUM_MAJOR(linked_image), SDL_VERSIONNUM_MINOR(linked_image), SDL_VERSIONNUM_MICRO(linked_image));
             ImGui::Spacing();
-            ImGui::Text("Dear ImGui version: %s (%d)", IMGUI_VERSION, IMGUI_VERSION_NUM);
+            ImGui::Text("Dear ImGui version: %s (%u)", IMGUI_VERSION, IMGUI_VERSION_NUM);
 
             ImGui::Spacing();
             ImGui::TextWrapped("Special thanks to the members of the Casio Calculator Hacking community for making this project possible.\n\nCode from Xyzst/CasioEmuX and telecomadm1145/CasioEmuMsvc used under GPL-v3.");
@@ -1068,7 +1066,6 @@ int main(int argc, char* argv[]) {
     ImGui_ImplSDLRenderer3_Shutdown();
     ImGui_ImplSDL3_Shutdown();
     ImGui::DestroyContext();
-    mcu.~mcu();
     free((void *)rom);
     if (interface) SDL_DestroyTexture(interface);
     SDL_DestroyRenderer(renderer);

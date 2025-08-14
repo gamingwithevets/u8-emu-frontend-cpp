@@ -42,9 +42,9 @@ extern "C" {
 #include "../imgui/imgui.h"
 
 //#define FLASHDEBUG
-#define BCD
+#define ENABLE_BCD
 
-mcu *mcuptr;
+MCU *mcuptr;
 double get_time() {
     struct timespec ts;
     clock_gettime(CLOCK_REALTIME, &ts);
@@ -66,7 +66,7 @@ void write_sfr(struct u8_core *core, uint8_t seg, uint16_t addr, uint8_t val) {
 }
 
 
-uint8_t write_dsr(mcu *mcu, uint16_t, uint8_t val) {
+uint8_t write_dsr(MCU *mcu, uint16_t, uint8_t val) {
     mcu->core->regs.dsr = val;
     return val;
 }
@@ -85,7 +85,7 @@ uint8_t read_flash(struct u8_core *core, uint8_t seg, uint16_t offset) {
 }
 
 // TODO: Actually implement VLS
-uint8_t ti_vlsconh(mcu *, uint16_t, uint8_t val) {
+uint8_t ti_vlsconh(MCU *, uint16_t, uint8_t val) {
     return !val;
 }
 
@@ -180,7 +180,7 @@ void write_ram2(struct u8_core *core, uint8_t seg, uint16_t addr, uint8_t val) {
     }
 }
 
-mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *flash, uint8_t *ram, int ramstart, int ramsize, int w, int h) {
+MCU::MCU(struct u8_core *core, struct Config *config, uint8_t *rom, uint8_t *flash, uint8_t *ram, int ramstart, int ramsize, int w, int h) {
     this->core = core;
     this->config = config;
     this->rom = rom;
@@ -396,21 +396,21 @@ mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *fla
             break;
     }
 
-    this->labels = new class dlabels(this);
+    this->labels = new dlabels(this);
 
     memset((void *)this->sfr_write, 0, sizeof(this->sfr_write));
     register_sfr(0, 1, &default_write<0xff>);
-    this->standby = new class standby;
-    this->wdt = new class wdt(this);
-    this->interrupts = new class interrupts(this);
-    this->timer = new class sfrtimer(this);
-    this->ltb = new class ltb(this);
-    this->keyboard = new class keyboard(this, w, h);
-    this->battery = new class battery(this->config);
-#ifdef BCD
-    this->bcd = new class bcd(this);
+    this->standby = new Standby;
+    this->wdt = new WDT(this);
+    this->interrupts = new Interrupts(this);
+    this->timer = new SFRTimer(this);
+    this->ltb = new LTB(this);
+    this->keyboard = new Keyboard(this, w, h);
+    this->battery = new Battery(this->config);
+#ifdef ENABLE_BCD
+    this->bcd = new BCD(this);
 #endif
-    this->screen = new class screen(this);
+    this->screen = new Screen(this);
 
     this->reset();
     if (this->config->hardware_id == HW_TI_MATHPRINT) {
@@ -419,14 +419,13 @@ mcu::mcu(struct u8_core *core, struct config *config, uint8_t *rom, uint8_t *fla
     }
 }
 
-mcu::~mcu() {
+MCU::~MCU() {
     free((void *)this->ram);
     free((void *)this->sfr);
     if (this->ram2) free((void *)this->ram2);
-    this->screen->~screen();
 }
 
-void mcu::core_step() {
+void MCU::core_step() {
     this->sfr[0] = this->core->regs.dsr;
     this->core->regs.csr &= (this->config->real_hardware && this->config->hardware_id == 3) ? 1 : 0xf;
 
@@ -497,7 +496,7 @@ void mcu::core_step() {
         uint8_t elevel = this->core->regs.psw & 3;
         call_stack.push_back({this->core->regs.pc, 0, 0, (this->core->regs.ecsr[elevel-1] << 16) | (this->core->regs.elr[elevel-1]), 0, interrupt});
     }
-#ifdef BCD
+#ifdef ENABLE_BCD
     this->bcd->tick();
 #endif
     if (this->config->hardware_id == HW_TI_MATHPRINT) {
@@ -548,11 +547,11 @@ void core_step_loop(std::atomic<bool>& stop) {
     }
 }
 
-void mcu::reset() {
+void MCU::reset() {
     u8_reset(this->core);
     this->standby->stop_mode = false;
     this->paused = false;
-#ifdef BCD
+#ifdef ENABLE_BCD
     this->bcd->reset();
 #endif
     if (this->config->hardware_id == HW_TI_MATHPRINT) {
@@ -583,7 +582,7 @@ void mcu::reset() {
     this->ips_ctr = 0;
 }
 
-void register_sfr(uint16_t addr, uint16_t len, uint8_t (*callback)(mcu*, uint16_t, uint8_t)) {
+void register_sfr(uint16_t addr, uint16_t len, uint8_t (*callback)(MCU*, uint16_t, uint8_t)) {
     for (int i = 0; i < len; i++)
         mcuptr->sfr_write[addr+i] = callback;
 }

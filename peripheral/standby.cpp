@@ -20,7 +20,7 @@
 #include "../mcu/mcu.hpp"
 #include "standby.hpp"
 
-uint8_t stpacp(mcu *mcu, uint16_t addr, uint8_t val) {
+uint8_t stpacp(MCU *mcu, uint16_t addr, uint8_t val) {
     if (mcu->standby->stop_accept[0]) {
         if ((val & 0xf0) == 0xa0) mcu->standby->stop_accept[1] = true;
         else mcu->standby->stop_accept[0] = false;
@@ -28,7 +28,7 @@ uint8_t stpacp(mcu *mcu, uint16_t addr, uint8_t val) {
     return 0;
 }
 
-uint8_t sbycon(mcu *mcu, uint16_t addr, uint8_t val) {
+uint8_t sbycon(MCU *mcu, uint16_t addr, uint8_t val) {
     if (val & (1 << 1)) {
         if (mcu->standby->stop_accept[0] && mcu->standby->stop_accept[1]) {
             mcu->standby->stop_mode = true;
@@ -46,7 +46,7 @@ uint8_t sbycon(mcu *mcu, uint16_t addr, uint8_t val) {
     return 0;
 }
 
-standby::standby() {
+Standby::Standby() {
     this->stop_accept[0] = false;
     this->stop_accept[1] = false;
     this->stop_mode = false;

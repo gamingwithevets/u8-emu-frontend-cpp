@@ -18,9 +18,9 @@
 #pragma once
 #include "../config/config.hpp"
 
-class battery {
+class Battery {
 public:
-    struct config *config;
+    struct Config *config;
 
-    battery(struct config *config);
+    Battery(struct Config *config);
 };

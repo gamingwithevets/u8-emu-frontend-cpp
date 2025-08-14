@@ -53,7 +53,7 @@ const char *getTmpDir(void) {
 }
 const char *tmpdir = getTmpDir();
 
-uint8_t draw_screen(mcu *mcu, uint16_t addr, uint8_t val) {
+uint8_t draw_screen(MCU *mcu, uint16_t addr, uint8_t val) {
     int y = (int)((addr - 0x800) / mcu->screen->bytes_per_row_real);
     int x = ((addr - 0x800) % mcu->screen->bytes_per_row_real) * 8;
     SDL_Rect rect;
@@ -67,7 +67,7 @@ uint8_t draw_screen(mcu *mcu, uint16_t addr, uint8_t val) {
     return val;
 }
 
-uint8_t draw_screen_cw(mcu *mcu, uint16_t addr, uint8_t val) {
+uint8_t draw_screen_cw(MCU *mcu, uint16_t addr, uint8_t val) {
     int y = (int)((addr - 0x800) / mcu->screen->bytes_per_row_real);
     int x = ((addr - 0x800) % mcu->screen->bytes_per_row_real) * 8;
     SDL_Rect rect;
@@ -93,13 +93,13 @@ uint8_t draw_screen_cw(mcu *mcu, uint16_t addr, uint8_t val) {
     return val;
 }
 
-uint8_t draw_screen_solarii(mcu *mcu, uint16_t addr, uint8_t val) {
+uint8_t draw_screen_solarii(MCU *mcu, uint16_t addr, uint8_t val) {
     int col = (addr - 0x800) / 8;
 
     const int offset = 0;
     const int offset_h = 5;
     const int small_offset = 0;
-    const auto n = [](class mcu *mcu, int i, int j) {
+    const auto n = [](class MCU *mcu, int i, int j) {
         return i < 11 ? mcu->config->pix_w*(5*i+offset+j) : mcu->config->pix_w*(11*5+offset) + mcu->config->pix_h*(small_offset+5*(i-11)+j);
     };
 
@@ -144,12 +144,12 @@ uint8_t draw_screen_solarii(mcu *mcu, uint16_t addr, uint8_t val) {
     return val & 0x77;
 }
 
-uint8_t screen_select(mcu *mcu, uint16_t addr, uint8_t val) {
+uint8_t screen_select(MCU *mcu, uint16_t addr, uint8_t val) {
     mcu->screen->cw_2bpp_toggle = (bool)(val & 4);
     return val;
 }
 
-screen::screen(class mcu *mcu) {
+Screen::Screen(class MCU *mcu) {
     this->mcu = mcu;
     this->config = mcu->config;
 
@@ -267,7 +267,7 @@ screen::screen(class mcu *mcu) {
         this->status_bar_bits.push_back({0x3, 6}); // STAT   | SD
         this->status_bar_bits.push_back({0x4, 7}); // CMPLX  | REG  | 360
         this->status_bar_bits.push_back({0x5, 6}); // MAT    | FMLA | SI
-        if (this->config->hardware_id == 2 && this->config->is_5800p)
+        if (this->config->hardware_id == HW_ES && this->config->is_5800p)
              this->status_bar_bits.push_back({0x5, 4}); //   | PRGM
         this->status_bar_bits.push_back({0x5, 1}); // VCT    | END  | DMY
         this->status_bar_bits.push_back({0x7, 5}); // [D]
@@ -304,12 +304,12 @@ screen::screen(class mcu *mcu) {
         for (int i = 0; i < this->height; i++) register_sfr(0x800+i*this->bytes_per_row_real, this->bytes_per_row, this->cw_2bpp ? &draw_screen_cw : &draw_screen);
 }
 
-screen::~screen() {
+Screen::~Screen() {
     SDL_DestroySurface(this->status_bar);
     SDL_DestroySurface(this->display);
 }
 
-SDL_Surface *screen::get_surface(uint32_t background) {
+SDL_Surface *Screen::get_surface(uint32_t background) {
     if (this->config->hardware_id == HW_TI_MATHPRINT) {
         SDL_Surface *tmp = SDL_CreateSurface(192*this->config->pix_w, 64*this->config->pix_h+this->sbar_hi, SDL_GetPixelFormatForMasks(32, 0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000));
         SDL_FillSurfaceRect(tmp, NULL, background);
@@ -368,7 +368,7 @@ SDL_Surface *screen::get_surface(uint32_t background) {
     }
 }
 
-void screen::render(SDL_Renderer *renderer) {
+void Screen::render(SDL_Renderer *renderer) {
     SDL_Surface* tmp = this->get_surface();
 
     SDL_Texture* tmp2 = SDL_CreateTextureFromSurface(renderer, tmp);
@@ -381,7 +381,7 @@ void screen::render(SDL_Renderer *renderer) {
     SDL_DestroySurface(tmp);
 }
 
-void screen::save(const char *fname) {
+void Screen::save(const char *fname) {
     SDL_Surface* tmp = this->get_surface(this->config->hardware_id == HW_TI_MATHPRINT ? WHITE_COLOR : WHITE_COLOR_CASIO);
     IMG_SavePNG(tmp, fname);
 }
@@ -464,7 +464,7 @@ bool CopyPNGToClipboard(const char* filePath) {
     return true;
 }
 
-bool screen::render_clipboard() {
+bool Screen::render_clipboard() {
     char fname[260]; strcpy(fname, tmpdir);
     strcat(fname, "/image.png");
     this->save(fname);
@@ -474,7 +474,7 @@ bool screen::render_clipboard() {
 }
 #endif
 
-void screen::reset() {
+void Screen::reset() {
     for (int i = 0; i < this->height; i++)
         for (int j = 0; j < this->bytes_per_row; j++) this->mcu->sfr[0x800 + i*this->bytes_per_row_real+j] = 0;
     this->mcu->sfr[0x30] = 0;

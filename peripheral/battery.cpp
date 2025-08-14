@@ -19,13 +19,13 @@
 #include "../config/config.hpp"
 #include "../mcu/mcu.hpp"
 
-uint8_t bldcon(mcu *mcu, uint16_t addr, uint8_t val) {
+uint8_t bldcon(MCU *mcu, uint16_t addr, uint8_t val) {
     val &= 7;
     // Placeholder. Need to implement interrupts first.
     return (mcu->sfr[0xd0] == 3 && mcu->sfr[0xd2] == 0 && val == 5) ? 6 : val;
 }
 
-battery::battery(struct config *config) {
+Battery::Battery(struct Config *config) {
     this->config = config;
 
     if (this->config->hardware_id == HW_CLASSWIZ_EX || this->config->hardware_id == HW_CLASSWIZ_CW) {

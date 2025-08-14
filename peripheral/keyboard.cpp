@@ -25,7 +25,7 @@
 #include "../config/config.hpp"
 #include "keyboard.hpp"
 
-keyboard::keyboard(class mcu *mcu, int w, int h) {
+Keyboard::Keyboard(class MCU *mcu, int w, int h) {
     this->mcu = mcu;
     this->config = mcu->config;
 
@@ -81,7 +81,7 @@ keyboard::keyboard(class mcu *mcu, int w, int h) {
     }
 }
 
-void keyboard::process_event(SDL_Renderer *renderer, const SDL_Event *e) {
+void Keyboard::process_event(SDL_Renderer *renderer, const SDL_Event *e) {
     SDL_Keycode key;
     switch (e->type) {
     case SDL_EVENT_KEY_DOWN:
@@ -133,7 +133,7 @@ void keyboard::process_event(SDL_Renderer *renderer, const SDL_Event *e) {
 
 }
 
-void keyboard::render(SDL_Renderer *renderer) {
+void Keyboard::render(SDL_Renderer *renderer) {
     SDL_Surface *tmp = SDL_CreateSurface(this->w, this->h, SDL_GetPixelFormatForMasks(32, 0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000));
     for (const auto &k : this->held_buttons) SDL_FillSurfaceRect(tmp, &this->config->keymap[k].rect, 0xAA000000);
     if (this->mouse_held) SDL_FillSurfaceRect(tmp, &this->config->keymap[this->held_button_mouse].rect, 0xAA000000);
@@ -147,7 +147,7 @@ void keyboard::render(SDL_Renderer *renderer) {
     SDL_DestroyTexture(tmp2);
 }
 
-void keyboard::tick() {
+void Keyboard::tick() {
     uint8_t ki = 0;
     uint8_t kimask = this->mcu->sfr[0x42];
     uint8_t ko = (this->config->hardware_id == HW_ES || (this->config->hardware_id == HW_ES_PLUS && this->config->old_esp)) ? (this->mcu->sfr[0x44] ^ 0xff) : this->mcu->sfr[0x46];
@@ -160,7 +160,7 @@ void keyboard::tick() {
     if (!reset) this->mcu->sfr[0x40] = ki ^ 0xff;
 }
 
-void keyboard::_tick(bool *reset, uint8_t *ki, uint8_t kimask, uint8_t ko, uint8_t k) {
+void Keyboard::_tick(bool *reset, uint8_t *ki, uint8_t kimask, uint8_t ko, uint8_t k) {
     if (k != 0xff) {
         uint8_t ki_bit = k & 0xf;
         uint8_t ko_bit = k >> 4;
@@ -174,7 +174,7 @@ void keyboard::_tick(bool *reset, uint8_t *ki, uint8_t kimask, uint8_t ko, uint8
     }
 }
 
-void keyboard::tick_emu() {
+void Keyboard::tick_emu() {
     std::optional<uint8_t> k;
     switch (*this->emu_kb.ES_STOPTYPEADR) {
     case ES_STOP_GETKEY:
@@ -226,7 +226,7 @@ void keyboard::tick_emu() {
     }
 }
 
-std::optional<uint8_t> keyboard::get_button() {
+std::optional<uint8_t> Keyboard::get_button() {
     if (this->held_buttons.size()) return this->held_buttons.back();
     else if (this->mouse_held) return this->held_button_mouse;
     return std::nullopt;

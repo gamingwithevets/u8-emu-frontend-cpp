@@ -43,7 +43,7 @@ class dlabels {
     std::vector<sfrdata> sfrlabels;
     std::vector<dldata> ram2labels;
 public:
-    dlabels(class mcu *mcu);
+    dlabels(class MCU *mcu);
     void get_name(int type, uint16_t addr, dldata *data);
     void get_sfr_name(uint16_t addr, sfrdata *data);
 };

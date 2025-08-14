@@ -25,8 +25,8 @@
 #include "../config/config.hpp"
 #include "bcd.hpp"
 
-uint8_t bcdcmd(mcu *mcu, uint16_t addr, uint8_t val) {
-    bcd *bcd = mcu->bcd;
+uint8_t bcdcmd(MCU *mcu, uint16_t addr, uint8_t val) {
+    BCD *bcd = mcu->bcd;
     bcd->bcdcmd_req = val;
     if (!bcd->macro_running) bcd->run_command(val);
     else {
@@ -36,14 +36,14 @@ uint8_t bcdcmd(mcu *mcu, uint16_t addr, uint8_t val) {
     return val;
 }
 
-uint8_t bcdcon(mcu *mcu, uint16_t, uint8_t val) {
+uint8_t bcdcon(MCU *mcu, uint16_t, uint8_t val) {
     if (val < 1) return 1;
     if (val > 6) return 6;
     return val;
 }
 
-uint8_t bcdmcr(mcu *mcu, uint16_t addr, uint8_t val) {
-    bcd *bcd = mcu->bcd;
+uint8_t bcdmcr(MCU *mcu, uint16_t addr, uint8_t val) {
+    BCD *bcd = mcu->bcd;
     bcd->bcdmcr_req = val;
     if (!bcd->macro_running) bcd->start_macro(val);
     else {
@@ -53,13 +53,13 @@ uint8_t bcdmcr(mcu *mcu, uint16_t addr, uint8_t val) {
     return val;
 }
 
-uint8_t bcdflg(mcu *mcu, uint16_t addr, uint8_t val) {
+uint8_t bcdflg(MCU *mcu, uint16_t addr, uint8_t val) {
     mcu->bcd->carry = val & 0x80;
     mcu->bcd->zero = val & 0x40;
     return val & 0b11000000;
 }
 
-bcd::bcd(class mcu *mcu) {
+BCD::BCD(class MCU *mcu) {
     this->mcu = mcu;
     this->config = mcu->config;
 
@@ -78,7 +78,7 @@ bcd::bcd(class mcu *mcu) {
     }
 }
 
-void bcd::tick() {
+void BCD::tick() {
     if (!macro_running) return;
 
     fetch:
@@ -142,7 +142,7 @@ void bcd::tick() {
     }
 }
 
-void bcd::reset() {
+void BCD::reset() {
     mcu->sfr[0x400] = mcu->sfr[0x404] = mcu->sfr[0x414] = mcu->sfr[0x415] = 0;
     mcu->sfr[0x402] = 6;
 
@@ -166,7 +166,7 @@ void fmtreg(uint8_t array[12], char *hex_str) {
     }
 }
 
-void bcd::run_command(uint8_t cmd) {
+void BCD::run_command(uint8_t cmd) {
 	mcu->sfr[0x400] = cmd;
 	uint8_t src = (cmd >> 2) & 3, dst = cmd & 3, op = cmd >> 4;
 	bool arithmetic_mode = (op & 0x08) == 0;
@@ -305,7 +305,7 @@ void bcd::run_command(uint8_t cmd) {
 #endif // BCDDEBUG
 }
 
-void bcd::start_macro(uint8_t index) {
+void BCD::start_macro(uint8_t index) {
 	bcdmcn = mcu->sfr[0x404] + 1;
 	if (index > 0x0F) {
 		curr_pgm = nullptr;
@@ -332,7 +332,7 @@ void bcd::start_macro(uint8_t index) {
 	if (curr_pgm != nullptr) macro_running = true;
 }
 
-void bcd::shift_left(uint8_t src, uint8_t dst, bool continuous) {
+void BCD::shift_left(uint8_t src, uint8_t dst, bool continuous) {
 	if (!src) {
 		for (int i = 11; i > 0; i--) bcdreg[dst][i] = (bcdreg[dst][i] << 4) | (bcdreg[dst][i - 1] >> 4);
 		bcdreg[dst][0] = (bcdreg[dst][0] << 4) | (continuous ? (bcdreg[(dst + 3) & 3][11] >> 4) : 0);
@@ -347,7 +347,7 @@ void bcd::shift_left(uint8_t src, uint8_t dst, bool continuous) {
 	}
 }
 
-void bcd::shift_right(uint8_t src, uint8_t dst, bool continuous) {
+void BCD::shift_right(uint8_t src, uint8_t dst, bool continuous) {
 	if (!src) {
 		for (int i = 0; i < 11; i++) bcdreg[dst][i] = (bcdreg[dst][i] >> 4) | (bcdreg[dst][i + 1] << 4);
 		bcdreg[dst][11] = (bcdreg[dst][11] >> 4) | (continuous ? (bcdreg[(dst + 1) & 3][0] << 4) : 0);

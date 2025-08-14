@@ -38,13 +38,13 @@ typedef struct {
     bool nmi;
 } int_callstack;
 
-class interrupts {
+class Interrupts {
 public:
-    class mcu *mcu;
-    struct config *config;
+    class MCU *mcu;
+    struct Config *config;
     std::map<std::string, intr_data> intr_tbl;
     char int_timer;
-    interrupts(class mcu *mcu);
+    Interrupts(class MCU *mcu);
     int_callstack tick();
     std::optional<std::string> find_int(uint16_t vector_adrs);
 };

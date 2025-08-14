@@ -4,7 +4,12 @@ This new, fresh emulator built fully from scratch and written in C++ is faster t
 This emulator uses the [`docking` branch of Dear ImGui](https://github.com/ocornut/imgui/tree/docking).
 
 ## Building
-A `Makefile` for MSYS2 MinGW32 is provided in the repository. You may need to edit it to conform with your environment.
+The Makefile has 5 targets:
+- `clean`: Clean all object files.
+- `all`: Everything below.
+- `release` and `release_linux`: Optimized build; recommended for building.  
+Note that, as of now, these two targets are seperate. `release` will only work on Windows, and `release_linux` will only work on Linux. This is subject to change in the future.
+- `debug`: Unoptimized debug build. Windows only.
 
 ## Configuration
 The emulator uses a specialized binary configuration file format. The format uses the `.bin` extension. The file layout can be found in [`config/config.hpp`](config/config.hpp).
@@ -30,6 +35,4 @@ the Free Software Foundation, either version 3 of the License, or
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-For more information, see the [full license document](LICENSE). 
+[GNU General Public License](LICENSE) for more details.

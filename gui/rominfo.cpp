@@ -8,69 +8,73 @@
 #include "rominfo.hpp"
 #include "cwmem.hpp"
 
-inline word le_read(auto& p) {
-	// this works for le machine
-	return *(word*)&p;
+inline uint16_t le_read(auto& p) {
+	return *(uint16_t *)&p;
 }
-inline void calc(word& sum, byte* bt, int len) {
+inline void calc_cs_negword(uint16_t& sum, byte* bt, int len) {
 	for (size_t i = 0; i < len; i += 2) {
 		sum -= le_read(bt[i]);
 	}
 }
 
-inline void calc2(word& sum, byte* bt, int len) {
+inline void calc_cs_negword_cs_negbyte(uint16_t& sum, byte* bt, int len) {
 	for (size_t i = 0; i < len; i++) {
 		sum -= bt[i];
 	}
 }
 
-inline void calc3(word& sum, byte* bt, int len) {
+inline void calc_cs_negword_cs_posbyte(uint16_t& sum, byte* bt, int len) {
     for (size_t i = 0; i < len; i++) {
         sum += bt[i];
     }
 }
 
-RomInfo rom_info(std::vector<byte> rom, std::vector<byte> flash, bool checksum) {
+ROMInfo rom_info(std::vector<byte> rom, std::vector<byte> flash, bool checksum) {
 	auto dat = rom.data();
 	auto dat2 = flash.data();
-	RomInfo ri{};
-	auto spinit = *(word*)dat;
+	ROMInfo ri{};
+	auto spinit = *(uint16_t *)dat;
 	enum {
-		Unk,
-		ESP0,
-		ESP1,
-		ESP2,
-		CWX,
-		CWII,
+		ES_PLUS_GY_OLD,
+		ES_PLUS,
+		ES_PLUS_2,
+		CLASSWIZ_EX,
+		CLASSWIZ_CW,
 	} sum_type{};
-	if (spinit == 0xf000) { // cwx or cwii
+	if (spinit == 0xf000) {
 		if (rom.size() < 0x40000) {
 			return ri;
 		}
-		if (rom.size() == 0x40000) { // must be cwx
+		if (rom.size() == 0x40000 || ((dat[0x3ffee] == 'C' && dat[0x3ffef] == 'Y'))) {
 		    if (dat[0x3ffee] != 'C' || dat[0x3ffef] != 'Y') return ri;
-		cwx_p:
 			memcpy(ri.ver, &dat[0x3ffee], 8);
             memcpy(ri.cid, &dat[0x3fff8], 8);
             ri.desired_sum = le_read(dat[0x3fff6]);
-            sum_type = CWX;
+            sum_type = CLASSWIZ_EX;
 		}
 		else {
-			if (dat[0x3ffee] == 'C' && dat[0x3ffef] == 'Y') goto cwx_p;
 			if (rom.size() < 0x60000) {
 				return ri;
 			}
-			if (dat[0x5ffee] != 'E') { // this means... it is stored at 0x71xxx
-				if (rom.size() < 0x80000) {
-					return ri;
-				}
+			if (dat[0x5ffee] != 'E') {
+				if (rom.size() < 0x80000) return ri;
 				memcpy(&dat[0x5e000], &dat[0x70000], 0x2000);
 			}
 			memcpy(ri.ver, &dat[0x5ffee], 8);
 			memcpy(ri.cid, &dat[0x5fff8], 8);
 			if (ri.ver[0] != 'E') {
-				auto ver = (byte*)FindSignature(dat, 0x5e000, "?? 00 e9 90 ca ff ?? 00 e9 90 cb ff ?? 00 e9 90 cc ff ?? 00 e9 90 cd ff ?? 00 e9 90 ce ff ?? 00 e9 90 cf ff");
-				auto ver2 = (byte*)FindSignature(dat, 0x5e000, "56 00 e9 90 d1 ff 2e 00 e9 90 d2 ff");
+				auto ver = FindSignature(dat, 0x5e000, {
+                             -1, 0x00, 0xe9, 0x90, 0xca, 0xff,
+                             -1, 0x00, 0xe9, 0x90, 0xcb, 0xff,
+                             -1, 0x00, 0xe9, 0x90, 0xcc, 0xff,
+                             -1, 0x00, 0xe9, 0x90, 0xcd, 0xff,
+                             -1, 0x00, 0xe9, 0x90, 0xce, 0xff,
+                             -1, 0x00, 0xe9, 0x90, 0xcf, 0xff
+                });
+				auto ver2 = FindSignature(dat, 0x5e000, {
+                              0x56, 0x00, 0xe9, 0x90, 0xd1, 0xff,
+                              0x2e, 0x00, 0xe9, 0x90, 0xd2, 0xff
+                });
 				auto ofst = ver2[14] | (ver2[15] << 8);
 				for (size_t i = 0; i < 6; i++) {
 					ri.ver[i] = ver[i * 6];
@@ -79,26 +83,26 @@ RomInfo rom_info(std::vector<byte> rom, std::vector<byte> flash, bool checksum) 
 				ri.ver[7] = dat[ofst + 1];
 			}
 			ri.desired_sum = le_read(dat[0x5fff6]);
-			sum_type = CWII;
+			sum_type = CLASSWIZ_CW;
 		}
 	}
 	else if (spinit == 0x8dfe || spinit == 0x8e00) {
-        auto str = (char *)FindSignature(dat, 0x8000, "49 4E 52 4f 4d 2d");
+        auto str = FindSignature(dat, 0x8000, {'I', 'N', 'R', 'O', 'M'});
         if (str) {
             if (flash.size() < 0x80000) {
                 return ri;
             }
-            ri.type = RomInfo::Fx5800p;
+            ri.type = ROMInfo::ES_5800P;
             ri.desired_sum = le_read(dat2[0x7fffe]);
-            strcpy(ri.ver, str);
-            if (checksum) calc3(ri.real_sum, &dat2[0x40000], 0x3fffe);
+            strcpy(ri.ver, (char *)str);
+            if (checksum) calc_cs_negword_cs_posbyte(ri.real_sum, &dat2[0x40000], 0x3fffe);
             ri.ok = true;
             return ri;
         }
-        str = (char *)FindSignature(dat, 0x8000, "52 4f 4d");
+        str = FindSignature(dat, 0x8000, {'R', 'O', 'M'});
         if (str) {
-            strcpy(ri.ver, str);
-            ri.type = RomInfo::ES;
+            strcpy(ri.ver, (char *)str);
+            ri.type = ROMInfo::ES;
         }
         return ri;
 	}
@@ -108,68 +112,65 @@ RomInfo rom_info(std::vector<byte> rom, std::vector<byte> flash, bool checksum) 
 		}
 		memcpy(ri.ver, &dat[0x1fff4], 8);
 		ri.desired_sum = le_read(dat[0x1fffc]);
-		sum_type = ESP1;
+		sum_type = ES_PLUS;
 	}
 	else {
-        auto str = (char *)FindSignature(dat, 0xb000, "73 69 6e 68 28 00");
+        auto str = FindSignature(dat, 0xb000, {'s', 'i', 'n', 'h', 0});
         if (str) {
             strcpy(ri.ver, (char *)(str + 6));
-            ri.type = RomInfo::TI;
+            ri.type = ROMInfo::TI_MATHPRINT;
         }
         return ri;
 	}
 	if (ri.ver[1] != 'Y') {
 		return ri;
 	}
-	if (sum_type == ESP1) {
-		if (ri.ver[0] == 'L') sum_type = ESP1;
-		else if (ri.ver[5] == 'X') sum_type = ESP1;
-		else if (ri.ver[0] == 'G') sum_type = ESP0;
-		else if (ri.ver[0] == 'C') sum_type = ESP2;
+	if (sum_type == ES_PLUS) {
+		if (ri.ver[0] == 'L') sum_type = ES_PLUS;
+		else if (ri.ver[5] == 'X') sum_type = ES_PLUS;
+		else if (ri.ver[0] == 'G') sum_type = ES_PLUS_GY_OLD;
+		else if (ri.ver[0] == 'C') sum_type = ES_PLUS_2;
 		else {
 			return ri;
 		}
 	}
 
-	// std::cout << sum_type << "\n";
 	switch (sum_type) {
-	case ESP0:
+	case ES_PLUS_GY_OLD:
 		if (checksum) {
-			calc2(ri.real_sum, dat, 0x8000);
-			calc2(ri.real_sum, &dat[0x10000], 0xfffc);
+			calc_cs_negword_cs_negbyte(ri.real_sum, dat, 0x8000);
+			calc_cs_negword_cs_negbyte(ri.real_sum, &dat[0x10000], 0xfffc);
 		}
-		ri.type = RomInfo::ESP;
+		ri.type = ROMInfo::ES_PLUS;
 		break;
-	case ESP1:
-		// calc(real_sum, dat, 0xfc00);
+	case ES_PLUS:
 		if (checksum) {
-			calc2(ri.real_sum, dat, 0x10000);
-			calc2(ri.real_sum, &dat[0x10000], 0xfffc);
+			calc_cs_negword_cs_negbyte(ri.real_sum, dat, 0x10000);
+			calc_cs_negword_cs_negbyte(ri.real_sum, &dat[0x10000], 0xfffc);
 		}
-		ri.type = RomInfo::ESP;
+		ri.type = ROMInfo::ES_PLUS;
 		break;
-	case ESP2:
-		// calc(real_sum, dat, 0xfc00);
+	case ES_PLUS_2:
 		if (checksum) {
-			calc2(ri.real_sum, dat, 0x10000);
-			calc2(ri.real_sum, &dat[0x10000], 0xff40);
-			calc2(ri.real_sum, &dat[0x1ffd0], 0x2c);
+			calc_cs_negword_cs_negbyte(ri.real_sum, dat, 0x10000);
+			calc_cs_negword_cs_negbyte(ri.real_sum, &dat[0x10000], 0xff40);
+			calc_cs_negword_cs_negbyte(ri.real_sum, &dat[0x1ffd0], 0x2c);
 		}
-		ri.type = RomInfo::ESP2nd;
+		ri.type = ROMInfo::ES_PLUS_2;
 		break;
-	case CWX:
+	case CLASSWIZ_EX:
 		if (checksum) {
-			calc(ri.real_sum, dat, 0xfc00);
-			calc(ri.real_sum, &dat[0x10000], 0x2fff6);
+			calc_cs_negword(ri.real_sum, dat, 0xfc00);
+			calc_cs_negword(ri.real_sum, &dat[0x10000], 0x2fff6);
 		}
-		ri.type = RomInfo::CWX;
+		ri.type = ROMInfo::CLASSWIZ_EX;
 		break;
-	case CWII:
+	case CLASSWIZ_CW:
 		if (checksum) {
-			calc(ri.real_sum, dat, 0xfc00);
-			calc(ri.real_sum, &dat[0x10000], 0x4fff6);
+			calc_cs_negword(ri.real_sum, dat, 0xfc00);
+			calc_cs_negword(ri.real_sum, &dat[0x10000], 0x4fff6);
 		}
-		ri.type = RomInfo::CWII;
+		ri.type = ROMInfo::CLASSWIZ_CW;
 		break;
 	default:
 		return ri;

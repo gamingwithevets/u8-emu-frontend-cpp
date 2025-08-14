@@ -19,14 +19,14 @@
 #include "../mcu/mcu.hpp"
 #include "timer.hpp"
 
-timer::timer(double tps) {
+Timer::Timer(double tps) {
     this->time_scale = 1;
     this->passed_time = 0;
     this->tps = tps;
     this->last_time = get_time() * 1e9;
 }
 
-void timer::tick() {
+void Timer::tick() {
     uint64_t now = get_time() * 1e9;
     uint64_t passed_ns = now - this->last_time;
     this->last_time = now;
@@ -39,9 +39,9 @@ void timer::tick() {
     this->passed_time -= this->ticks;
 }
 
-sfrtimer::sfrtimer(class mcu *mcu) {
+SFRTimer::SFRTimer(class MCU *mcu) {
     this->mcu = mcu;
-    this->timer = new class timer(10000);
+    this->timer = new class Timer(10000);
 
     if (this->mcu->config->hardware_id == HW_TI_MATHPRINT) {
         register_sfr(0x300, 2, &default_write<0xff>);
@@ -54,7 +54,7 @@ sfrtimer::sfrtimer(class mcu *mcu) {
     }
 }
 
-void sfrtimer::tick() {
+void SFRTimer::tick() {
     this->timer->tick();
     uint16_t counter, target;
 

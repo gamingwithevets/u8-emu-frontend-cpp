@@ -20,14 +20,14 @@
 #include "../mcu/mcu.hpp"
 #include "ltb.hpp"
 
-ltb::ltb(class mcu *mcu) {
+LTB::LTB(class MCU *mcu) {
     this->mcu = mcu;
-    this->timer = new class timer(128);
+    this->timer = new class Timer(128);
 
     register_sfr(0x60, 1, &default_write<0xff>);
 }
 
-void ltb::tick() {
+void LTB::tick() {
     this->timer->tick();
     uint8_t c0 = this->mcu->sfr[0x60];
     uint8_t c1 = c0 + 1;

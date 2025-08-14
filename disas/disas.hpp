@@ -61,7 +61,7 @@ inline void LABEL_LABEL(auto x) {
 	p_labels[x];
 }
 
-void decode(std::ostream& out, uint8_t*& buf, uint32_t pc, class interrupts *ints) {
+void decode(std::ostream& out, uint8_t*& buf, uint32_t pc, class Interrupts *ints) {
 	static const char* cond[15] = {"GE", "LT", "GT", "LE", "GES", "LTS", "GTS", "LES",
 		"NE", "EQ", "NV", "OV", "PS", "NS", "AL"};
 

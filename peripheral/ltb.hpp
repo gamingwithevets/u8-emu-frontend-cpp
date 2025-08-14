@@ -21,11 +21,11 @@
 #include "../mcu/mcu.hpp"
 #include "timer.hpp"
 
-class ltb {
+class LTB {
 private:
-    class mcu *mcu;
-    class timer *timer;
+    class MCU *mcu;
+    class Timer *timer;
 public:
-    ltb(class mcu *mcu);
+    LTB(class MCU *mcu);
     void tick();
 };

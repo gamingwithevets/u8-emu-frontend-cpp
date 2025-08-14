@@ -2,21 +2,20 @@
 #include <vector>
 using word = unsigned short;
 using byte = unsigned char;
-struct RomInfo {
+struct ROMInfo {
 	char ver[10];
 	byte cid[8];
 	word desired_sum;
 	word real_sum;
 	enum {
-		Unknown,
 		ES,
-		ESP,
-		ESP2nd,
-		CWX,
-		CWII,
-		Fx5800p,
-		TI,
+		ES_5800P,
+		ES_PLUS,
+		ES_PLUS_2,
+		CLASSWIZ_EX,
+		CLASSWIZ_CW,
+		TI_MATHPRINT,
 	} type;
 	bool ok;
 };
-RomInfo rom_info(std::vector<byte> rom, std::vector<byte> flash, bool checksum = true);
+ROMInfo rom_info(std::vector<byte> rom, std::vector<byte> flash, bool checksum = true);

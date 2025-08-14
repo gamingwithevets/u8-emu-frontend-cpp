@@ -23,8 +23,8 @@
 #include "../mcu/mcu.hpp"
 #include "../config/config.hpp"
 
-class wdt {
-    class mcu *mcu;
+class WDT {
+    class MCU *mcu;
     struct config *config;
 
 public:
@@ -34,7 +34,7 @@ public:
     size_t wdt_count;
     bool overflow_count;
 
-    wdt(class mcu *mcu);
+    WDT(class MCU *mcu);
     void reset();
     void tick();
 };
