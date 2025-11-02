@@ -32,7 +32,7 @@ jobs:
         release: false
     
     - name: Compile
-      run: mingw32-make CXXFLAGS_EX="-DGITHUB_RUNID=${{ github.run_id }}" TARGET_Release
+      run: mingw32-make CXXFLAGS_EX="-DGITHUB_RUNID=${{ github.run_id }}" release
     
     - name: Prepare build artifact
       run: |
@@ -79,7 +79,7 @@ jobs:
         sudo apt-get install -y build-essential libsdl3-dev libsdl3-image-dev libpng-dev libjpeg-dev libtiff-dev libwebp-dev zlib1g-dev libzip-dev
 
     - name: Compile
-      run: make CXXFLAGS_EX="-DGITHUB_RUNID=${{ github.run_id }}" TARGET_Release_Linux
+      run: make CXXFLAGS_EX="-DGITHUB_RUNID=${{ github.run_id }}" release_linux
 
     - name: Prepare build artifact
       run: |

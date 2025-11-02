@@ -56,13 +56,13 @@ ROMInfo rom_info(std::vector<byte> rom, std::vector<byte> flash, bool checksum) 
 			if (rom.size() < 0x60000) {
 				return ri;
 			}
-			if (dat[0x5ffee] != 'E') {
+			if (dat[0x5ffee] != 'E' && dat[0x5ffee] != 'F') {
 				if (rom.size() < 0x80000) return ri;
 				memcpy(&dat[0x5e000], &dat[0x70000], 0x2000);
 			}
 			memcpy(ri.ver, &dat[0x5ffee], 8);
 			memcpy(ri.cid, &dat[0x5fff8], 8);
-			if (ri.ver[0] != 'E') {
+			if (ri.ver[0] != 'E' && ri.ver[0] != 'F') {
 				auto ver = FindSignature(dat, 0x5e000, {
                              -1, 0x00, 0xe9, 0x90, 0xca, 0xff,
                              -1, 0x00, 0xe9, 0x90, 0xcb, 0xff,

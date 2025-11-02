@@ -22,7 +22,6 @@
 #include <cstdint>
 #include <optional>
 
-#include "../mcu/mcu.hpp"
 #include "../config/config.hpp"
 
 typedef struct {

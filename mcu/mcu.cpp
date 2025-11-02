@@ -27,6 +27,7 @@
 #include <unistd.h>
 
 #include "mcu.hpp"
+#include "../gui/disasdisp.hpp"
 #include "../config/config.hpp"
 #include "datalabels.hpp"
 #include "../peripheral/standby.hpp"
@@ -430,6 +431,10 @@ void MCU::core_step() {
     this->core->regs.csr &= (this->config->real_hardware && this->config->hardware_id == 3) ? 1 : 0xf;
 
     if (!this->paused) {
+		if (TryTrigBP(this->core->regs.csr, this->core->regs.pc)) {
+			single_step = true;
+			return;
+		}
         std::lock_guard<std::mutex> lock(call_stack_mutex);
         uint16_t data = read_mem_code(this->core, this->core->regs.csr, this->core->regs.pc, 2);
         // BL Cadr
@@ -437,11 +442,9 @@ void MCU::core_step() {
             uint16_t addr = read_mem_code(this->core, this->core->regs.csr, this->core->regs.pc+2, 2);
             call_stack.push_back({(((data >> 8) & 0xf) << 16) | addr, read_reg_er(this->core, 0), read_reg_er(this->core, 2), (this->core->regs.csr << 16) | (this->core->regs.pc+4)});
         // BL ERn
-        } else if ((data & 0xff0f) == 0xf003) {
-            uint16_t addr = read_mem_code(this->core, this->core->regs.csr, this->core->regs.pc+2, 2);
-            call_stack.push_back({(this->core->regs.csr << 16) | read_reg_er(this->core, (data >> 4) & 0xf), read_reg_er(this->core, 0), read_reg_er(this->core, 2), (this->core->regs.csr << 16) | (this->core->regs.pc+4)});
+        } else if ((data & 0xff0f) == 0xf003) call_stack.push_back({(this->core->regs.csr << 16) | read_reg_er(this->core, (data >> 4) & 0xf), read_reg_er(this->core, 0), read_reg_er(this->core, 2), (this->core->regs.csr << 16) | (this->core->regs.pc+4)});
         // PUSH LR
-        } else if ((data & 0xf8ff) == 0xf8ce && !call_stack.empty()) call_stack.back().return_addr_ptr = this->core->regs.sp - 4;
+        else if ((data & 0xf8ff) == 0xf8ce && !call_stack.empty()) call_stack.back().return_addr_ptr = this->core->regs.sp - 4;
         // POP PC
         else if ((data & 0xf2ff) == 0xf28e && !call_stack.empty()) call_stack.pop_back();
         // RT / RTI
@@ -535,7 +538,7 @@ void core_step_loop(std::atomic<bool>& stop) {
 
     clock_gettime(CLOCK_MONOTONIC, &last_ins_time);
 
-    while (!stop.load()) {
+    while (!stop.load() && !mcuptr->single_step) {
         double interval = 1.0 / (1024 * mcuptr->cps_multiplier);
         clock_gettime(CLOCK_MONOTONIC, &current_time);
         delta_time = (current_time.tv_sec - last_ins_time.tv_sec) + (current_time.tv_nsec - last_ins_time.tv_nsec) / 1e9;

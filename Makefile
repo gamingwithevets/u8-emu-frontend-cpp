@@ -10,6 +10,8 @@ LDFLAGS_DEBUG := -static-libstdc++ -lSDL3 -lSDL3_image -luser32 -lgdi32 -ldxguid
 
 SRCS_CPP_DEBUG := \
     config/settings.cpp \
+    disas/disas.cpp \
+    gui/disasdisp.cpp \
     gui/rominfo.cpp \
     gui/startupui.cpp \
     imgui/imgui.cpp \
@@ -53,6 +55,8 @@ LDFLAGS_RELEASE := -static-libstdc++ -s -lSDL3 -lSDL3_image -luser32 -lgdi32 -lw
 
 SRCS_CPP_RELEASE := \
     config/settings.cpp \
+    disas/disas.cpp \
+    gui/disasdisp.cpp \
     gui/rominfo.cpp \
     gui/startupui.cpp \
     imgui/imgui.cpp \
@@ -96,6 +100,8 @@ LDFLAGS_RELEASE_LINUX := -static-libstdc++ -lSDL3 -lSDL3_image
 
 SRCS_CPP_RELEASE_LINUX := \
     config/settings.cpp \
+    disas/disas.cpp \
+    gui/disasdisp.cpp \
     gui/rominfo.cpp \
     gui/startupui.cpp \
     imgui/imgui.cpp \

@@ -136,6 +136,7 @@ std::optional<std::string> get_instruction_label(std::map<uint32_t, Label>& labe
     return result;
 }
 
+// Ditto, but with address
 std::string get_instruction_label2(std::map<uint32_t, Label>& labels, uint8_t csr, uint16_t pc) {
     std::string addr_fmt = std::format("{:X}:{:04X}H", csr, pc);
     auto label = get_instruction_label(labels, (csr << 16) | pc);
@@ -262,7 +263,7 @@ int main(int argc, char* argv[]) {
     return 0;
 #endif
 
-    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+    if (!SDL_Init(SDL_INIT_VIDEO)) {
         std::cerr << "Failed to initialize SDL. SDL_Error: " << SDL_GetError() << std::endl;
         return -1;
     }
@@ -422,7 +423,6 @@ int main(int argc, char* argv[]) {
     MCU mcu(&core, &config, rom, flash, ram, ramstart, ramsize, w, h);
 
     bool quit = false;
-    bool single_step = false;
     std::atomic<bool> stop = false;
     static MemoryEditor ramedit{};
     static MemoryEditor sfredit{};
@@ -565,15 +565,15 @@ int main(int argc, char* argv[]) {
             else if (e.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED) quit = true;
         }
 
-        if (single_step && !stop.load())
+        if (mcu.single_step && !stop.load())
             if (cs_thread.joinable()) {
                 stop = true;
                 cs_thread.join();
             }
-        if (!single_step && stop.load()) cs_thread = std::thread(core_step_loop, std::ref(stop));
+        if (!mcu.single_step && stop.load()) cs_thread = std::thread(core_step_loop, std::ref(stop));
         /*if (stop.load() && cs_thread.joinable()) {
             cs_thread.join();
-            single_step = true;
+            mcu.single_step = true;
         }*/
 
         if (config.hardware_id != HW_TI_MATHPRINT) {
@@ -745,7 +745,7 @@ int main(int argc, char* argv[]) {
             ImGui::TableSetColumnIndex(0);
             ImGui::Text("Instructions per second");
             ImGui::TableNextColumn();
-            if (single_step) ImGui::Text("[Single-step enabled.]");
+            if (mcu.single_step) ImGui::Text("[Single-step enabled.]");
             else if (mcu.paused) ImGui::Text("[Execution paused.]");
             else ImGui::Text("%.1f IPS", mcu.ips);
 
@@ -953,8 +953,10 @@ int main(int argc, char* argv[]) {
                 ImGui::Text("P%d%d%d", set_p[2], set_p[1], set_p[0]);
                 ImGui::Text("  2   1   0");
             }
+            bool single_step = mcu.single_step;
             ImGui::Checkbox(get_strloc(s_options_mcu_pause), &single_step);
-            if (single_step && ImGui::Button(get_strloc(s_options_mcu_step))) mcu.core_step();
+            mcu.single_step = single_step;
+            if (mcu.single_step && ImGui::Button(get_strloc(s_options_mcu_step))) mcu.core_step();
             if (ImGui::Button(get_strloc(s_options_mcu_resetfull))) {
                 flush_ram(mcu.ram, ramsize, config.real_hardware);
                 mcu.reset();
@@ -1049,7 +1051,7 @@ int main(int argc, char* argv[]) {
         fps = (b > 0) ? 1000.0f / b : 0.0f;
     }
 
-    if (!single_step && cs_thread.joinable()) {
+    if (!mcu.single_step && cs_thread.joinable()) {
         stop = true;
         cs_thread.join();
     }

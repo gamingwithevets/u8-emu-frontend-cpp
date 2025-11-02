@@ -1,6 +1,6 @@
 /*
     u8-emu-frontend-cpp BCD emulation for CW
-    Copyright (C) 2024  Xyzstkc
+    Copyright (C) 2024  Xyzstk
     Copyright (C) 2024-2025  GamingWithEvets Inc.
 
     This program is free software: you can redistribute it and/or modify
@@ -54,8 +54,8 @@ uint8_t bcdmcr(MCU *mcu, uint16_t addr, uint8_t val) {
 }
 
 uint8_t bcdflg(MCU *mcu, uint16_t addr, uint8_t val) {
-    mcu->bcd->carry = val & 0x80;
-    mcu->bcd->zero = val & 0x40;
+    mcu->bcd->carry = (val & 0x80) != 0;
+    mcu->bcd->zero = (val & 0x40) != 0;
     return val & 0b11000000;
 }
 
@@ -79,6 +79,14 @@ BCD::BCD(class MCU *mcu) {
 }
 
 void BCD::tick() {
+	uint8_t bcdflg = (carry ? 0x80 : 0) | (zero ? 0x40 : 0);
+	if (mcu->sfr[0x410] != bcdflg) {
+		mcu->sfr[0x410] = bcdflg;
+#ifdef BCDDEBUG
+		printf("[BCD] Set BCDFLG to 0x%02X.\n", mcu->sfr[0x410]);
+#endif
+	}
+
     if (!macro_running) return;
 
     fetch:
@@ -153,6 +161,7 @@ void BCD::reset() {
     pgm_counter = 0;
 }
 
+#ifdef BCDDEBUG
 void fmtreg(uint8_t array[12], char *hex_str) {
     int j = 0;
     bool k = false;
@@ -165,6 +174,7 @@ void fmtreg(uint8_t array[12], char *hex_str) {
         } else j += sprintf(hex_str + j, "%02X", array[11-i]);
     }
 }
+#endif
 
 void BCD::run_command(uint8_t cmd) {
 	mcu->sfr[0x400] = cmd;
@@ -301,7 +311,7 @@ void BCD::run_command(uint8_t cmd) {
 
 #ifdef BCDDEBUG
     char result[25]; fmtreg(bcdreg[dst], result);
-    if (!nop) printf("Result: %s = %s\n", _dst, result);
+    if (!nop) printf("Result: %s = %s; Carry = %d; Zero = %d\n", _dst, result, carry, zero);
 #endif // BCDDEBUG
 }
 
@@ -310,8 +320,7 @@ void BCD::start_macro(uint8_t index) {
 	if (index > 0x0F) {
 		curr_pgm = nullptr;
 		pgm_counter = 0;
-	}
-	else {
+	} else {
 		curr_pgm = (uint16_t *)pgm_ptr[index];
 		pgm_counter = pgm_entry[index];
 		if (index & 8) {
@@ -336,14 +345,11 @@ void BCD::shift_left(uint8_t src, uint8_t dst, bool continuous) {
 	if (!src) {
 		for (int i = 11; i > 0; i--) bcdreg[dst][i] = (bcdreg[dst][i] << 4) | (bcdreg[dst][i - 1] >> 4);
 		bcdreg[dst][0] = (bcdreg[dst][0] << 4) | (continuous ? (bcdreg[(dst + 3) & 3][11] >> 4) : 0);
-	}
-	else {
+	} else {
 		int size = 1 << (src - 1);
 		memmove(bcdreg[dst] + size, bcdreg[dst], 12 - size);
-		if (continuous)
-			memcpy(bcdreg[dst], bcdreg[(dst + 3) & 3] + 12 - size, size);
-		else
-			memset(bcdreg[dst], 0, size);
+		if (continuous) memcpy(bcdreg[dst], bcdreg[(dst + 3) & 3] + 12 - size, size);
+		else memset(bcdreg[dst], 0, size);
 	}
 }
 
@@ -351,13 +357,10 @@ void BCD::shift_right(uint8_t src, uint8_t dst, bool continuous) {
 	if (!src) {
 		for (int i = 0; i < 11; i++) bcdreg[dst][i] = (bcdreg[dst][i] >> 4) | (bcdreg[dst][i + 1] << 4);
 		bcdreg[dst][11] = (bcdreg[dst][11] >> 4) | (continuous ? (bcdreg[(dst + 1) & 3][0] << 4) : 0);
-	}
-	else {
+	} else {
 		int size = 1 << (src - 1);
 		memmove(bcdreg[dst], bcdreg[dst] + size, 12 - size);
-		if (continuous)
-			memcpy(bcdreg[dst] + 12 - size, bcdreg[(dst + 1) & 3], size);
-		else
-			memset(bcdreg[dst] + 12 - size, 0, size);
+		if (continuous) memcpy(bcdreg[dst] + 12 - size, bcdreg[(dst + 1) & 3], size);
+		else memset(bcdreg[dst] + 12 - size, 0, size);
 	}
 }

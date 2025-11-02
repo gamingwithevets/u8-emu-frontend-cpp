@@ -19,19 +19,21 @@ void load_labels(std::ifstream& f, uint32_t start, std::map<uint32_t, Label>* la
     std::vector<std::vector<std::string>> label_data;
 
     std::string line;
-    while (std::getline(f, line)) {
-        std::istringstream iss(line);
-        std::string word;
-        std::vector<std::string> words;
-        while (iss >> word) {
-            word = word.substr(0, word.find("#"));
-            if (word.empty()) break;
-            words.push_back(word);
-        }
-        if (!words.empty()) {
-            label_data.push_back(words);
-        }
-    }
+	while (std::getline(f, line)) {
+		line = line.substr(0, line.find('#'));
+
+		std::istringstream iss(line);
+		std::string word;
+		std::vector<std::string> words;
+
+		while (iss >> word) {
+			words.push_back(word);
+		}
+
+		if (!words.empty()) {
+			label_data.push_back(words);
+		}
+	}
     f.close();
 
     uint32_t curr_func = 0;
@@ -41,7 +43,7 @@ void load_labels(std::ifstream& f, uint32_t start, std::map<uint32_t, Label>* la
                 if (data[0].rfind("f_", 0) == 0) {
                     uint32_t addr = std::stoi(data[0].substr(2), nullptr, 16) - start;
                     if (labels->find(addr) != labels->end()) {
-                        std::cerr << std::format("Duplicate function label {:05X}, skipping\n", addr);
+                        std::cerr << std::format("[labeltool] Duplicate function label {:05X}, skipping\n", addr);
                     } else {
                         (*labels)[addr] = {data[1], true, 0, {}};
                         curr_func = addr;
@@ -49,14 +51,14 @@ void load_labels(std::ifstream& f, uint32_t start, std::map<uint32_t, Label>* la
                 } else if (data[0].rfind(".l_", 0) == 0) {
                     uint32_t addr = curr_func + std::stoi(data[0].substr(3), nullptr, 16) - start;
                     if (labels->find(addr) != labels->end()) {
-                        std::cerr << "Duplicate local label " << std::hex << curr_func << "+" << std::stoi(data[0].substr(3), nullptr, 16) << ", skipping\n";
+                        std::cerr << "[labeltool] Duplicate local label " << std::hex << curr_func << "+" << std::stoi(data[0].substr(3), nullptr, 16) << ", skipping\n";
                     } else {
                         (*labels)[addr] = {data[1], false, static_cast<uint32_t>(curr_func), {}};
                     }
                 /*} else if (data[0].rfind("d_", 0) == 0) {
                     uint32_t addr = std::stoi(data[0].substr(2), nullptr, 16);
                     if (data_labels->find(addr) != data_labels->end()) {
-                        std::cerr << std::format("Duplicate data label {:05X}, skipping\n", addr);
+                        std::cerr << std::format("[labeltool] Duplicate data label {:05X}, skipping\n", addr);
                     } else {
                         (*data_labels)[addr] = data[1];
                     }
@@ -66,7 +68,7 @@ void load_labels(std::ifstream& f, uint32_t start, std::map<uint32_t, Label>* la
                         uint32_t addr = std::stoi(data[0], &idx, 16) - start;
                         if (idx < 5) continue;//throw std::runtime_error("a");
                         if (labels->find(addr) != labels->end()) {
-                            std::cerr << std::format("Duplicate function label {:05X}, skipping\n", addr);
+                            std::cerr << std::format("[labeltool] Duplicate function label {:05X}, skipping\n", addr);
                         } else {
                             (*labels)[addr] = {data[1], true, 0, {}};
                             curr_func = addr;
@@ -79,23 +81,23 @@ void load_labels(std::ifstream& f, uint32_t start, std::map<uint32_t, Label>* la
                             if (it != data_labels->end() && std::isdigit(s1.c_str()[0])) {
                                 if (0 <= std::stoi(s1) && std::stoi(s1) <= 7) {
                                     if (data_bit_labels->find(data[0]) != data_bit_labels->end()) {
-                                        std::cerr << "Duplicate bit data label " << data[0] << ", skipping\n";
+                                        std::cerr << "[labeltool] Duplicate bit data label " << data[0] << ", skipping\n";
                                     } else {
                                         (*data_bit_labels)[data[0]] = data[1];
                                     }
                                 } else {
-                                    std::cerr << "Invalid bit data label " << data[0] << ", skipping\n";
+                                    std::cerr << "[labeltool] Invalid bit data label " << data[0] << ", skipping\n";
                                 }
                             } else {
-                                std::cerr << "Invalid label " << data[0] << ", skipping\n";
+                                std::cerr << "[labeltool] Invalid label " << data[0] << ", skipping\n";
                             }
                         } else {
-                            std::cerr << "Invalid label " << data[0] << ", skipping\n";
+                            std::cerr << "[labeltool] Invalid label " << data[0] << ", skipping\n";
                         }*/
                     }
                 }
             } catch (const std::exception& e) {
-                std::cerr << "Exception occurred: " << e.what() << "\n";
+                std::cerr << "[labeltool] Exception occurred: " << e.what() << "\n";
             }
         }
     }
