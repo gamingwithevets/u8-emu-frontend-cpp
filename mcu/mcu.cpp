@@ -467,6 +467,9 @@ void MCU::core_step() {
             if (this->core->last_read_size)
                 for (int i = 0; i < this->core->last_read_size; i++) {
                     if (this->core->last_read+i >= ramstart && this->core->last_read+i <= 0xffff) continue;
+                    if (config->hardware_id == HW_ES && config->is_5800p) {
+						if (this->core->last_read+i >> 16 >= 1 && this->core->last_read+i >> 16 < 0xc) continue;
+                    } else if (this->core->last_read+i >> 16 >= 1) continue;
                     if (wanted_sfrs.find(this->core->last_read+i) == wanted_sfrs.end()) wanted_sfrs.insert({this->core->last_read, {0, 0}});
                     ++wanted_sfrs[this->core->last_read+i].read;
                 }
@@ -474,6 +477,9 @@ void MCU::core_step() {
             if (this->core->last_write_size)
                 for (int i = 0; i < this->core->last_write_size; i++) {
                     if (this->core->last_write+i >= ramstart && this->core->last_write+i <= 0xffff) continue;
+                    if (config->hardware_id == HW_ES && config->is_5800p) {
+						if (this->core->last_write+i >> 16 >= 1 && this->core->last_write+i >> 16 < 0xc) continue;
+                    } else if (this->core->last_write+i >> 16 >= 1) continue;
                     //printf("Write: %05X, %X:%04XH\n", this->core->last_write, this->core->regs.csr, this->core->regs.pc);
                     if (wanted_sfrs.find(this->core->last_write+i) == wanted_sfrs.end()) wanted_sfrs.insert({this->core->last_write, {0, 0}});
                     ++wanted_sfrs[this->core->last_write+i].write;

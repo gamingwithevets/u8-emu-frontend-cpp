@@ -40,6 +40,10 @@ uint8_t sbycon(MCU *mcu, uint16_t addr, uint8_t val) {
             if (!mcu->config->real_hardware && mcu->config->hardware_id != HW_TI_MATHPRINT) {
                 *mcu->keyboard->emu_kb.ES_KIADR = 0;
                 *mcu->keyboard->emu_kb.ES_KOADR = 0;
+                if (*mcu->keyboard->emu_kb.ES_STOPTYPEADR != ES_STOP_GETKEY) {
+					mcu->sfr[0x20] = 1;
+					mcu->sfr[0x21] = 0;
+                }
             }
         }
     }

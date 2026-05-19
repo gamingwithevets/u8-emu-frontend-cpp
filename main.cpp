@@ -956,7 +956,10 @@ int main(int argc, char* argv[]) {
             bool single_step = mcu.single_step;
             ImGui::Checkbox(get_strloc(s_options_mcu_pause), &single_step);
             mcu.single_step = single_step;
-            if (mcu.single_step && ImGui::Button(get_strloc(s_options_mcu_step))) mcu.core_step();
+            if (mcu.single_step && ImGui::Button(get_strloc(s_options_mcu_step))) {
+				mcu.core_step();
+				JumpTo((mcu.core->regs.csr << 16) | mcu.core->regs.pc);
+            }
             if (ImGui::Button(get_strloc(s_options_mcu_resetfull))) {
                 flush_ram(mcu.ram, ramsize, config.real_hardware);
                 mcu.reset();

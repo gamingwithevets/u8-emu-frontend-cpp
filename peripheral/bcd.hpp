@@ -23,6 +23,20 @@
 #include "../config/config.hpp"
 
 class BCD {
+    struct BitFlag {
+        BCD* bcd;
+        size_t index;
+        uint8_t mask;
+
+        BitFlag(BCD* o, size_t i, uint8_t m) : bcd(o), index(i), mask(m) {}
+        BitFlag& operator=(bool v);
+        BitFlag(const BitFlag&) = delete;
+        BitFlag& operator=(const BitFlag&) = delete;
+        operator bool() const;
+		operator int() const;
+		bool operator!() const;
+    };
+
     class MCU *mcu;
     struct Config *config;
 
@@ -30,7 +44,7 @@ class BCD {
 
     uint8_t bcdmcn;
 public:
-    bool carry, zero, macro_running;
+    BitFlag carry, zero, macro_running;
     uint8_t bcdcmd_req, bcdmcr_req;
     bool bcdcmd_pend, bcdmcr_pend;
 

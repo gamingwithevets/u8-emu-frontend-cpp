@@ -1,20 +1,20 @@
 /*
-    u8-emu-frontend-cpp BCD emulation for CW
-    Copyright (C) 2024  Xyzstk
-    Copyright (C) 2024-2025  GamingWithEvets Inc.
+	u8-emu-frontend-cpp BCD emulation for CW
+	Copyright (C) 2024  Xyzstk
+	Copyright (C) 2024-2025  GamingWithEvets Inc.
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+	This program is free software: you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation, either version 3 of the License, or
+	(at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+	You should have received a copy of the GNU General Public License
+	along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 #include <cstdio>
 #include <cstdint>
@@ -25,154 +25,193 @@
 #include "../config/config.hpp"
 #include "bcd.hpp"
 
+inline BCD::BitFlag &BCD::BitFlag::operator=(bool v) {
+	if (v) {
+#ifdef BCDDEBUG
+		if (index == 0x405) printf("[BCD] BCDMCR set\n");
+#endif
+		bcd->mcu->sfr[index] |= mask;
+	} else
+		bcd->mcu->sfr[index] &= ~mask;
+	return *this;
+}
+
+inline BCD::BitFlag::operator bool() const {
+	return (bcd->mcu->sfr[index] & mask) != 0;
+}
+
+inline BCD::BitFlag::operator int() const {
+	return (bcd->mcu->sfr[index] & mask) ? 1 : 0;
+}
+
+bool BCD::BitFlag::operator!() const {
+	return !static_cast<bool>(*this);
+}
+
 uint8_t bcdcmd(MCU *mcu, uint16_t addr, uint8_t val) {
-    BCD *bcd = mcu->bcd;
-    bcd->bcdcmd_req = val;
-    if (!bcd->macro_running) bcd->run_command(val);
-    else {
-        mcu->paused = true;
-        bcd->bcdcmd_pend = true;
-    }
-    return val;
+	BCD *bcd = mcu->bcd;
+	bcd->bcdcmd_req = val;
+	if (!bcd->macro_running) bcd->run_command(val);
+	else {
+		mcu->paused = true;
+		bcd->bcdcmd_pend = true;
+	}
+	return val;
 }
 
 uint8_t bcdcon(MCU *mcu, uint16_t, uint8_t val) {
-    if (val < 1) return 1;
-    if (val > 6) return 6;
-    return val;
+	val &= 0xf;
+	if (val < 1) return 1;
+	if (val > 6) return 6;
+	return val;
 }
 
 uint8_t bcdmcr(MCU *mcu, uint16_t addr, uint8_t val) {
-    BCD *bcd = mcu->bcd;
-    bcd->bcdmcr_req = val;
-    if (!bcd->macro_running) bcd->start_macro(val);
-    else {
-        mcu->paused = true;
-        bcd->bcdmcr_pend = true;
-    }
-    return val;
+	BCD *bcd = mcu->bcd;
+	bcd->bcdmcr_req = val;
+	if (!bcd->macro_running) bcd->start_macro(val);
+	else {
+		mcu->paused = true;
+		bcd->bcdmcr_pend = true;
+	}
+	return mcu->sfr[0x405];
 }
 
 uint8_t bcdflg(MCU *mcu, uint16_t addr, uint8_t val) {
-    mcu->bcd->carry = (val & 0x80) != 0;
-    mcu->bcd->zero = (val & 0x40) != 0;
-    return val & 0b11000000;
+	mcu->bcd->carry = (val & 0x80) != 0;
+	mcu->bcd->zero =  (val & 0x40) != 0;
+#ifdef BCDDEBUG
+	printf("[BCD] Flags set: Carry = %s; Zero = %s\n", (val & 0x80) ? "true" : "false", (val & 0x40) ? "true" : "false");
+#endif // BCDDEBUG
+	return val & 0b11000000;
 }
 
-BCD::BCD(class MCU *mcu) {
-    this->mcu = mcu;
-    this->config = mcu->config;
+BCD::BCD(class MCU *mcu)
+	: carry(this, 0x410, 0x80),
+	  zero(this, 0x410, 0x40),
+	  macro_running(this, 0x405, 0x80) {
+	this->mcu = mcu;
+	this->config = mcu->config;
 
-    if (config->hardware_id != HW_CLASSWIZ_CW) return;
+	if (config->hardware_id != HW_CLASSWIZ_CW) return;
 
-    register_sfr(0x400, 1, &bcdcmd);
-    register_sfr(0x402, 1, &bcdcon);
-    register_sfr(0x404, 1, &default_write<0x1f>);
-    register_sfr(0x405, 1, &bcdmcr);
-    register_sfr(0x410, 1, &bcdflg);
+	register_sfr(0x400, 1, &bcdcmd);
+	register_sfr(0x402, 1, &bcdcon);
+	register_sfr(0x404, 1, &default_write<0x1f>);
+	register_sfr(0x405, 1, &bcdmcr);
+	register_sfr(0x410, 1, &bcdflg);
 
-    for (char i = 0; i < 4; i++) {
-        uint16_t addr = 0x480+i*0x20;
-        register_sfr(addr, 12, &default_write<0xff>);
-        bcdreg[i] = &mcu->sfr[addr];
-    }
+	for (char i = 0; i < 4; i++) {
+		uint16_t addr = 0x480+i*0x20;
+		register_sfr(addr, 12, &default_write<0xff>);
+		bcdreg[i] = &mcu->sfr[addr];
+	}
 }
 
 void BCD::tick() {
-	uint8_t bcdflg = (carry ? 0x80 : 0) | (zero ? 0x40 : 0);
+/*	uint8_t bcdflg = (carry ? 0x80 : 0) | (zero ? 0x40 : 0);
 	if (mcu->sfr[0x410] != bcdflg) {
 		mcu->sfr[0x410] = bcdflg;
 #ifdef BCDDEBUG
 		printf("[BCD] Set BCDFLG to 0x%02X.\n", mcu->sfr[0x410]);
 #endif
+	}*/
+
+	if (!macro_running) return;
+
+fetch:
+	if (!curr_pgm) {
+#ifdef BCDDEBUG
+		printf("[BCD] WARNING: Attempted to run macro, but program not set!\n");
+#endif // BCDDEBUG
+		return;
+	}
+	uint16_t inst = curr_pgm[pgm_counter];
+	uint8_t offset = (inst >> 8) & 0x1F;
+	uint8_t cond = 0;
+
+	switch (inst >> 13) {
+	case 0:
+		pgm_counter = offset;
+		break;
+	case 1:
+		pgm_counter = (pgm_counter + offset) & 0x1F;
+		break;
+	case 2:
+		pgm_counter++;
+		cond = 1;
+		break;
+	case 3:
+		pgm_counter++;
+		cond = 2;
+		break;
+	case 4:
+		pgm_counter = ((bcdreg[0][0] & 0x0F) + offset) & 0x1F;
+		break;
+	case 5:
+		bcdreg[0][0] = (bcdreg[0][0] & 0xF0) | (pgm_counter & 0x0F);
+		pgm_counter = offset;
+		if (--bcdmcn) goto fetch;
+		macro_running = false;
+		break;
+	case 6:
+		bcdmcn -= offset;
+		pgm_counter &= 0xFC;
+		if (bcdmcn & 0xF8) pgm_counter |= 3;
+		else if (bcdmcn & 0x04) pgm_counter |= 2;
+		else if (bcdmcn & 0x02) pgm_counter |= 1;
+		else if (!bcdmcn) macro_running = false;
+		break;
+	case 7:
+		pgm_counter = offset;
+		if (--bcdmcn) goto fetch;
+		macro_running = false;
+		break;
 	}
 
-    if (!macro_running) return;
+	run_command(inst & 0xFF);
+	if (cond && ((cond & 1) ^ carry)) pgm_counter = offset;
 
-    fetch:
-    uint16_t inst = curr_pgm[pgm_counter];
-    uint8_t offset = (inst >> 8) & 0x1F;
-    uint8_t cond = 0;
-
-    switch (inst >> 13) {
-    case 0:
-        pgm_counter = offset;
-        break;
-    case 1:
-        pgm_counter = (pgm_counter + offset) & 0x1F;
-        break;
-    case 2:
-        pgm_counter++;
-        cond = 1;
-        break;
-    case 3:
-        pgm_counter++;
-        cond = 2;
-        break;
-    case 4:
-        pgm_counter = ((bcdreg[0][0] & 0x0F) + offset) & 0x1F;
-        break;
-    case 5:
-        bcdreg[0][0] = (bcdreg[0][0] & 0xF0) | (pgm_counter & 0x0F);
-        pgm_counter = offset;
-        if (--bcdmcn) goto fetch;
-        macro_running = false;
-        break;
-    case 6:
-        bcdmcn -= offset;
-        pgm_counter &= 0xFC;
-        if (bcdmcn & 0xF8) pgm_counter |= 3;
-        else if (bcdmcn & 0x04) pgm_counter |= 2;
-        else if (bcdmcn & 0x02) pgm_counter |= 1;
-        else if (!bcdmcn) macro_running = false;
-        break;
-    case 7:
-        pgm_counter = offset;
-        if (--bcdmcn) goto fetch;
-        macro_running = false;
-        break;
-    }
-
-    run_command(inst & 0xFF);
-    if (cond && ((cond & 1) ^ carry)) pgm_counter = offset;
-
-    if (!macro_running) {
-        if (bcdcmd_pend) {
-            mcu->paused = false;
-            bcdcmd_pend = false;
-            run_command(bcdcmd_req);
-        }
-        if (bcdmcr_pend) {
-            mcu->paused = false;
-            bcdmcr_pend = false;
-            start_macro(bcdmcr_req);
-        }
-    }
+	if (!macro_running) {
+		if (bcdcmd_pend) {
+			mcu->paused = false;
+			bcdcmd_pend = false;
+			run_command(bcdcmd_req);
+		}
+		if (bcdmcr_pend) {
+			mcu->paused = false;
+			bcdmcr_pend = false;
+			start_macro(bcdmcr_req);
+		}
+	}
 }
 
 void BCD::reset() {
-    mcu->sfr[0x400] = mcu->sfr[0x404] = mcu->sfr[0x414] = mcu->sfr[0x415] = 0;
-    mcu->sfr[0x402] = 6;
+	mcu->sfr[0x400] = mcu->sfr[0x404] = mcu->sfr[0x414] = mcu->sfr[0x415] = 0;
+	mcu->sfr[0x402] = 6;
 
-    bcdcmd_req = bcdmcr_req = 0;
-    carry = zero = macro_running = bcdcmd_pend = bcdmcr_pend = false;
+	bcdcmd_req = bcdmcr_req = 0;
+	carry = false;
+	zero = false;
+	macro_running = false;
+	bcdcmd_pend = bcdmcr_pend = false;
 
-    curr_pgm = nullptr;
-    pgm_counter = 0;
+	curr_pgm = nullptr;
+	pgm_counter = 0;
 }
 
 #ifdef BCDDEBUG
 void fmtreg(uint8_t array[12], char *hex_str) {
-    int j = 0;
-    bool k = false;
+	int j = 0;
+	bool k = false;
 
-    for (int i = 0; i < 12; i++) {
-        if (!k) {
-            if (!array[11-i] && i != 11) continue;
-            j += sprintf(hex_str + j, "%X", array[11-i]);
-            k = true;
-        } else j += sprintf(hex_str + j, "%02X", array[11-i]);
-    }
+	for (int i = 0; i < 12; i++) {
+		if (!k) {
+			if (!array[11-i] && i != 11) continue;
+			j += sprintf(hex_str + j, "%X", array[11-i]);
+			k = true;
+		} else j += sprintf(hex_str + j, "%02X", array[11-i]);
+	}
 }
 #endif
 
@@ -182,54 +221,54 @@ void BCD::run_command(uint8_t cmd) {
 	bool arithmetic_mode = (op & 0x08) == 0;
 	int calc_ptr = (op >= 8 || op == 1 || op == 2) ? 0 : (op == 7 ? 2 : 6);
 #ifdef BCDDEBUG
-    printf("[BCD] Ran command: ");
-    char _dst[8]; sprintf(_dst, "BCDREG%c", 0x41+dst);
-    char _src[8]; sprintf(_src, "BCDREG%c", 0x41+src);
-    char __dst[25]{}; fmtreg(bcdreg[dst], __dst);
-    char __src[25]{}; fmtreg(bcdreg[src], __src);
-    bool nop = false;
-    switch (op) {
-    case 0:
-        printf("NOP");
-        nop = true;
-        break;
-    case 1:
-        printf("ADD %s, %s (%s = %s, %s = %s)", _dst, _src, _dst, __dst, _src, __src);
-        break;
-    case 2:
-        printf("SUB %s, %s (%s = %s, %s = %s)", _dst, _src, _dst, __dst, _src, __src);
-        break;
-    case 7:
-        printf("ADDC %s, %s (%s = %s, %s = %s) [!]", _dst, _src, _dst, __dst, _src, __src);
-        break;
-    case 8:
-        printf("SLL %s, #%d (%s = %s)", _dst, 1<<src, _dst, __dst);
-        break;
-    case 9:
-        printf("SRL %s, #%d (%s = %s)", _dst, 1<<src, _dst, __dst);
-        break;
-    case 0xa:
-        printf("MOV %s, #%d", _dst, src == 3 ? 5 : src);
-        break;
-    case 0xb:
-        printf("MOV %s, %s (%s)", _dst, _src, __src);
-        break;
-    case 0xc:
-        printf("SLX %s, #%d (%s = %s)", _dst, 1<<src, _dst, __dst);
-        break;
-    case 0xd:
-        printf("SRX %s, #%d (%s = %s)", _dst, 1<<src, _dst, __dst);
-        break;
-    case 0xf:
-        printf("MOV %s, #0 [!]", _dst);
-        break;
-    default:
-        printf("NOP [!]");
-        nop = true;
-        break;
-    }
+	printf("[BCD] Ran command: ");
+	char _dst[8]; sprintf(_dst, "BCDREG%c", 0x41+dst);
+	char _src[8]; sprintf(_src, "BCDREG%c", 0x41+src);
+	char __dst[25]{}; fmtreg(bcdreg[dst], __dst);
+	char __src[25]{}; fmtreg(bcdreg[src], __src);
+	bool nop = false;
+	switch (op) {
+	case 0:
+		printf("NOP");
+		nop = true;
+		break;
+	case 1:
+		printf("ADD %s, %s (%s = %s, %s = %s)", _dst, _src, _dst, __dst, _src, __src);
+		break;
+	case 2:
+		printf("SUB %s, %s (%s = %s, %s = %s)", _dst, _src, _dst, __dst, _src, __src);
+		break;
+	case 7:
+		printf("ADDC %s, %s (%s = %s, %s = %s) [!]", _dst, _src, _dst, __dst, _src, __src);
+		break;
+	case 8:
+		printf("SLL %s, #%d (%s = %s)", _dst, 1<<src, _dst, __dst);
+		break;
+	case 9:
+		printf("SRL %s, #%d (%s = %s)", _dst, 1<<src, _dst, __dst);
+		break;
+	case 0xa:
+		printf("MOV %s, #%d", _dst, src == 3 ? 5 : src);
+		break;
+	case 0xb:
+		printf("MOV %s, %s (%s)", _dst, _src, __src);
+		break;
+	case 0xc:
+		printf("SLX %s, #%d (%s = %s)", _dst, 1<<src, _dst, __dst);
+		break;
+	case 0xd:
+		printf("SRX %s, #%d (%s = %s)", _dst, 1<<src, _dst, __dst);
+		break;
+	case 0xf:
+		printf("MOV %s, #0 [!]", _dst);
+		break;
+	default:
+		printf("NOP [!]");
+		nop = true;
+		break;
+	}
 
-    printf("\n");
+	printf("\n");
 #endif // BCDDEBUG
 	while (calc_ptr < 6) {
 		if (calc_ptr == 0) {
@@ -310,8 +349,8 @@ void BCD::run_command(uint8_t cmd) {
 	}
 
 #ifdef BCDDEBUG
-    char result[25]; fmtreg(bcdreg[dst], result);
-    if (!nop) printf("Result: %s = %s; Carry = %d; Zero = %d\n", _dst, result, carry, zero);
+	char result[25]; fmtreg(bcdreg[dst], result);
+	if (!nop) printf("      Result: %s = %s; Carry = %s; Zero = %s\n", _dst, result, carry ? "true" : "false", zero ? "true" : "false");
 #endif // BCDDEBUG
 }
 
@@ -329,13 +368,13 @@ void BCD::start_macro(uint8_t index) {
 			else if (bcdmcn & 0x02) pgm_counter |= 1;
 		}
 #ifdef BCDDEBUG
-        printf("[BCD] Started ");
-        if (curr_pgm == mul_pgm) printf("mul_pgm");
-        else if (curr_pgm == div_pgm) printf("div_pgm");
-        else if (curr_pgm == divsn_pgm) printf("divsn_pgm");
-        else if (curr_pgm == sft_pgm) printf("sft_pgm");
-        else printf("null");
-        printf(" with program counter = 0x%02X\n", pgm_counter);
+		printf("[BCD] Started ");
+		if (curr_pgm == mul_pgm) printf("mul_pgm");
+		else if (curr_pgm == div_pgm) printf("div_pgm");
+		else if (curr_pgm == divsn_pgm) printf("divsn_pgm");
+		else if (curr_pgm == sft_pgm) printf("sft_pgm");
+		else printf("null");
+		printf(" with program counter = 0x%02X\n", pgm_counter);
 #endif
 	}
 	if (curr_pgm != nullptr) macro_running = true;

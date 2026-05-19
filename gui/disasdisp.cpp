@@ -23,6 +23,8 @@
 #include "../disas/disas.hpp"
 #include "disasdisp.hpp"
 
+const int col_add = 10;
+
 CodeElem LookUp(uint32_t offset, int* idx) {
 	auto it = std::find_if(
 		codes.begin(), codes.end(), [&](const CodeElem& a) {
@@ -39,7 +41,7 @@ CodeElem LookUp(uint32_t offset, int* idx) {
 void JumpTo(uint32_t offset) {
 	int idx = 0;
 	LookUp(offset, &idx);
-	cur_col = idx+5;
+	cur_col = idx + col_add;
 	need_roll = true;
 }
 
@@ -49,7 +51,7 @@ bool TryTrigBP(uint8_t seg, uint16_t offset) {
             CodeElem e = codes[it->first];
             if (e.offset == (seg << 16) + offset) {
                 break_points[it->first] = 2;
-                cur_col = it->first + 5;
+                cur_col = it->first + col_add;
                 need_roll = true;
                 return true;
             }
