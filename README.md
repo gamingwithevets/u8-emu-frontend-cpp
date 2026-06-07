@@ -1,5 +1,6 @@
-Replacement to [u8-emu-frontend](https://github.com/gamingwithevets/u8-emu-frontend) written in Python.
-This new, fresh emulator built fully from scratch and written in C++ is faster than the previous Python-C hybrid version.
+u8-emu-frontend-cpp is a frontend for Fraserbc's [U8 core library](https://github.com/Fraserbc/u8_emu).
+
+Initially, it was developed as a replacement to [u8-emu-frontend](https://github.com/gamingwithevets/u8-emu-frontend), written in Python.
 
 This emulator uses the [`docking` branch of Dear ImGui](https://github.com/ocornut/imgui/tree/docking).
 
@@ -8,7 +9,7 @@ The Makefile has 5 targets:
 - `clean`: Clean all object files.
 - `all`: Everything below.
 - `release` and `release_linux`: Optimized build; recommended for building.  
-Note that, as of now, these two targets are seperate. `release` will only work on Windows, and `release_linux` will only work on Linux. This is subject to change in the future.
+  - Note that, as of now, these two targets are seperate. `release` will only work on Windows, and `release_linux` will only work on Linux. This is subject to change in the future.
 - `debug`: Unoptimized debug build. Windows only.
 
 ## Configuration
@@ -24,8 +25,8 @@ If the directory is not found, you need to specify the path to a configuration b
 
 ## Special thanks
 - [Xyzst](https://github.com/Xyzstk) - BCD emulation, low speed time base counter, watchdog timer
-- [telecomadm1145](https://github.com/telecomadm1145) - Startup UI, binary parser,
-- [Fraser Price / Delta / frsr](https://github.com/Fraserbc) - U8 core library
+- [telecomadm1145](https://github.com/telecomadm1145) - Startup UI, binary parser, disassembly listing
+- [Fraserbc](https://github.com/Fraserbc) - U8 core library
 - Other members of the [Casio Calculator Hacking community](http://discord.gg/QjGpH6rSQQ) - Documentation, research, and help
 
 ## License
