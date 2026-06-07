@@ -934,9 +934,8 @@ int main(int argc, char* argv[]) {
                 ImGui::Text(get_strloc(s_options_mcu_pmode));
                 ImGui::Spacing();
                 for (int i = 7; i >= 0; i--) {
-                    char a[3]; sprintf(a, "##%d", i);
                     ImGui::SameLine();
-                    ImGui::Checkbox(a, &set_p[i]);
+                    ImGui::Checkbox(strprintf("##%d", i), &set_p[i]);
                 }
                 ImGui::SameLine();
                 ImGui::Text("P%c", get_pmode(pd_value));
@@ -945,14 +944,27 @@ int main(int argc, char* argv[]) {
                 ImGui::Text(get_strloc(s_options_mcu_pmode));
                 ImGui::Spacing();
                 for (int i = 2; i >= 0; i--) {
-                    char a[3]; sprintf(a, "##%d", i);
                     ImGui::SameLine();
-                    ImGui::Checkbox(a, &set_p[i]);
+                    ImGui::Checkbox(strprintf("##%d", i), &set_p[i]);
                 }
                 ImGui::SameLine();
                 ImGui::Text("P%d%d%d", set_p[2], set_p[1], set_p[0]);
                 ImGui::Text("  2   1   0");
             }
+            if (!config.real_hardware && config.hardware_id != HW_TI_MATHPRINT) {
+				ImGui::Text("KO8 - KI");
+				for (int i = 7; i >= 4; i--) {
+					ImGui::SameLine();
+					if (ImGui::Button(strprintf("%d", i+1))) {
+						*mcu.keyboard->emu_kb.ES_KIADR = 1 << i;
+						*mcu.keyboard->emu_kb.ES_KOADR = 1 << 7;
+						mcu.standby->stop_mode = false;
+						mcu.paused = false;
+						mcu.keyboard->enable_keypress = false;
+					}
+				}
+            }
+            ImGui::Spacing();
             bool single_step = mcu.single_step;
             ImGui::Checkbox(get_strloc(s_options_mcu_pause), &single_step);
             mcu.single_step = single_step;
