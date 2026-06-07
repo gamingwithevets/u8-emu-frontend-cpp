@@ -21,7 +21,8 @@ jobs:
       artifact-name: u8-emu-frontend-cpp-win64
 
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout
+      uses: actions/checkout@v4
       with:
         token: ${{ secrets.MY_TOKEN }}
         submodules: recursive
@@ -70,15 +71,18 @@ jobs:
       artifact-name: u8-emu-frontend-cpp-linux
 
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout
+      uses: actions/checkout@v4
       with:
         token: ${{ secrets.MY_TOKEN }}
         submodules: recursive
     
     - name: Install build dependencies
       run: |
+        echo "deb http://archive.ubuntu.com/ubuntu/ resolute main universe" | sudo tee /etc/apt/sources.list.d/resolute.list
         sudo apt-get update
-        sudo apt-get install -y build-essential libsdl3-dev libsdl3-image-dev libpng-dev libjpeg-dev libtiff-dev libwebp-dev zlib1g-dev libzip-dev
+        sudo apt-get install -y build-essential libpng-dev libjpeg-dev libtiff-dev libwebp-dev zlib1g-dev libzip-dev
+        sudo apt-get install -y -t resolute libsdl3-dev libsdl3-image-dev
 
     - name: Compile
       run: make CXXFLAGS_EX="-DGITHUB_RUNID=${{ github.run_id }}" release_linux
@@ -98,14 +102,20 @@ jobs:
   release:
     runs-on: ubuntu-latest
     needs: [build-win64, build-linux]
+    if: |
+      always() && 
+      (needs.build-win64.result == 'success' || needs.build-linux.result == 'success')
+
     steps:
     - name: Download Windows artifact
+      if: needs.build-win64.result == 'success'
       uses: actions/download-artifact@v4
       with:
         name: u8-emu-frontend-cpp-win64
         path: u8-emu-frontend-cpp-win64
 
     - name: Download Linux artifact
+      if: needs.build-linux.result == 'success'
       uses: actions/download-artifact@v4
       with:
         name: u8-emu-frontend-cpp-linux
@@ -113,8 +123,9 @@ jobs:
 
     - name: Create ZIPs
       run: |
-        zip -r u8-emu-frontend-cpp-win64.zip u8-emu-frontend-cpp-win64
-        zip -r u8-emu-frontend-cpp-linux.zip u8-emu-frontend-cpp-linux
+        mkdir -p dist
+        if [ -d "./u8-emu-frontend-cpp-win64" ]; then zip -r dist/u8-emu-frontend-cpp-win64.zip u8-emu-frontend-cpp-win64; fi
+        if [ -d "./u8-emu-frontend-cpp-linux" ]; then zip -r dist/u8-emu-frontend-cpp-linux.zip u8-emu-frontend-cpp-linux; fi
 
     - name: Delete old release
       uses: larryjoelane/delete-release-action@v1.0.24
@@ -125,12 +136,10 @@ jobs:
     - name: Create new release
       uses: softprops/action-gh-release@v2
       with:
-        token: ${{ secrets.GITHUB_TOKEN }}
+        token: ${{ secrets.MY_TOKEN }}
         name: Continuous build
         tag_name: continuous
         body: "NOTE: This is a continuous release. Binaries are rebuilt automatically when changes are made."
-        files: |
-          u8-emu-frontend-cpp-win64.zip
-          u8-emu-frontend-cpp-linux.zip
+        files: dist/*
         draft: false
         make_latest: true

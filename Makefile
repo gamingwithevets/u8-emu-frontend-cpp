@@ -50,7 +50,7 @@ $(TARGET_DEBUG): $(OBJS_DEBUG)
 
 TARGET_RELEASE := bin/release/u8-emu-frontend-cpp.exe
 OBJDIR_RELEASE := obj/release/
-CXXFLAGS_RELEASE := -Wall -std=c++23 -fconcepts-diagnostics-depth=2 $(CXXFLAGS_EX) -O3
+CXXFLAGS_RELEASE := -Wall -std=c++23 -fconcepts-diagnostics-depth=2 $(CXXFLAGS_EX) -O2
 LDFLAGS_RELEASE := -static-libstdc++ -s -lSDL3 -lSDL3_image -luser32 -lgdi32 -lwinmm -ldbghelp -ldxguid
 
 SRCS_CPP_RELEASE := \
@@ -95,8 +95,8 @@ $(TARGET_RELEASE): $(OBJS_RELEASE)
 
 TARGET_RELEASE_LINUX := bin/release_linux/u8-emu-frontend-cpp
 OBJDIR_RELEASE_LINUX := obj/release_linux/
-CXXFLAGS_RELEASE_LINUX := -Wall -std=c++23 -fconcepts-diagnostics-depth=2 $(CXXFLAGS_EX) -g -O0 -DBCDDEBUG -DESSTOPDEBUG
-LDFLAGS_RELEASE_LINUX := -static-libstdc++ -lSDL3 -lSDL3_image
+CXXFLAGS_RELEASE_LINUX := -Wall -std=c++23 -fconcepts-diagnostics-depth=2 $(CXXFLAGS_EX) -O2
+LDFLAGS_RELEASE_LINUX := -static-libstdc++ -s -static-libstdc++ -static-libgcc -lSDL3 -lSDL3_image
 
 SRCS_CPP_RELEASE_LINUX := \
     config/settings.cpp \
@@ -146,13 +146,29 @@ release_linux: $(TARGET_RELEASE_LINUX)
 
 all: debug release release_linux
 
-$(OBJDIR_%)/%.o: %.cpp
+$(OBJDIR_DEBUG)/%.o: %.cpp
 	@mkdir -p $(dir $@)
-	$(CXX) $(CXXFLAGS_$*) -c $< -o $@
+	$(CXX) $(CXXFLAGS_DEBUG) -c $< -o $@
 
-$(OBJDIR_%)/%.o: %.c
+$(OBJDIR_DEBUG)/%.o: %.c
 	@mkdir -p $(dir $@)
-	$(CC) $(CXXFLAGS_$*) -c $< -o $@
+	$(CC) $(CXXFLAGS_DEBUG) -c $< -o $@
+
+$(OBJDIR_RELEASE)/%.o: %.cpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS_RELEASE) -c $< -o $@
+
+$(OBJDIR_RELEASE)/%.o: %.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CXXFLAGS_RELEASE) -c $< -o $@
+
+$(OBJDIR_RELEASE_LINUX)/%.o: %.cpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS_RELEASE_LINUX) -c $< -o $@
+
+$(OBJDIR_RELEASE_LINUX)/%.o: %.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CXXFLAGS_RELEASE_LINUX) -c $< -o $@
 
 clean:
 	rm -rf $(OBJDIR_DEBUG)
