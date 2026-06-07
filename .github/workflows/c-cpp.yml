@@ -90,7 +90,7 @@ jobs:
     - name: Prepare build artifact
       run: |
         mkdir -p dist/u8-emu-frontend-cpp
-        cp u8-emu-frontend-cpp dist/u8-emu-frontend-cpp/
+        cp bin/release/u8-emu-frontend-cpp dist/u8-emu-frontend-cpp/
         cp LICENSE dist/u8-emu-frontend-cpp/
 
     - name: Upload artifact
