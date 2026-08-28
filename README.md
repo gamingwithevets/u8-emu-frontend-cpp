@@ -1,3 +1,10 @@
+## We've moved!
+The project will continue on [Codeberg](https://codeberg.org/gwetm/u8-emu-frontend-cpp). See you there!
+
+This repository has also been archived, as a result.
+
+---
+
 u8-emu-frontend-cpp is a frontend for Fraserbc's [U8 core library](https://github.com/Fraserbc/u8_emu).
 
 Initially, it was developed as a replacement to [u8-emu-frontend](https://github.com/gamingwithevets/u8-emu-frontend), written in Python.
